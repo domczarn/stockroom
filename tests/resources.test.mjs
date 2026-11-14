@@ -1,0 +1,21 @@
+import assert from 'node:assert/strict';
+import vm from 'node:vm';
+import {readFileSync} from 'node:fs';
+import {validateWorkspace} from '../worker/security.js';
+const data=JSON.parse(readFileSync('web/resources-data.json','utf8'));
+assert.equal(new Set(data.map(r=>r.id)).size,data.length);assert.equal(new Set(data.map(r=>r.url)).size,data.length);
+for(const r of data){assert.equal(new URL(r.url).protocol,'https:');assert.ok(r.name&&r.description&&r.evidenceUrl&&r.checkedAt);assert.ok(r.score>=0&&r.score<=10);}
+const base={items:[],sales:[],expenses:[],research:[],sources:[]};
+const context=vm.createContext({URL,Number,Date,db:base,document:{addEventListener(){}}});vm.runInContext(readFileSync('web/resources.js','utf8'),context);
+assert.equal(context.resourceUrl('javascript:alert(1)'), '');assert.equal(context.resourceUrl('https://user:pass@example.com'),'');
+assert.equal(context.opportunityNumbers({price:100,shipping:20,target:180}).profit,60);
+assert.equal(context.opportunityNumbers({price:100,shipping:null,target:180}),null);
+assert.equal(context.opportunityNumbers({price:0,shipping:0,target:10}).roi,null);
+assert.equal(context.resourceMatches(data[0]),true);
+vm.runInContext("resourceSearch='whatnot';resourceCategory='Live auctions'",context);assert.equal(context.resourceMatches(data[0]),true);assert.equal(context.resourceMatches(data[4]),false);
+const directory={entries:{'resource-1':{favourite:true,status:'Researching',notes:'Trial bundle'}},opportunities:[{id:'opp1',url:'https://example.com/stock',name:'Trial box',seller:'Supplier',price:100,shipping:20,target:180,stage:'Researching',notes:'Unverified condition',discoveredAt:'2026-11-07'}]};
+validateWorkspace({...base,resourceDirectory:directory},'owner');
+assert.throws(()=>validateWorkspace({...base,resourceDirectory:{...directory,opportunities:[{...directory.opportunities[0],url:'javascript:alert(1)'}]}},'owner'));
+assert.throws(()=>validateWorkspace({...base,resourceDirectory:{...directory,opportunities:[{...directory.opportunities[0],price:-1}]}},'owner'));
+assert.throws(()=>validateWorkspace({...base,resourceDirectory:{...directory,entries:{'resource-1':{status:'Fake'}}}},'owner'));
+console.log(data.length+' unique HTTPS resources; filters, margin math and workspace validation passed');

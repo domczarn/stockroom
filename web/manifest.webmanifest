@@ -1,0 +1,18 @@
+{
+  "name": "Stockroom \u00b7 Booked & Paid",
+  "short_name": "Stockroom",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#302a3b",
+  "theme_color": "#302a3b",
+  "icons": [
+    {
+      "src": "/pip-icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

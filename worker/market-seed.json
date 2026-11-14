@@ -1,0 +1,36 @@
+{
+  "market": "Vinted UK",
+  "periodStart": "2026-09-25",
+  "periodEnd": "2026-10-24",
+  "checkedOn": "2026-11-05",
+  "source": {
+    "name": "ResellTrack · October 2026 Vinted Barometer",
+    "url": "https://reselltrack.io/en/vinted-barometer/2026-10",
+    "method": "Independent estimates of detected sales by UK-based sellers. Coverage can change between periods. Brand counts cover leading brands in selected categories. Prices are reported in GBP by the publisher."
+  },
+  "categories": [
+    {"rank":1,"name":"Women’s hoodies and sweatshirts","sales":728865,"price":9,"days":4.4,"sellThrough":48.6},
+    {"rank":2,"name":"Women’s coats and jackets","sales":681852,"price":12.11,"days":4.8,"sellThrough":47.3},
+    {"rank":3,"name":"Women’s tees and tops","sales":599944,"price":7.77,"days":4.9,"sellThrough":42.7},
+    {"rank":7,"name":"Men’s jumpers and sweatshirts","sales":326288,"price":11.66,"days":5.2,"sellThrough":48.2},
+    {"rank":8,"name":"Men’s coats and jackets","sales":325275,"price":19.44,"days":5.3,"sellThrough":49.7}
+  ],
+  "brands": [
+    {"rank":1,"name":"Nike","sales":310871,"price":17.51},
+    {"rank":2,"name":"Zara","sales":291444,"price":11.8},
+    {"rank":3,"name":"Marks & Spencer","sales":259913,"price":10.51},
+    {"rank":13,"name":"The North Face","sales":39003,"price":27.93},
+    {"rank":20,"name":"Ralph Lauren","sales":23768,"price":20.55}
+  ],
+  "segments": [
+    {"rank":2,"name":"Nike · men’s sportswear and accessories","sales":59265,"price":16.61},
+    {"rank":3,"name":"Zara · women’s coats and jackets","sales":58047,"price":18.21},
+    {"rank":5,"name":"adidas · women’s trainers","sales":55075,"price":24.6},
+    {"rank":6,"name":"Nike · men’s trainers","sales":53099,"price":33.07}
+  ],
+  "analysis": [
+    {"title":"High volume can still mean thin margins","body":"Women’s hoodies led detected sales in this sample at a £9 median. Sourcing at a low enough all-in cost matters more than the rank. Generic stock at that median leaves little room for a £15 target profit."},
+    {"title":"Compare men’s outerwear with knitwear","body":"Men’s coats and jackets and men’s jumpers and sweatshirts had similar detected volume. Outerwear’s median was £19.44 versus £11.66, with similar time to sell among detected sales. Check condition, season and postage on the exact item."},
+    {"title":"Use brand and category together","body":"Men’s Nike trainers averaged £33.07 versus £16.61 for men’s Nike sportswear and accessories in the tracked segments. For Ralph Lauren, the £20.55 tracked brand average is broad. Look for sold evidence on the same quarter-zip style, size and condition before paying a premium."}
+  ]
+}

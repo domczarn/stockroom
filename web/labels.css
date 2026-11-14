@@ -1,0 +1,43 @@
+.stock-print-label {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: minmax(0,1fr) 24mm;
+  align-items: center;
+  gap: 1.5mm;
+  width: 62mm;
+  height: 30mm;
+  padding: 2mm 2.5mm;
+  overflow: hidden;
+  background: #fff;
+  color: #000;
+  font-family: system-ui,sans-serif;
+  line-height: 1.1;
+}
+.stock-label-copy { display: flex; flex-direction: column; gap: 1mm; min-width: 0; }
+.stock-label-copy small { font-size: 6.3pt; font-weight: 700; letter-spacing: .25pt; }
+.stock-label-copy strong { font-size: 14pt; letter-spacing: -.3pt; }
+.stock-label-copy span { font-size: 8pt; }
+.stock-label-copy :is(strong,span) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stock-label-copy .label-location { font-size: 7pt; }
+.stock-print-label svg { display: block; width: 24mm; height: 24mm; shape-rendering: crispEdges; }
+.label-print-frame { position: fixed; top: 0; left: -10000px; width: 1px; height: 1px; border: 0; }
+.label-print-document { margin: 0; padding: 0; }
+.label-sheet:not(:last-child) { break-after: page; }
+.label-print-document[data-paper="a4"] .label-sheet {
+  display: grid;
+  grid-template-columns: repeat(3,62mm);
+  gap: 1mm;
+}
+.label-print-document[data-paper="a4"] .stock-print-label { box-shadow: inset 0 0 0 1px #ccc; }
+.label-print-document[data-paper="thermal"] .stock-print-label {
+  /* Leave room for browser and printer rounding at the page edge. */
+  width: 61.5mm;
+  height: 29.5mm;
+}
+@media print {
+  .stock-print-label {
+    break-inside: avoid;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}

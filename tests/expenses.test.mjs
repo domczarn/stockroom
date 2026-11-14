@@ -1,0 +1,21 @@
+import assert from 'node:assert/strict';
+import vm from 'node:vm';
+import {readFileSync} from 'node:fs';
+import {validateWorkspace} from '../worker/security.js';
+const context=vm.createContext({Date,document:{addEventListener(){}},cloneWorkspace:structuredClone,newId:()=>crypto.randomUUID()});
+vm.runInContext(readFileSync('web/expenses.js','utf8'),context);
+const base={items:[],sales:[],expenses:[['Hollister jeans',5,'Other',null,'2026-11-01'],['Nike zip up',4.98,'Other',null,'2026-11-01']],research:[],sources:[]};
+const next=context.removeExpenseFrom(base,0,JSON.stringify(base.expenses[0]));
+assert.equal(base.expenses.length,2);assert.equal(next.expenses.length,1);assert.equal(next.expenses[0][0],'Nike zip up');assert.deepEqual(next.removedExpenses[0].row,base.expenses[0]);
+validateWorkspace(next,'owner');
+assert.throws(()=>context.removeExpenseFrom(next,0,JSON.stringify(base.expenses[0])),/changed/);
+const restored=context.restoreExpenseFrom(next,next.removedExpenses[0].id);
+assert.equal(restored.expenses.length,2);assert.equal(restored.removedExpenses.length,0);validateWorkspace(restored,'owner');
+assert.throws(()=>context.restoreExpenseFrom(restored,next.removedExpenses[0].id),/already/);
+assert.throws(()=>validateWorkspace({...next,removedExpenses:[{...next.removedExpenses[0],row:['bad',-1]}]},'owner'));
+console.log('Expense removal/restore, stale-row protection and validation passed');
+
+const saleData={...base,sales:[['Nike Zip-up',10,'Received',10,'2026-11-01'],['Hollister Straight Jeans',6,'Received',6,'2026-11-01']]};
+const saleRemoved=context.removeExpenseFrom(saleData,0,JSON.stringify(saleData.sales[0]),'sale');
+assert.equal(saleRemoved.sales.length,1);assert.equal(saleRemoved.expenses.length,2);assert.equal(saleRemoved.removedSales[0].row[0],'Nike Zip-up');validateWorkspace(saleRemoved,'owner');
+assert.equal(context.restoreExpenseFrom(saleRemoved,saleRemoved.removedSales[0].id,'sale').sales.length,2);

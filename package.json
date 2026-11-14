@@ -1,0 +1,26 @@
+{
+  "name": "domczarn-stockroom",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "db:generate": "drizzle-kit generate",
+    "dev": "node scripts/dev.mjs",
+    "build": "node scripts/build.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "deploy": "npm run build && wrangler deploy",
+    "db:migrate": "wrangler d1 migrations apply stockroom --remote"
+  },
+  "dependencies": {
+    "@block65/webcrypto-web-push": "^2.0.0",
+    "dialog-polyfill": "0.5.6",
+    "drizzle-orm": "^0.44.0",
+    "jsbarcode": "3.12.3",
+    "qrcode": "1.5.4",
+    "tesseract.js": "6.0.1"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.31.0",
+    "esbuild": "^0.25.12",
+    "wrangler": "^4.0.0"
+  }
+}

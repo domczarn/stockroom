@@ -1,0 +1,915 @@
+[
+  {
+    "id": "resource-1",
+    "name": "Fox Vintage \u00b7 Whatnot",
+    "url": "https://www.whatnot.com/user/foxvintagewholesale",
+    "category": "Live auctions",
+    "description": "Vintage and branded clothing auctions, including individual pieces and wholesale bundles.",
+    "tags": [
+      "Whatnot",
+      "Nike",
+      "Ralph Lauren",
+      "Carhartt",
+      "Patagonia"
+    ],
+    "location": "UK online",
+    "risk": "Medium",
+    "facts": "Profile accessible. No shows were scheduled when checked; advertised starting bids are not final buying prices.",
+    "tip": "Follow the profile for future shows. Set a delivered-cost ceiling before bidding.",
+    "score": 8,
+    "checkedAt": "2026-11-07",
+    "evidenceUrl": "https://www.whatnot.com/user/foxvintagewholesale"
+  },
+  {
+    "id": "resource-2",
+    "name": "Stoke Vintage \u00b7 Whatnot",
+    "url": "https://www.whatnot.com/en-GB/user/stokevintagewholesale",
+    "category": "Live auctions",
+    "description": "UK seller with vintage clothing, jeans bundles and reseller starter stock.",
+    "tags": [
+      "Whatnot",
+      "Denim",
+      "Sportswear"
+    ],
+    "location": "Stoke-on-Trent",
+    "risk": "Medium",
+    "facts": "Profile and shop accessible. Bundle contents, grading and shipping need checking per listing.",
+    "tip": "Compare the full landed cost with recent sold comparables before committing.",
+    "score": 8,
+    "checkedAt": "2026-11-07",
+    "evidenceUrl": "https://www.whatnot.com/en-GB/user/stokevintagewholesale"
+  },
+  {
+    "id": "resource-3",
+    "name": "Vintage Wholesale Notts",
+    "url": "https://www.whatnot.com/user/vintagewholesalenotts/shop",
+    "category": "Live auctions",
+    "description": "Direct shop for clothing wholesale bundles, including branded and unbranded denim.",
+    "tags": [
+      "Whatnot",
+      "Denim",
+      "Y2K"
+    ],
+    "location": "Nottingham",
+    "risk": "Medium",
+    "facts": "Shop accessible. Mixed new and vintage stock: read each listing carefully.",
+    "tip": "Compare the full landed cost with recent sold comparables before committing.",
+    "score": 8,
+    "checkedAt": "2026-11-07",
+    "evidenceUrl": "https://www.whatnot.com/user/vintagewholesalenotts/shop"
+  },
+  {
+    "id": "resource-4",
+    "name": "Fox Vintage stock list",
+    "url": "https://www.foxvintagewholesale.co.uk/stock-list",
+    "category": "Wholesalers",
+    "description": "Browse the wholesaler\u2019s stock list before asking about a specific brand or category.",
+    "tags": [
+      "Sportswear",
+      "Ralph Lauren",
+      "Bulk"
+    ],
+    "location": "Derby",
+    "risk": "Medium",
+    "facts": "Check current prices, terms and availability on the linked page.",
+    "tip": "Ask for exact grade, quantity and a current delivered quote.",
+    "score": 7,
+    "checkedAt": "2026-11-07",
+    "evidenceUrl": "https://www.foxvintagewholesale.co.uk/stock-list"
+  },
+  {
+    "id": "resource-5",
+    "name": "Nike windbreaker packs",
+    "url": "https://thevintagelabels.com/pack/nike-windbreakers-pack/",
+    "category": "Wholesalers",
+    "description": "The specific Grade A/B Nike windbreaker bundle you were considering.",
+    "tags": [
+      "Nike",
+      "Windbreakers",
+      "Sportswear",
+      "Bulk"
+    ],
+    "location": "Ships from Pakistan",
+    "risk": "High",
+    "facts": "Page showed 25 pieces at \u00a3355.75 (\u00a314.23 each). Packed in Pakistan; page states import VAT/duty may be payable on arrival. Price is a dated snapshot.",
+    "tip": "Request actual batch photos and clarify UK import costs, flaw allowance and returns before buying.",
+    "score": 6,
+    "checkedAt": "2026-11-07",
+    "evidenceUrl": "https://thevintagelabels.com/pack/nike-windbreakers-pack/"
+  },
+  {
+    "id": "resource-6",
+    "name": "The Vintage Labels \u00b7 Nike",
+    "url": "https://thevintagelabels.com/brand/nike/",
+    "category": "Wholesalers",
+    "description": "Nike clothing packs across several sportswear categories.",
+    "tags": [
+      "Nike",
+      "Sportswear",
+      "Bulk"
+    ],
+    "location": "Ships from Pakistan",
+    "risk": "High",
+    "facts": "Check current prices, terms and availability on the linked page.",
+    "tip": "Compare pack sizes and ask which garments are actually included.",
+    "score": 7,
+    "checkedAt": "2026-11-07",
+    "evidenceUrl": "https://thevintagelabels.com/brand/nike/"
+  },
+  {
+    "id": "resource-7",
+    "name": "The Vintage Labels \u00b7 sportswear",
+    "url": "https://thevintagelabels.com/collection/sportswear/",
+    "category": "Wholesalers",
+    "description": "Browse sportswear packs across brands and product types.",
+    "tags": [
+      "Adidas",
+      "Nike",
+      "Sportswear",
+      "Bulk"
+    ],
+    "location": "Ships from Pakistan",
+    "risk": "High",
+    "facts": "Check current prices, terms and availability on the linked page.",
+    "tip": "Compare the full landed cost with recent sold comparables before committing.",
+    "score": 7,
+    "checkedAt": "2026-11-07",
+    "evidenceUrl": "https://thevintagelabels.com/collection/sportswear/"
+  },
+  {
+    "id": "resource-8",
+    "name": "The Vintage Labels \u00b7 tees",
+    "url": "https://thevintagelabels.com/collection/vintage-tees/",
+    "category": "Wholesalers",
+    "description": "Branded, graphic and single-stitch T-shirt pack categories.",
+    "tags": [
+      "Tees",
+      "Nike",
+      "Carhartt",
+      "Bulk"
+    ],
+    "location": "Ships from Pakistan",
+    "risk": "High",
+    "facts": "Check current prices, terms and availability on the linked page.",
+    "tip": "Inspect print wear, sizing and stain allowances. Ask for batch-specific evidence.",
+    "score": 7,
+    "checkedAt": "2026-11-07",
+    "evidenceUrl": "https://thevintagelabels.com/collection/vintage-tees/"
+  },
+  {
+    "id": "resource-9",
+    "name": "The Vintage Labels \u00b7 grading FAQ",
+    "url": "https://thevintagelabels.com/faq/",
+    "category": "Guides & checks",
+    "description": "Supplier terms covering order sizes, grading, delivery and problems.",
+    "tags": [
+      "Grading",
+      "Bulk",
+      "Import costs"
+    ],
+    "location": "UK online",
+    "risk": "Low",
+    "facts": "Check current prices, terms and availability on the linked page.",
+    "tip": "Read alongside the exact pack and returns policy. Supplier claims are not independent verification.",
+    "score": 8,
+    "checkedAt": "2026-11-07",
+    "evidenceUrl": "https://thevintagelabels.com/faq/"
+  },
+  {
+    "id": "resource-10",
+    "name": "To Be Worn Again \u00b7 handpick",
+    "url": "https://tobewornagain.com/pages/handpick-vintage-appointments",
+    "category": "Wholesalers",
+    "description": "Choose Grade A or B stock at a Worthing warehouse appointment.",
+    "tags": [
+      "Handpick",
+      "Sportswear",
+      "Denim",
+      "Bulk"
+    ],
+    "location": "Worthing",
+    "risk": "Medium",
+    "facts": "13 Southcourt Road, BN14 7DF. Published Grade A minimum \u00a3200; Grade B minimums differ for first/repeat visits. Page carries a seasonal booking notice: confirm before travelling.",
+    "tip": "Request the latest price list and appointment availability. Compare travel cost with expected sellable yield.",
+    "score": 9,
+    "checkedAt": "2026-11-07",
+    "evidenceUrl": "https://tobewornagain.com/pages/handpick-vintage-appointments"
+  },
+  {
+    "id": "resource-11",
+    "name": "The Rag Depot \u00b7 handpick",
+    "url": "https://www.theragdepotvintage.com/handpick",
+    "category": "Wholesalers",
+    "description": "Book a visit to inspect individual vintage garments before buying.",
+    "tags": [
+      "Handpick",
+      "Sportswear",
+      "Bulk"
+    ],
+    "location": "Sheffield",
+    "risk": "Medium",
+    "facts": "100 Savile Street, S4 7UD. Published minimum spend \u00a3100; appointment required.",
+    "tip": "Compare the full landed cost with recent sold comparables before committing.",
+    "score": 8,
+    "checkedAt": "2026-11-07",
+    "evidenceUrl": "https://www.theragdepotvintage.com/handpick"
+  },
+  {
+    "id": "resource-12",
+    "name": "The Rag Depot \u00b7 accessories",
+    "url": "https://www.theragdepotvintage.com/vintage-accessories",
+    "category": "Wholesalers",
+    "description": "Accessory wholesale categories, including football scarves.",
+    "tags": [
+      "Football",
+      "Accessories",
+      "Bulk"
+    ],
+    "location": "Sheffield",
+    "risk": "Medium",
+    "facts": "Check current prices, terms and availability on the linked page.",
+    "tip": "Compare the full landed cost with recent sold comparables before committing.",
+    "score": 7,
+    "checkedAt": "2026-11-07",
+    "evidenceUrl": "https://www.theragdepotvintage.com/vintage-accessories"
+  },
+  {
+    "id": "resource-13",
+    "name": "Archive Wholesale \u00b7 Nike",
+    "url": "https://www.archivewholesale.co.uk/brands/nike",
+    "category": "Wholesalers",
+    "description": "Direct Nike vintage wholesale category for reseller stock research.",
+    "tags": [
+      "Nike",
+      "Sportswear",
+      "Bulk"
+    ],
+    "location": "UK online",
+    "risk": "Medium",
+    "facts": "Check current prices, terms and availability on the linked page.",
+    "tip": "Compare the full landed cost with recent sold comparables before committing.",
+    "score": 7,
+    "checkedAt": "2026-11-07",
+    "evidenceUrl": "https://www.archivewholesale.co.uk/brands/nike"
+  },
+  {
+    "id": "resource-14",
+    "name": "Archive Wholesale",
+    "url": "https://www.archivewholesale.co.uk/",
+    "category": "Wholesalers",
+    "description": "Reseller boxes, counted lots and vintage clothing categories.",
+    "tags": [
+      "Ralph Lauren",
+      "Carhartt",
+      "Sportswear",
+      "Bulk"
+    ],
+    "location": "UK online",
+    "risk": "Medium",
+    "facts": "Check current prices, terms and availability on the linked page.",
+    "tip": "Compare the full landed cost with recent sold comparables before committing.",
+    "score": 7,
+    "checkedAt": "2026-11-07",
+    "evidenceUrl": "https://www.archivewholesale.co.uk/"
+  },
+  {
+    "id": "resource-15",
+    "name": "REUP Vintage \u00b7 all products",
+    "url": "https://www.vintagewholesaleuk.com/collections/all-products",
+    "category": "Wholesalers",
+    "description": "Branded wholesale categories from tees and sweats to jackets and jeans.",
+    "tags": [
+      "Denim",
+      "Sportswear",
+      "Bulk"
+    ],
+    "location": "UK online",
+    "risk": "Medium",
+    "facts": "Check current prices, terms and availability on the linked page.",
+    "tip": "Compare the full landed cost with recent sold comparables before committing.",
+    "score": 7,
+    "checkedAt": "2026-11-07",
+    "evidenceUrl": "https://www.vintagewholesaleuk.com/collections/all-products"
+  },
+  {
+    "id": "resource-16",
+    "name": "The Vintage Wholesaler \u00b7 stock",
+    "url": "https://vintagewholesaler.co.uk/stock",
+    "category": "Wholesalers",
+    "description": "Browse wholesale bundles with piece-level product photography.",
+    "tags": [
+      "Nike",
+      "Ralph Lauren",
+      "The North Face",
+      "Bulk"
+    ],
+    "location": "UK online",
+    "risk": "Medium",
+    "facts": "Check current prices, terms and availability on the linked page.",
+    "tip": "Inspect every pictured garment and clarify that the photographed pieces are the supplied lot.",
+    "score": 7,
+    "checkedAt": "2026-11-07",
+    "evidenceUrl": "https://vintagewholesaler.co.uk/stock"
+  },
+  {
+    "id": "resource-17",
+    "name": "The Vintage Wholesaler \u00b7 Nike",
+    "url": "https://vintagewholesaler.co.uk/stock/nike",
+    "category": "Wholesalers",
+    "description": "Nike bundles with grading information for closer batch comparisons.",
+    "tags": [
+      "Nike",
+      "Sportswear",
+      "Bulk"
+    ],
+    "location": "UK online",
+    "risk": "Medium",
+    "facts": "Check current prices, terms and availability on the linked page.",
+    "tip": "Compare the full landed cost with recent sold comparables before committing.",
+    "score": 7,
+    "checkedAt": "2026-11-07",
+    "evidenceUrl": "https://vintagewholesaler.co.uk/stock/nike"
+  },
+  {
+    "id": "resource-18",
+    "name": "Messina Wholesale \u00b7 Nike",
+    "url": "https://messinawholesale.com/collections/nike",
+    "category": "Wholesalers",
+    "description": "Direct Nike reseller-box and vintage sportswear collection.",
+    "tags": [
+      "Nike",
+      "Sportswear",
+      "Bulk"
+    ],
+    "location": "UK online",
+    "risk": "Medium",
+    "facts": "Check current prices, terms and availability on the linked page.",
+    "tip": "Compare the full landed cost with recent sold comparables before committing.",
+    "score": 7,
+    "checkedAt": "2026-11-07",
+    "evidenceUrl": "https://messinawholesale.com/collections/nike"
+  },
+  {
+    "id": "resource-19",
+    "name": "Vintage Wholesale \u00b7 shop",
+    "url": "https://www.vintagewholesale.co.uk/shop/",
+    "category": "Wholesalers",
+    "description": "Browse a UK vintage wholesaler\u2019s current product catalogue.",
+    "tags": [
+      "Vintage",
+      "Bulk"
+    ],
+    "location": "UK online",
+    "risk": "Medium",
+    "facts": "Check current prices, terms and availability on the linked page.",
+    "tip": "Compare the full landed cost with recent sold comparables before committing.",
+    "score": 7,
+    "checkedAt": "2026-11-07",
+    "evidenceUrl": "https://www.vintagewholesale.co.uk/shop/"
+  },
+  {
+    "id": "resource-20",
+    "name": "Glass Onion \u00b7 wholesale",
+    "url": "https://glass-onion.com/pages/wholesale",
+    "category": "Wholesalers",
+    "description": "Wholesale enquiry route for bulk vintage and possible business handpicking.",
+    "tags": [
+      "Handpick",
+      "Vintage",
+      "Bulk"
+    ],
+    "location": "Barnsley",
+    "risk": "Medium",
+    "facts": "Handpick and wholesale access are by enquiry. No small-reseller minimum confirmed.",
+    "tip": "Ask whether your budget and product niche meet their current minimums.",
+    "score": 7,
+    "checkedAt": "2026-11-07",
+    "evidenceUrl": "https://glass-onion.com/pages/wholesale"
+  },
+  {
+    "id": "resource-21",
+    "name": "Rag Warehouse \u00b7 clothing parcels",
+    "url": "https://ragwarehouse.co.uk/collections/all",
+    "category": "Textile supply",
+    "description": "Original used-clothing parcels and vintage mixes, including reuse and rework stock.",
+    "tags": [
+      "Unsorted",
+      "Rework",
+      "Bulk"
+    ],
+    "location": "UK",
+    "risk": "High",
+    "facts": "Check current prices, terms and availability on the linked page.",
+    "tip": "Separate unsorted/rework parcels from ready-to-list stock. Ask for reject rates and minimum quantities.",
+    "score": 6,
+    "checkedAt": "2026-11-07",
+    "evidenceUrl": "https://ragwarehouse.co.uk/collections/all"
+  },
+  {
+    "id": "resource-22",
+    "name": "Brand Shack \u00b7 wholesale originals",
+    "url": "https://www.wholesalesecondhandclothing.com/",
+    "category": "Textile supply",
+    "description": "Enquiry route for untouched UK-sourced used clothing in large quantities.",
+    "tags": [
+      "Unsorted",
+      "Bulk"
+    ],
+    "location": "UK",
+    "risk": "High",
+    "facts": "Trade enquiry only. Small-reseller access and minimum quantities are not confirmed.",
+    "tip": "Compare the full landed cost with recent sold comparables before committing.",
+    "score": 5,
+    "checkedAt": "2026-11-07",
+    "evidenceUrl": "https://www.wholesalesecondhandclothing.com/"
+  },
+  {
+    "id": "resource-23",
+    "name": "Nathan\u2019s Wastesavers \u00b7 products",
+    "url": "https://nathanswastesavers.co.uk/products",
+    "category": "Textile supply",
+    "description": "Textile sorting and grading supplier information for trade enquiries.",
+    "tags": [
+      "Graded textiles",
+      "Bulk"
+    ],
+    "location": "Scotland",
+    "risk": "High",
+    "facts": "Wholesale/export information. No confirmed small-reseller ordering route or minimum.",
+    "tip": "Enquire about access and quantities before planning a visit.",
+    "score": 5,
+    "checkedAt": "2026-11-07",
+    "evidenceUrl": "https://nathanswastesavers.co.uk/products"
+  },
+  {
+    "id": "resource-24",
+    "name": "Worthing warehouse kilo sale",
+    "url": "https://tobewornagain.com/pages/warehouse-kilo-sale",
+    "category": "Kilo sales",
+    "description": "Browse clothing by weight at the Worthing warehouse.",
+    "tags": [
+      "Handpick",
+      "Low budget",
+      "Vintage"
+    ],
+    "location": "Worthing",
+    "risk": "Medium",
+    "facts": "13 Southcourt Road, BN14 7DF. Published \u00a320/kg, no minimum spend. Confirm the current event date and entry details.",
+    "tip": "Weigh heavy jackets before committing; prioritise garments with enough margin after cleaning and travel.",
+    "score": 9,
+    "checkedAt": "2026-11-07",
+    "evidenceUrl": "https://tobewornagain.com/pages/warehouse-kilo-sale"
+  },
+  {
+    "id": "resource-25",
+    "name": "Southampton kilo-sale updates",
+    "url": "https://tobewornagain.com/pages/southampton-kilo-sale",
+    "category": "Kilo sales",
+    "description": "Monitor the organiser\u2019s Southampton event page for new dates.",
+    "tags": [
+      "Local",
+      "Low budget",
+      "Vintage"
+    ],
+    "location": "Southampton",
+    "risk": "Medium",
+    "facts": "The Marlands, SO14 7SJ. Listed April/May 2026 dates are cancelled. No forthcoming date verified.",
+    "tip": "Do not travel until a new date is confirmed by the organiser.",
+    "score": 6,
+    "checkedAt": "2026-11-07",
+    "evidenceUrl": "https://tobewornagain.com/pages/southampton-kilo-sale"
+  },
+  {
+    "id": "resource-26",
+    "name": "To Be Worn Again \u00b7 event calendar",
+    "url": "https://tobewornagain.com/pages/vintage-kilo-sales-uk",
+    "category": "Kilo sales",
+    "description": "Check the organiser\u2019s current kilo-sale listings and booking links.",
+    "tags": [
+      "Low budget",
+      "Vintage"
+    ],
+    "location": "Southern England",
+    "risk": "Medium",
+    "facts": "Check current prices, terms and availability on the linked page.",
+    "tip": "Use current event-specific details rather than old social posts.",
+    "score": 7,
+    "checkedAt": "2026-11-07",
+    "evidenceUrl": "https://tobewornagain.com/pages/vintage-kilo-sales-uk"
+  },
+  {
+    "id": "resource-27",
+    "name": "Vintage Vera \u00b7 kilo sales",
+    "url": "https://www.vintage-vera.co.uk/collections/kilo-sales",
+    "category": "Kilo sales",
+    "description": "Browse organiser listings for vintage kilo-sale events.",
+    "tags": [
+      "Low budget",
+      "Vintage"
+    ],
+    "location": "UK",
+    "risk": "Medium",
+    "facts": "Event listings found. No specific future date or venue confirmed here.",
+    "tip": "Check the year, date, admission and location on each event page.",
+    "score": 7,
+    "checkedAt": "2026-11-07",
+    "evidenceUrl": "https://www.vintage-vera.co.uk/collections/kilo-sales"
+  },
+  {
+    "id": "resource-28",
+    "name": "Blue Rinse \u00b7 kilo sale",
+    "url": "https://www.bluerinsevintage.co.uk/pages/copy-of-the-kilo-sale-2",
+    "category": "Kilo sales",
+    "description": "Wholesaler\u2019s kilo-sale information and current visiting details.",
+    "tags": [
+      "Low budget",
+      "Vintage"
+    ],
+    "location": "UK",
+    "risk": "Medium",
+    "facts": "Check current prices, terms and availability on the linked page.",
+    "tip": "Confirm the next date, venue and price with the organiser.",
+    "score": 7,
+    "checkedAt": "2026-11-07",
+    "evidenceUrl": "https://www.bluerinsevintage.co.uk/pages/copy-of-the-kilo-sale-2"
+  },
+  {
+    "id": "resource-29",
+    "name": "John Pye \u00b7 clothing auctions",
+    "url": "https://www.johnpye.co.uk/clothing/",
+    "category": "Clearance",
+    "description": "Clothing and accessories auctions, including mixed retail inventory.",
+    "tags": [
+      "Retail returns",
+      "Auctions",
+      "Bulk"
+    ],
+    "location": "UK",
+    "risk": "High",
+    "facts": "Check current prices, terms and availability on the linked page.",
+    "tip": "Read each lot\u2019s buyer premium, VAT, condition and collection terms. Retail returns can be damaged.",
+    "score": 7,
+    "checkedAt": "2026-11-07",
+    "evidenceUrl": "https://www.johnpye.co.uk/clothing/"
+  },
+  {
+    "id": "resource-30",
+    "name": "William George \u00b7 clothing auctions",
+    "url": "https://www.williamgeorge.com/clothing-auctions",
+    "category": "Clearance",
+    "description": "Fashion lots covering clothing, trainers and accessories.",
+    "tags": [
+      "Auctions",
+      "Retail stock",
+      "Bulk"
+    ],
+    "location": "UK",
+    "risk": "High",
+    "facts": "Check current prices, terms and availability on the linked page.",
+    "tip": "Price the total invoice, not just the hammer price. Confirm delivery or collection per lot.",
+    "score": 7,
+    "checkedAt": "2026-11-07",
+    "evidenceUrl": "https://www.williamgeorge.com/clothing-auctions"
+  },
+  {
+    "id": "resource-31",
+    "name": "i-bidder \u00b7 retail returns",
+    "url": "https://discover.i-bidder.com/camp-lp/retail-returns/?param=homepagebanner_retail-returns_19256-B1",
+    "category": "Clearance",
+    "description": "Directory of retail-return auction opportunities across multiple categories.",
+    "tags": [
+      "Retail returns",
+      "Auctions",
+      "Bulk"
+    ],
+    "location": "UK",
+    "risk": "High",
+    "facts": "Check current prices, terms and availability on the linked page.",
+    "tip": "Filter for clothing and inspect the manifest; mixed pallets are not automatically suitable resale stock.",
+    "score": 6,
+    "checkedAt": "2026-11-07",
+    "evidenceUrl": "https://discover.i-bidder.com/camp-lp/retail-returns/?param=homepagebanner_retail-returns_19256-B1"
+  },
+  {
+    "id": "resource-32",
+    "name": "Top Down \u00b7 vintage Nike pallet",
+    "url": "https://www.topdowntrading.co.uk/vintage-nike-wholesale-clothing-liquidation-pallet.html",
+    "category": "Clearance",
+    "description": "A direct product page for new, packaged vintage-era Nike clothing stock.",
+    "tags": [
+      "Nike",
+      "Deadstock",
+      "Bulk"
+    ],
+    "location": "UK",
+    "risk": "High",
+    "facts": "Supplier describes unused, new-in-packaging stock. Current quantity and delivered price need confirmation.",
+    "tip": "Differentiate deadstock from used vintage; request an itemised manifest and provenance.",
+    "score": 7,
+    "checkedAt": "2026-11-07",
+    "evidenceUrl": "https://www.topdowntrading.co.uk/vintage-nike-wholesale-clothing-liquidation-pallet.html"
+  },
+  {
+    "id": "resource-33",
+    "name": "Vinted UK",
+    "url": "https://www.vinted.co.uk/",
+    "category": "Marketplaces",
+    "description": "Search second-hand clothing and compare seller wardrobes and bundles.",
+    "tags": [
+      "Nike",
+      "Ralph Lauren",
+      "Carhartt",
+      "Low budget"
+    ],
+    "location": "UK online",
+    "risk": "Medium",
+    "facts": "Check current prices, terms and availability on the linked page.",
+    "tip": "Try \u201cNike ACG\u201d, \u201cRalph Lauren quarter zip\u201d or \u201cBerghaus jacket\u201d. Include fees and postage. Asking prices are not sold evidence.",
+    "score": 8,
+    "checkedAt": "2026-11-07",
+    "evidenceUrl": "https://www.vinted.co.uk/"
+  },
+  {
+    "id": "resource-34",
+    "name": "Depop",
+    "url": "https://www.depop.com/gb//",
+    "category": "Marketplaces",
+    "description": "Browse style-led clothing listings and niche wardrobe clearances.",
+    "tags": [
+      "Y2K",
+      "Vintage",
+      "Sportswear"
+    ],
+    "location": "UK online",
+    "risk": "Medium",
+    "facts": "Check current prices, terms and availability on the linked page.",
+    "tip": "Search the same style by brand, garment and era. Check condition and buyer fees before offers.",
+    "score": 7,
+    "checkedAt": "2026-11-07",
+    "evidenceUrl": "https://www.depop.com/gb//"
+  },
+  {
+    "id": "resource-35",
+    "name": "eBay advanced search",
+    "url": "https://www.ebay.co.uk/sch/ebayadvsearch?environmentId=100",
+    "category": "Pricing & research",
+    "description": "Use eBay\u2019s own search form for auctions, job lots and sold-item comparisons.",
+    "tags": [
+      "Sold prices",
+      "Auctions",
+      "Nike",
+      "Ralph Lauren",
+      "Carhartt"
+    ],
+    "location": "UK online",
+    "risk": "Low",
+    "facts": "Check current prices, terms and availability on the linked page.",
+    "tip": "Enter an exact niche, select sold items for pricing, or auctions for sourcing. Match size, condition and model.",
+    "score": 9,
+    "checkedAt": "2026-11-07",
+    "evidenceUrl": "https://www.ebay.co.uk/sch/ebayadvsearch?environmentId=100"
+  },
+  {
+    "id": "resource-36",
+    "name": "eBay Product Research",
+    "url": "https://ocs.ebay.co.uk/help/selling/selling-tools/product-research?id=4853",
+    "category": "Pricing & research",
+    "description": "Official route to historical eBay sales data and pricing research.",
+    "tags": [
+      "Sold prices",
+      "Demand",
+      "Research"
+    ],
+    "location": "UK online",
+    "risk": "Low",
+    "facts": "eBay documents up to three years of sales history. Account access and available features vary.",
+    "tip": "Compare exact models and conditions. eBay demand is not a measure of Vinted\u2019s market-wide sales.",
+    "score": 9,
+    "checkedAt": "2026-11-07",
+    "evidenceUrl": "https://ocs.ebay.co.uk/help/selling/selling-tools/product-research?id=4853"
+  },
+  {
+    "id": "resource-37",
+    "name": "Gumtree \u00b7 clothing",
+    "url": "https://www.gumtree.com/for-sale/clothing/private/uk/england",
+    "category": "Marketplaces",
+    "description": "Local private clothing listings and potential wardrobe bundles.",
+    "tags": [
+      "Local",
+      "Bundles",
+      "Low budget"
+    ],
+    "location": "England",
+    "risk": "Medium",
+    "facts": "Check current prices, terms and availability on the linked page.",
+    "tip": "Set your location to Southampton and arrange an inspection for local bulk offers.",
+    "score": 7,
+    "checkedAt": "2026-11-07",
+    "evidenceUrl": "https://www.gumtree.com/for-sale/clothing/private/uk/england"
+  },
+  {
+    "id": "resource-38",
+    "name": "Vintage Fashion Guild \u00b7 labels",
+    "url": "https://vintagefashionguild.org/resources/vintage-label-resource/",
+    "category": "Identification",
+    "description": "Reference library for comparing and dating vintage fashion labels.",
+    "tags": [
+      "Labels",
+      "Vintage",
+      "Research"
+    ],
+    "location": "UK online",
+    "risk": "Low",
+    "facts": "Check current prices, terms and availability on the linked page.",
+    "tip": "Use as identification evidence alongside construction and care labels, not as an authentication guarantee.",
+    "score": 9,
+    "checkedAt": "2026-11-07",
+    "evidenceUrl": "https://vintagefashionguild.org/resources/vintage-label-resource/"
+  },
+  {
+    "id": "resource-39",
+    "name": "Patagonia \u00b7 product FAQ",
+    "url": "https://eu.patagonia.com/gb/en/faqs-products.html",
+    "category": "Identification",
+    "description": "Official product information and guidance for identifying Patagonia garments.",
+    "tags": [
+      "Patagonia",
+      "Outdoor",
+      "Product codes"
+    ],
+    "location": "UK online",
+    "risk": "Low",
+    "facts": "Check current prices, terms and availability on the linked page.",
+    "tip": "Find the five-digit style number on the care tag, then compare the exact model and season.",
+    "score": 9,
+    "checkedAt": "2026-11-07",
+    "evidenceUrl": "https://eu.patagonia.com/gb/en/faqs-products.html"
+  },
+  {
+    "id": "resource-40",
+    "name": "Football Kit Archive",
+    "url": "https://www.footballkitarchive.com/search/",
+    "category": "Identification",
+    "description": "Search kit designs by club and season to identify football shirts.",
+    "tags": [
+      "Football",
+      "Adidas",
+      "Nike",
+      "Product codes"
+    ],
+    "location": "UK online",
+    "risk": "Low",
+    "facts": "Check current prices, terms and availability on the linked page.",
+    "tip": "Compare graphics, sponsor placement and season. A visual match alone does not prove authenticity.",
+    "score": 8,
+    "checkedAt": "2026-11-07",
+    "evidenceUrl": "https://www.footballkitarchive.com/search/"
+  },
+  {
+    "id": "resource-41",
+    "name": "Classic Football Shirts",
+    "url": "https://www.classicfootballshirts.co.uk/",
+    "category": "Identification",
+    "description": "Specialist catalogue for researching shirt designs and product descriptions.",
+    "tags": [
+      "Football",
+      "Vintage",
+      "Research"
+    ],
+    "location": "UK online",
+    "risk": "Low",
+    "facts": "Check current prices, terms and availability on the linked page.",
+    "tip": "Use catalogue details for model comparison. Retail asking prices are not achievable sold prices.",
+    "score": 7,
+    "checkedAt": "2026-11-07",
+    "evidenceUrl": "https://www.classicfootballshirts.co.uk/"
+  },
+  {
+    "id": "resource-42",
+    "name": "Google Lens",
+    "url": "https://search.google/intl/en-GB/ways-to-search/lens/",
+    "category": "Tools",
+    "description": "Find visually similar garments and read text from labels or product tags.",
+    "tags": [
+      "Images",
+      "Product codes",
+      "Free options"
+    ],
+    "location": "UK online",
+    "risk": "Low",
+    "facts": "Check current prices, terms and availability on the linked page.",
+    "tip": "Use your own photos, crop to the garment, then verify model matches against reliable sources.",
+    "score": 9,
+    "checkedAt": "2026-11-07",
+    "evidenceUrl": "https://search.google/intl/en-GB/ways-to-search/lens/"
+  },
+  {
+    "id": "resource-43",
+    "name": "TinEye \u00b7 reverse search",
+    "url": "https://tineye.com/how",
+    "category": "Tools",
+    "description": "Find copies of product photos and investigate image origins.",
+    "tags": [
+      "Images",
+      "Research",
+      "Free options"
+    ],
+    "location": "UK online",
+    "risk": "Low",
+    "facts": "Check current prices, terms and availability on the linked page.",
+    "tip": "Useful for duplicated seller images. A missing match tells you little about authenticity.",
+    "score": 7,
+    "checkedAt": "2026-11-07",
+    "evidenceUrl": "https://tineye.com/how"
+  },
+  {
+    "id": "resource-44",
+    "name": "Photoroom \u00b7 background remover",
+    "url": "https://www.photoroom.com/tools/background-remover?lang=en",
+    "category": "Tools",
+    "description": "Remove a photo background for a cleaner product presentation.",
+    "tags": [
+      "Photos",
+      "Free options"
+    ],
+    "location": "UK online",
+    "risk": "Low",
+    "facts": "Tool available; export quality, usage limits and paid features may vary.",
+    "tip": "Keep wear, flaws and garment colour visible and accurate.",
+    "score": 7,
+    "checkedAt": "2026-11-07",
+    "evidenceUrl": "https://www.photoroom.com/tools/background-remover?lang=en"
+  },
+  {
+    "id": "resource-45",
+    "name": "remove.bg",
+    "url": "https://www.remove.bg/f/background-removal",
+    "category": "Tools",
+    "description": "A focused background-removal tool for product photographs.",
+    "tags": [
+      "Photos",
+      "Free options"
+    ],
+    "location": "UK online",
+    "risk": "Low",
+    "facts": "Check current export limits and pricing on the provider\u2019s site.",
+    "tip": "Review edges and colours before using a result in a listing.",
+    "score": 7,
+    "checkedAt": "2026-11-07",
+    "evidenceUrl": "https://www.remove.bg/f/background-removal"
+  },
+  {
+    "id": "resource-46",
+    "name": "Photopea",
+    "url": "https://www.photopea.com/?swcfpc=1",
+    "category": "Tools",
+    "description": "Browser-based photo editor for crops, lighting and listing image layouts.",
+    "tags": [
+      "Photos",
+      "Free options"
+    ],
+    "location": "UK online",
+    "risk": "Low",
+    "facts": "Check current prices, terms and availability on the linked page.",
+    "tip": "Make neutral exposure corrections without hiding the garment\u2019s actual condition.",
+    "score": 8,
+    "checkedAt": "2026-11-07",
+    "evidenceUrl": "https://www.photopea.com/?swcfpc=1"
+  },
+  {
+    "id": "resource-47",
+    "name": "Canva \u00b7 photo editor",
+    "url": "https://www.canva.com/photo-editor/",
+    "category": "Tools",
+    "description": "Photo editing and reusable visual layouts for your resale brand.",
+    "tags": [
+      "Photos",
+      "Free options"
+    ],
+    "location": "UK online",
+    "risk": "Low",
+    "facts": "Free and paid features differ. Check the current plan before choosing a workflow.",
+    "tip": "Compare the full landed cost with recent sold comparables before committing.",
+    "score": 7,
+    "checkedAt": "2026-11-07",
+    "evidenceUrl": "https://www.canva.com/photo-editor/"
+  },
+  {
+    "id": "resource-48",
+    "name": "Royal Mail Click & Drop",
+    "url": "https://parcel.royalmail.com/click-and-drop",
+    "category": "Shipping",
+    "description": "Official postage and label workflow for orders you ship yourself.",
+    "tags": [
+      "Shipping",
+      "Labels"
+    ],
+    "location": "UK",
+    "risk": "Low",
+    "facts": "Check current prices, terms and availability on the linked page.",
+    "tip": "Use a marketplace-provided label when the sale requires it; avoid buying duplicate postage.",
+    "score": 8,
+    "checkedAt": "2026-11-07",
+    "evidenceUrl": "https://parcel.royalmail.com/click-and-drop"
+  }
+]
