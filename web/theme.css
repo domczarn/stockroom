@@ -452,3 +452,6 @@ nav.subnav {
 }
 @media (max-width: 800px) { nav.subnav { margin: 0 -16px 20px !important; padding: 0 10px !important; } }
 .mini-stat { padding: 12px 14px !important; }
+
+.update-banner { position: fixed; left: 50%; transform: translateX(-50%); top: calc(env(safe-area-inset-top, 0px) + 12px); z-index: 1000;
+  background: var(--ink) !important; color: #000 !important; border: 0; border-radius: 999px; padding: 10px 18px; font: 500 14px var(--font); box-shadow: 0 10px 40px rgba(0,0,0,.6); cursor: pointer; }

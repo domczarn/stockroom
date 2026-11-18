@@ -151,3 +151,36 @@ document.addEventListener('click', event => {
 function applySizes(root) {
   root.querySelectorAll('[data-w]').forEach(el => { el.style.width = el.dataset.w + '%'; });
 }
+
+// ---------- Automatic updates ----------
+// An installed (home-screen) app stays open and never reloads by itself, so check for a new build
+// whenever it comes back to the foreground and every few minutes, then refresh when it is safe.
+const loadedVersion = document.querySelector('meta[name="stockroom-version"]')?.content || '';
+let updateBanner = null;
+function updateIsSafe() {
+  return !document.querySelector('dialog[open]') && !document.querySelector('input:focus, textarea:focus, select:focus') &&
+    !(typeof pendingLocal !== 'undefined' && pendingLocal);
+}
+function offerUpdate() {
+  if (updateBanner) return;
+  updateBanner = document.createElement('button');
+  updateBanner.type = 'button';
+  updateBanner.className = 'update-banner';
+  updateBanner.textContent = 'New version ready · Tap to refresh';
+  updateBanner.onclick = () => location.reload();
+  document.body.append(updateBanner);
+}
+async function checkForUpdate() {
+  if (!loadedVersion || document.visibilityState !== 'visible') return;
+  try {
+    const response = await fetch('/version.json', {cache:'no-store'});
+    if (!response.ok) return;
+    const {version} = await response.json();
+    if (!version || version === loadedVersion) return;
+    if (updateIsSafe()) location.reload(); else offerUpdate();
+  } catch {}
+}
+document.addEventListener('visibilitychange', checkForUpdate);
+window.addEventListener('pageshow', event => { if (event.persisted) checkForUpdate(); });
+window.addEventListener('focus', checkForUpdate);
+setInterval(checkForUpdate, 5 * 60 * 1000);

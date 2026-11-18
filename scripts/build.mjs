@@ -1,6 +1,7 @@
 import {build,transform} from 'esbuild';
 import {resolve} from 'node:path';
 import {readFile,writeFile,mkdir,rm} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
 const files = ['index.html','privacy.html','gmail.js','compat.js','app.js','finance-insights.js','shell.js','customer.js','expenses.js','settings.js','orders.js','workspace.css','labels.css','theme.css','resources.js','resources-data.json','style.css','seed.json','receipt.js','listing.js','experience.js','manifest.webmanifest','favicon.svg','pip.svg','social.js','trading.js','bulk.js','stock.js','market.js','notifications.js','stockroom-sw.js'];
 const assets = {};
 for (const file of files) {
@@ -21,6 +22,10 @@ assets['/pip-icon.png']={base64:(await readFile('web/pip-icon.png')).toString('b
 assets['/geist.woff2']={base64:(await readFile('node_modules/geist/dist/fonts/geist-sans/Geist-Variable.woff2')).toString('base64'),type:'font/woff2'};
 assets['/geist-mono.woff2']={base64:(await readFile('node_modules/geist/dist/fonts/geist-mono/GeistMono-Variable.woff2')).toString('base64'),type:'font/woff2'};
 assets['/icon.png']={base64:(await readFile('web/icon.png')).toString('base64'),type:'image/png'};
+// Build version: open apps poll /version.json and reload when it changes.
+const version=createHash('sha256').update(JSON.stringify(assets)).digest('hex').slice(0,12);
+assets['/version.json']=JSON.stringify({version});
+assets['/index.html']=assets['/index.html'].replace('<meta charset="utf-8">','<meta charset="utf-8"><meta name="stockroom-version" content="'+version+'">');
 assets['/'] = assets['/index.html'];
 await rm('dist',{recursive:true,force:true});
 await mkdir('dist/server',{recursive:true});
