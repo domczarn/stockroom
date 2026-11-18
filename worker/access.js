@@ -45,3 +45,19 @@ export async function withIdentity(request,env){
   if(user){headers.set('oai-authenticated-user-id',user.id);headers.set('oai-authenticated-user-email',user.email);}
   return new Request(request,{headers});
 }
+
+// TEMPORARY diagnostic: explains why a token was rejected. Reachable only with a token the caller supplies.
+export async function explainAccessJwt(token,env,now=Date.now()){
+  const out={configured:Boolean(env.ACCESS_TEAM_DOMAIN&&env.ACCESS_AUD),team:env.ACCESS_TEAM_DOMAIN||null,hasToken:typeof token==='string'&&token.length>0};
+  if(!out.hasToken||!out.configured)return out;
+  try{
+    const parts=token.split('.');
+    const header=JSON.parse(decoder.decode(b64(parts[0])));
+    const claims=JSON.parse(decoder.decode(b64(parts[1])));
+    out.tokenIssuer=claims.iss;out.tokenAudMatchesConfig=(Array.isArray(claims.aud)?claims.aud:[claims.aud]).includes(env.ACCESS_AUD);
+    out.tokenAudPrefix=String((Array.isArray(claims.aud)?claims.aud[0]:claims.aud)||'').slice(0,8);out.configAudPrefix=String(env.ACCESS_AUD).slice(0,8);
+    out.issuerMatches=claims.iss==='https://'+env.ACCESS_TEAM_DOMAIN;out.expired=typeof claims.exp!=='number'||claims.exp*1000<=now;out.hasEmail=typeof claims.email==='string';out.hasSub=typeof claims.sub==='string';
+    const keys=await signingKeys(env);out.keyFound=keys.some(key=>key.kid===header.kid);out.verified=Boolean(await verifyAccessJwt(token,env,now));
+  }catch(error){out.error=String(error&&error.message||error).slice(0,120);}
+  return out;
+}
