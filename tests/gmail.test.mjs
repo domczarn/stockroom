@@ -24,7 +24,7 @@ const fake='abcdef1234568';
 const originalFetch=globalThis.fetch;
 globalThis.fetch=async(input,options)=>{
   const url=new URL(input);
-  assert.equal(options.redirect,'error');
+  assert.equal(options.redirect,'manual'); // Workers rejects redirect:'error'
   if(url.hostname==='oauth2.googleapis.com'){
     assert.equal(options.body.get('client_secret'),'fixture-secret');
     if(options.body.get('grant_type')==='authorization_code'){

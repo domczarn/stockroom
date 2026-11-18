@@ -38,8 +38,10 @@ function publicConnection(row,env){
 }
 async function googleJSON(url,options={}){
   let res;
-  try{res=await fetch(url,{...options,redirect:'error',signal:AbortSignal.timeout(9000)});}
-  catch{throw new HttpError(502,'Google could not be reached. Try again shortly.');}
+  // Cloudflare Workers only supports redirect 'follow' or 'manual', so refuse redirects by hand.
+  try{res=await fetch(url,{...options,redirect:'manual',signal:AbortSignal.timeout(9000)});}
+  catch(error){console.error('Google fetch failed',String(error?.message||error).slice(0,200));throw new HttpError(502,'Google could not be reached. Try again shortly.');}
+  if(res.status>=300&&res.status<400)throw new HttpError(502,'Google returned an unexpected redirect.');
   let data;
   try{data=await res.json();}catch{throw new HttpError(502,'Google returned an unexpected response.');}
   if(res.status===401||data?.error==='invalid_grant'){console.error('Google auth rejected',String(url).split('?')[0],res.status,data?.error||'',String(data?.error_description||'').slice(0,200));
