@@ -42,8 +42,10 @@ async function googleJSON(url,options={}){
   catch{throw new HttpError(502,'Google could not be reached. Try again shortly.');}
   let data;
   try{data=await res.json();}catch{throw new HttpError(502,'Google returned an unexpected response.');}
-  if(res.status===401||data?.error==='invalid_grant')throw new HttpError(409,'Reconnect Gmail to continue.');
-  if(!res.ok)throw new HttpError(502,'Google could not complete the Gmail check. Try again shortly.');
+  if(res.status===401||data?.error==='invalid_grant'){console.error('Google auth rejected',String(url).split('?')[0],res.status,data?.error||'',String(data?.error_description||'').slice(0,200));
+    throw new HttpError(409,'Reconnect Gmail to continue.');}
+  if(!res.ok){console.error('Google request failed',String(url).split('?')[0],res.status,data?.error||'',String(data?.error_description||data?.error?.message||'').slice(0,200));
+    throw new HttpError(502,'Google could not complete the Gmail check. Try again shortly.');}
   return data;
 }
 function getGmail(path,token,query={}){
@@ -94,7 +96,7 @@ async function finish(env,user,url){
         state='connected',checked_at=NULL,lease=0`)
       .bind(user.id,random(),mailbox,sealed,user.id,state).run();
     return redirect(connected.meta.changes?'connected':'expired');
-  }catch{return redirect('failed');}
+  }catch(error){console.error('Gmail connect failed',error?.status||'',String(error?.message||error).slice(0,200));return redirect('failed');}
   finally{await env.DB.prepare('DELETE FROM gmail_oauth_states WHERE owner_id=? AND state=?').bind(user.id,state).run();}
 }
 
