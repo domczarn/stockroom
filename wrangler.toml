@@ -8,7 +8,7 @@ workers_dev = true
 
 [vars]
 # Zero Trust > Settings > Custom pages shows the team domain; the AUD tag is on the Access application.
-ACCESS_TEAM_DOMAIN = "calm-bar-cb65.cloudflareaccess.com"
+ACCESS_TEAM_DOMAIN = "bookedandpaid.cloudflareaccess.com"
 ACCESS_AUD = "992b39270c0e1a31448496e68a7df498d68101686c72c1beba5fdce9496e3a56"
 
 [[d1_databases]]
