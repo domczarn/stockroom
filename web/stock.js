@@ -222,6 +222,7 @@ function stockPage() {
     '<div class="stock-toolbar-actions">'+
     (stockAgeView?'':'<select id="stockLayout" aria-label="Stock layout">'+[['cards','Photo grid'],['list','Detailed list'],['compact','Compact list']].map(([value,label])=>
       '<option value="'+value+'" '+(stockLayout()===value?'selected':'')+'>'+label+'</option>').join('')+'</select>')+
+    (isReadOnly()?'':'<button class="secondary shot-import-open" type="button" data-shot-import>Add from screenshots</button>')+
     '<button id="stockSelectToggle" class="secondary" type="button" data-bulk="toggle" aria-pressed="'+selectingStock+'">'+
       (selectingStock?'Exit selection':'Select items')+'</button></div></div>'+
     '<input id="search" type="search" placeholder="Search stock" aria-label="Search name, brand, size or stock ID" value="'+esc(query)+'">'+

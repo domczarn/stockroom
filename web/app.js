@@ -396,7 +396,7 @@ function render() {
   applySizes($('view'));
   $('profileDock').setAttribute('aria-pressed',String(tab==='Profile'));
   if(lastRenderedTab!==tab){$('view').classList.remove('view-arriving');void $('view').offsetWidth;$('view').classList.add('view-arriving');lastRenderedTab=tab;}
-  const utility=!['Dashboard','Stock','Expenses','Activity'].includes(tab);$('screenBack').hidden=!utility;
+  const utility=!SECTIONS.some(section=>section.tabs.some(([id])=>id===tab));$('screenBack').hidden=!utility;
   applyReadOnlyControls();
   if(['Orders','Resources','Customer care','Admin','Account','Profile','Reports','Buying insights','Sale receipts','Vinted updates','Leaderboard'].includes(tab))$('add').hidden=true;
   $('saleReceiptsNav').hidden=isReadOnly()||account.role!=='admin';
