@@ -278,14 +278,7 @@ function dashboard() {
   const openOrders = (db.bulkOrders || []).filter(order => ['Ordered','Dispatched'].includes(order.stage)).length;
   const rows = accountingRows(db);
   const soldCount = rows.filter(row => row.kind === 'Sale').length;
-  return '<section class="profit-hero" aria-labelledby="profitHeroTitle"><div class="panel-heading"><div><h2 id="profitHeroTitle">Net profit</h2>' +
-    '<strong class="profit-hero-value '+(f.realised < 0 ? 'loss' : '')+'">'+gbp(f.realised)+'</strong>' +
-    '<p>'+(provisional || 'After recorded costs, expenses and return adjustments')+'</p></div>' +
-    '<span class="profit-period">All time</span></div>' +
-    '<div class="profit-hero-stats">'+[
-      ['Sales revenue',gbp(f.revenue)],['Clothing profit',gbp(clothingProfit)],['Sales recorded',soldCount]
-    ].map(([label,value])=>'<div><span>'+label+'</span><strong>'+value+'</strong></div>').join('')+'</div>'+
-    '</section>'+financeInsights(rows)+
+  return financeInsights(rows)+
     '<section class="finance-overview" aria-label="Spending overview">' +
     '<div class="finance-overview-heading"><h2>Spending</h2><span class="profit-period">All time</span></div>' +
     '<div class="finance-kpis">' +
@@ -310,27 +303,64 @@ function activity() {
   const legacyRows = db.sales.map((row, index) => '<tr><td><span class="tag">Sale</span></td><td>' + esc(row[0]) + '</td><td>' + gbp(row[1]) + '</td><td>' + (Number.isFinite(row[3]) ? gbp(row[1]-row[3]) : '<span class="pending tag">Cost needed</span>') + '</td><td>' + esc(row[2]) + '</td><td><button class="link" data-ledger="sale" data-index="' + index + '">Edit</button><button class="link expense-remove" data-kind="sale" data-expense-remove="' + index + '">Remove</button></td></tr>');
   const expenseRows = db.expenses.map((row, index) => '<tr><td><span class="tag neutral-tag">Expense</span></td><td>' + esc(row[0]) + '</td><td>' + gbp(-row[1]) + '</td><td>—</td><td>Recorded</td><td><button class="link" data-ledger="expense" data-index="' + index + '">Edit</button><button class="link expense-remove" data-expense-remove="' + index + '">Remove</button></td></tr>');
   const stockSales = db.items.filter(item => item.status !== 'In Stock').map(item => '<tr><td><span class="tag">' + (item.status==='Sold'?'Sale':'Return') + '</span></td><td>' + esc(item.name) + '</td><td>' + gbp(proceeds(item)) + '</td><td>' + gbp(profit(item)) + '</td><td>' + esc(item.status) + '</td><td><button class="link" data-edit="' + esc(item.id) + '">Edit</button></td></tr>');
-  return '<div class="tools"><button class="secondary" data-ledger="expense">＋ Add expense</button></div>' +
-    table(['Type','Item / description','Amount','Item profit','Status',''], [...legacyRows, ...expenseRows, ...stockSales].join('') || '<tr><td colspan="6">Your transactions will appear here.</td></tr>')+removedExpensesView('sale');
+  const groups={all:[...legacyRows, ...expenseRows, ...stockSales],sales:[...legacyRows,...stockSales.filter(r=>r.includes('>Sale<'))],expenses:expenseRows,returns:stockSales.filter(r=>r.includes('>Return<'))};
+  const counts={all:groups.all.length,sales:groups.sales.length,expenses:groups.expenses.length,returns:groups.returns.length};
+  return '<div class="tools view-tools">'+viewTabs('activity',[['all','All'],['sales','Sales'],['expenses','Expenses'],['returns','Returns']],activityView,counts)+'<button class="secondary" data-ledger="expense">＋ Add expense</button></div>' +
+    table(['Type','Item / description','Amount','Item profit','Status',''], groups[activityView].join('') || '<tr><td colspan="6">Nothing here yet.</td></tr>')+removedExpensesView('sale');
+}
+let expenseView='all', expenseCategory='All', activityView='all';
+function viewTabs(kind,options,current,counts={}){
+  return '<div class="view-tabs" role="tablist" aria-label="Filter">'+options.map(([key,label])=>'<button type="button" role="tab" data-view-'+kind+'="'+esc(key)+'" aria-selected="'+(key===current)+'">'+esc(label)+
+    (counts[key]!==undefined?' <span class="view-count">'+counts[key]+'</span>':'')+'</button>').join('')+'</div>';
+}
+function clothingSpendRows(data){
+  const orders=(data.bulkOrders||[]).filter(order=>order.stage!=='Cancelled');
+  const orderIds=new Set(orders.map(order=>order.id));
+  const soldIds=new Set((data.trades||[]).map(trade=>trade.itemId));
+  const items=data.items.filter(item=>!orderIds.has(item.bulkOrderId)&&(!item.deletedAt||item.status==='Sold'||soldIds.has(item.id))&&Number(item.cost)>0)
+    .map(item=>({name:item.name,brand:item.brand||'',date:item.purchasedAt||'',amount:Number(item.cost),kind:'Item',status:item.status}));
+  const bulk=orders.map(order=>({name:order.supplier||order.reference||'Bulk order',brand:'',date:order.orderedAt||order.createdAt||'',amount:orderTotal(order),kind:'Bulk order',status:order.stage}));
+  return [...items,...bulk].sort((a,b)=>String(b.date).localeCompare(String(a.date)));
 }
 function expensesView() {
   const spend = recordedSpending(db);
   const thisMonth = total(db.expenses.filter(row=>row[4]?.startsWith(todayUK().slice(0,7))),row=>row[1]);
-  return '<div class="metrics expense-metrics">'+metric('Total spent',gbp(spend.total),'Clothing and business expenses','featured')+metric('Clothing spend',gbp(spend.clothing),'Recorded stock and bulk orders')+metric('Business expenses',gbp(spend.overhead),db.expenses.length+' recorded expenses')+
-    metric('Business expenses this month',gbp(thisMonth),'Based on recorded expense dates')+'</div>'+
-    '<div class="tools"><p>Packaging, postage, cleaning and other business costs.</p></div>'+
-    table(['Description','Category','Date','Amount','Notes',''],db.expenses.map((row,index)=>
+  const categories=[...new Set(db.expenses.map(row=>row[2]||'Other'))];
+  const clothing=clothingSpendRows(db);
+  const tabs=viewTabs('expense',[['all','Overview'],['clothing','Clothing'],['business','Business costs']],expenseView,{clothing:clothing.length,business:db.expenses.length});
+  const expenseTable=rows=>table(['Description','Category','Date','Amount','Notes',''],rows.map(([row,index])=>
       '<tr><td>'+esc(row[0])+'</td><td><span class="tag neutral-tag">'+esc(row[2]||'Other')+'</span></td><td>'+esc(row[4]?dateLabel(row[4]):'Date needed')+
       '</td><td>'+gbp(row[1])+'</td><td class="expense-notes">'+esc(row[5]||'—')+'</td><td><button class="link" data-ledger="expense" data-index="'+index+'">Edit</button><button class="link expense-remove" data-expense-remove="'+index+'">Remove</button></td></tr>'
-     ).join('')||'<tr><td colspan="6">Add your first expense to track business costs.</td></tr>')+removedExpensesView();
+     ).join('')||'<tr><td colspan="6">Add your first expense to track business costs.</td></tr>');
+  if(expenseView==='clothing'){
+    return '<div class="tools view-tools">'+tabs+'</div><div class="metrics expense-metrics">'+metric('Clothing spend',gbp(spend.clothing),'Stock purchases and bulk orders','featured')+
+      metric('Items bought',String(clothing.filter(r=>r.kind==='Item').length),'Individually purchased')+metric('Bulk orders',String(clothing.filter(r=>r.kind==='Bulk order').length),'Excluding cancelled')+'</div>'+
+      table(['Item','Type','Date','Cost','Status'],clothing.map(r=>'<tr><td>'+esc(r.name)+(r.brand?'<small class="cell-sub">'+esc(r.brand)+'</small>':'')+'</td><td><span class="tag neutral-tag">'+esc(r.kind)+'</span></td><td>'+esc(r.date?dateLabel(String(r.date).slice(0,10)):'—')+'</td><td>'+gbp(r.amount)+'</td><td>'+esc(r.status||'—')+'</td></tr>').join('')||'<tr><td colspan="5">No clothing purchases recorded yet.</td></tr>');
+  }
+  if(expenseView==='business'){
+    const chips=['All',...categories];
+    const rows=db.expenses.map((row,index)=>[row,index]).filter(([row])=>expenseCategory==='All'||(row[2]||'Other')===expenseCategory);
+    return '<div class="tools view-tools">'+tabs+'<button class="secondary" data-ledger="expense">＋ Add expense</button></div>'+
+      '<div class="metrics expense-metrics">'+metric('Business costs',gbp(spend.overhead),db.expenses.length+' recorded','featured')+metric('This month',gbp(thisMonth),'By expense date')+'</div>'+
+      '<div class="chip-row">'+chips.map(c=>'<button type="button" class="chip" data-expense-category="'+esc(c)+'" aria-pressed="'+(c===expenseCategory)+'">'+esc(c)+'</button>').join('')+'</div>'+
+      expenseTable(rows)+removedExpensesView();
+  }
+  const parts=[['Clothing',spend.clothing],...categories.map(c=>[c,total(db.expenses.filter(r=>(r[2]||'Other')===c),r=>r[1])])].filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
+  const max=Math.max(1,...parts.map(([,v])=>v));
+  return '<div class="tools view-tools">'+tabs+'</div><div class="metrics expense-metrics">'+metric('Total spent',gbp(spend.total),'Clothing and business costs','featured')+metric('Clothing',gbp(spend.clothing),'Stock and bulk orders')+metric('Business costs',gbp(spend.overhead),db.expenses.length+' recorded')+
+    metric('Business costs this month',gbp(thisMonth),'By expense date')+'</div>'+
+    '<section class="panel spend-breakdown"><div class="panel-heading"><h2>Where the money goes</h2><span class="profit-period">All time</span></div>'+
+    (parts.length?'<div class="bars">'+parts.map(([label,value])=>'<div class="bar-row" title="'+esc(label)+': '+gbp(value)+'"><span class="bar-label">'+esc(label)+'</span><span class="bar-track"><span class="bar-fill" data-w="'+Math.max(2,value/max*100).toFixed(1)+'"></span></span><span class="bar-value">'+gbp(value)+'</span></div>').join('')+'</div>':'<p>No spending recorded yet.</p>')+
+    '</section>';
 }
 function render() {
   parkNotificationPreferences();
-  document.querySelectorAll('nav button, .menu-links button').forEach(button => {
+  document.querySelectorAll('.menu-links button').forEach(button => {
     const active = button.dataset.tab === tab;
     button.classList.toggle('active', active);
     if (active) button.setAttribute('aria-current','page'); else button.removeAttribute('aria-current');
   });
+  markSections(tab);
   const headerAction = page => page==='Expenses'?'<button class="action" id="add" data-ledger="expense">＋ Add expense</button>':
     page==='Activity'?'<button class="action" id="add" data-ledger="sale">＋ Add sale</button>':'<button class="action" id="add">＋ Add stock</button>';
   const titles = {Orders:'Bulk orders',Resources:'Reseller resources','Customer care':'Customer care',Dashboard: 'Business overview', Stock: 'Stock collection', Activity: 'Transactions', Expenses:'Business expenses',Account:'Settings',Profile:'Your profile',Admin:'Account management', 'Buying research': 'Buying research',Reports:'Reports','Buying insights':'Buying insights','Sale receipts':'Sale receipts','Vinted updates':'Vinted updates',Leaderboard:'Revenue leaderboard'};
@@ -360,8 +390,10 @@ function render() {
   if(tab==='Leaderboard')html+=leaderboardView();
   if(tab==='Profile'){html+=profileView();queueMicrotask(()=>loadFriends().catch(error=>{if($('friendsList'))$('friendsList').textContent=error.message;}));}
   if(tab==='Admin'&&account.role==='admin')html+=adminView();
+  html=subnavView(tab)+html;
   if(isReadOnly())html='<div class="readonly-banner">Viewing a member account · read-only <button class="link" id="ownWorkspace">Return to my Stockroom</button></div>'+html;
   $('view').innerHTML = html;
+  applySizes($('view'));
   $('profileDock').setAttribute('aria-pressed',String(tab==='Profile'));
   if(lastRenderedTab!==tab){$('view').classList.remove('view-arriving');void $('view').offsetWidth;$('view').classList.add('view-arriving');lastRenderedTab=tab;}
   const utility=!['Dashboard','Stock','Expenses','Activity'].includes(tab);$('screenBack').hidden=!utility;

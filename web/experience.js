@@ -13,11 +13,7 @@ function welcome(){
  return '<section class="top dashboard-title"><div><h1>'+greeting+', '+esc(name)+'</h1><p>'+esc(today)+'</p></div>'+
    '<div class="dashboard-actions"><button class="secondary" type="button" data-scan-receipt '+(isReadOnly()?'hidden':'')+'>Scan receipt</button>'+
    '<button class="action" id="add">＋ Add stock</button></div></section>'+
-   '<section class="pip-dashboard" aria-labelledby="pipDashboardTitle">'+
-   '<div class="pip-dashboard-copy"><h2 id="pipDashboardTitle">Pip</h2>'+
-   '<p>See what needs your attention across stock, sales and orders.</p>'+
-   '<button class="secondary pip-dashboard-action" type="button" data-guide>Open Pip review <span aria-hidden="true">→</span></button></div>'+
-   blobCharacter('pip-dashboard-art')+'</section>';
+   kpiStrip()+pipBrainView();
 }
 function guideView() {
  const financials = finances(db);
@@ -91,7 +87,7 @@ function requestClose(dialog){
 }
 function initialiseExperience(){
  const paths={Account:'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8ZM9 3h6l1 3 3 1 2 5-2 5-3 1-1 3H9l-1-3-3-1-2-5 2-5 3-1Z',Orders:'M3 7l9-4 9 4v13H3ZM3 7l9 4 9-4M12 11v9',Resources:'M4 5h6l2 2h8v13H4ZM8 12h8M8 16h5',Dashboard:'M3 10 12 3l9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z',Stock:'M4 7h16v14H4ZM8 7V5a4 4 0 0 1 8 0v2',Expenses:'M5 3h14v18l-3-2-4 2-4-2-3 2ZM8 8h8M8 12h6',Activity:'M3 12h4l3-8 4 16 3-8h4'};
- document.querySelectorAll('nav [data-tab]:not(#navProfile)').forEach(button=>{button.querySelector('span').innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="'+paths[button.dataset.tab]+'"/></svg>';});
+ document.querySelectorAll('.sidebar nav [data-tab]:not(#navProfile)').forEach(button=>{const span=button.querySelector('span');if(!span||span.querySelector('svg')||!paths[button.dataset.tab])return;span.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="'+paths[button.dataset.tab]+'"/></svg>';});
  $('mobileAddStock').onclick=()=>{if(db&&account&&!isReadOnly())openItem(null);};
  document.addEventListener('click',event=>{
   if(!event.target.closest('[data-scan-receipt]')||isReadOnly())return;

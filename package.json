@@ -21,6 +21,7 @@
   "devDependencies": {
     "drizzle-kit": "^0.31.0",
     "esbuild": "^0.25.12",
+    "geist": "^1.9.2",
     "wrangler": "^4.0.0"
   }
 }

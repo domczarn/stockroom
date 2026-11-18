@@ -1,7 +1,7 @@
 import {build,transform} from 'esbuild';
 import {resolve} from 'node:path';
 import {readFile,writeFile,mkdir,rm} from 'node:fs/promises';
-const files = ['index.html','privacy.html','gmail.js','compat.js','app.js','finance-insights.js','customer.js','expenses.js','settings.js','orders.js','workspace.css','labels.css','polish.css','resources.js','resources-data.json','style.css','seed.json','receipt.js','listing.js','experience.js','manifest.webmanifest','favicon.svg','pip.svg','social.js','trading.js','bulk.js','stock.js','market.js','notifications.js','stockroom-sw.js'];
+const files = ['index.html','privacy.html','gmail.js','compat.js','app.js','finance-insights.js','shell.js','customer.js','expenses.js','settings.js','orders.js','workspace.css','labels.css','theme.css','resources.js','resources-data.json','style.css','seed.json','receipt.js','listing.js','experience.js','manifest.webmanifest','favicon.svg','pip.svg','social.js','trading.js','bulk.js','stock.js','market.js','notifications.js','stockroom-sw.js'];
 const assets = {};
 for (const file of files) {
   const source=await readFile('web/'+file,'utf8');
@@ -18,6 +18,8 @@ assets['/receipt-ocr.js']=await readFile('node_modules/tesseract.js/dist/tessera
 assets['/receipt-ocr-worker.js']=await readFile('node_modules/tesseract.js/dist/worker.min.js','utf8');
 assets['/barcode.js']=await readFile('node_modules/jsbarcode/dist/barcodes/JsBarcode.code128.min.js','utf8');
 assets['/pip-icon.png']={base64:(await readFile('web/pip-icon.png')).toString('base64'),type:'image/png'};
+assets['/geist.woff2']={base64:(await readFile('node_modules/geist/dist/fonts/geist-sans/Geist-Variable.woff2')).toString('base64'),type:'font/woff2'};
+assets['/geist-mono.woff2']={base64:(await readFile('node_modules/geist/dist/fonts/geist-mono/GeistMono-Variable.woff2')).toString('base64'),type:'font/woff2'};
 assets['/icon.png']={base64:(await readFile('web/icon.png')).toString('base64'),type:'image/png'};
 assets['/'] = assets['/index.html'];
 await rm('dist',{recursive:true,force:true});
