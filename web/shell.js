@@ -184,3 +184,84 @@ document.addEventListener('visibilitychange', checkForUpdate);
 window.addEventListener('pageshow', event => { if (event.persisted) checkForUpdate(); });
 window.addEventListener('focus', checkForUpdate);
 setInterval(checkForUpdate, 5 * 60 * 1000);
+
+// ---------- Pip notifications: in-app card + synthesised chime ----------
+let pipAudio = null;
+const soundOn = () => { try { return localStorage.getItem('stockroom-sound') !== 'off'; } catch { return true; } };
+function unlockAudio() {
+  try {
+    pipAudio ||= new (window.AudioContext || window.webkitAudioContext)();
+    if (pipAudio.state === 'suspended') pipAudio.resume();
+  } catch {}
+}
+['pointerdown', 'keydown', 'touchstart'].forEach(type => document.addEventListener(type, unlockAudio, {passive:true}));
+
+// A short rising "data received" tone: three glassy partials with a pitch glide, a band-passed shimmer
+// sweep, and a soft echo. Kept under 1.2s and quiet.
+function pipChime() {
+  if (!soundOn()) return;
+  try {
+    unlockAudio();
+    const ctx = pipAudio; if (!ctx) return;
+    const t = ctx.currentTime + 0.02;
+    const master = ctx.createGain(); master.gain.value = 0.55;
+    const echo = ctx.createDelay(); echo.delayTime.value = 0.16;
+    const feedback = ctx.createGain(); feedback.gain.value = 0.28;
+    const wet = ctx.createGain(); wet.gain.value = 0.35;
+    master.connect(ctx.destination); master.connect(echo); echo.connect(feedback); feedback.connect(echo); echo.connect(wet); wet.connect(ctx.destination);
+    [[659.25, 0, 'sine'], [987.77, 0.085, 'triangle'], [1567.98, 0.17, 'sine']].forEach(([freq, at, type]) => {
+      const osc = ctx.createOscillator(), gain = ctx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq * 0.92, t + at);
+      osc.frequency.exponentialRampToValueAtTime(freq, t + at + 0.06);
+      gain.gain.setValueAtTime(0.0001, t + at);
+      gain.gain.exponentialRampToValueAtTime(0.16, t + at + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + at + 0.55);
+      osc.connect(gain); gain.connect(master);
+      osc.start(t + at); osc.stop(t + at + 0.6);
+    });
+    const length = Math.floor(ctx.sampleRate * 0.5), buffer = ctx.createBuffer(1, length, ctx.sampleRate), data = buffer.getChannelData(0);
+    for (let i = 0; i < length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / length);
+    const noise = ctx.createBufferSource(), band = ctx.createBiquadFilter(), ng = ctx.createGain();
+    noise.buffer = buffer; band.type = 'bandpass'; band.Q.value = 9;
+    band.frequency.setValueAtTime(900, t); band.frequency.exponentialRampToValueAtTime(7000, t + 0.42);
+    ng.gain.setValueAtTime(0.0001, t); ng.gain.exponentialRampToValueAtTime(0.05, t + 0.05); ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.48);
+    noise.connect(band); band.connect(ng); ng.connect(master); noise.start(t); noise.stop(t + 0.5);
+  } catch {}
+}
+
+let pipStack = null;
+function pipNotify({title, body, tab, tone = 'info'}) {
+  if (!title) return;
+  pipStack ||= Object.assign(document.createElement('div'), {className:'pip-toasts', role:'status'});
+  pipStack.setAttribute('aria-live', 'polite');
+  if (!pipStack.isConnected) document.body.append(pipStack);
+  const card = document.createElement('div');
+  card.className = 'pip-toast';
+  card.dataset.tone = tone;
+  card.innerHTML = '<span class="pip-toast-orb"><img src="/pip.svg" alt="" width="30" height="28"></span>' +
+    '<span class="pip-toast-copy"><span class="pip-toast-eyebrow">Pip · ' + (tone === 'go' ? 'Stock update' : 'Update') + '</span>' +
+    '<strong>' + esc(title) + '</strong>' + (body ? '<small>' + esc(body) + '</small>' : '') + '</span>' +
+    '<span class="pip-toast-actions">' + (tab ? '<button type="button" class="pip-toast-open">View</button>' : '') +
+    '<button type="button" class="pip-toast-close" aria-label="Dismiss">✕</button></span><span class="pip-toast-timer"></span>';
+  const close = () => { card.classList.add('leaving'); setTimeout(() => card.remove(), 260); };
+  card.querySelector('.pip-toast-close').onclick = close;
+  card.querySelector('.pip-toast-open')?.addEventListener('click', () => { close(); navigate(tab); });
+  pipStack.prepend(card);
+  while (pipStack.children.length > 3) pipStack.lastElementChild.remove();
+  requestAnimationFrame(() => card.classList.add('shown'));
+  setTimeout(close, 8000);
+  pipChime();
+}
+
+navigator.serviceWorker?.addEventListener('message', event => {
+  const data = event.data || {};
+  // Purchases are announced by refreshImports once the items are actually in stock.
+  if (data.type === 'stockroom-update' && data.kind && data.kind !== 'purchase' && data.title) pipNotify({title:data.title, body:data.body, tab:data.tab});
+});
+
+document.addEventListener('click', event => {
+  if (event.target.closest('[data-sound-test]')) { unlockAudio(); const was = soundOn(); if (!was) try { localStorage.removeItem('stockroom-sound'); } catch {} ; pipNotify({title:'This is Pip', body:'You’ll hear this when new stock or Vinted updates land.', tone:'go'}); if (!was) try { localStorage.setItem('stockroom-sound','off'); } catch {} }
+  const toggle = event.target.closest('[data-sound-toggle]');
+  if (toggle) { try { localStorage.setItem('stockroom-sound', soundOn() ? 'off' : 'on'); } catch {} toggle.textContent = soundOn() ? 'On' : 'Off'; toggle.setAttribute('aria-pressed', String(soundOn())); }
+});

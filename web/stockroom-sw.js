@@ -8,11 +8,13 @@ self.addEventListener('push',event=>{
   const tab=views.includes(payload.tab)?payload.tab:'Dashboard';
   const chat=tab==='Profile'&&/^[a-f0-9]{64}$/.test(payload.chat||'')?payload.chat:null;
   const tag=typeof payload.tag==='string'&&/^stockroom-[a-z]+(?:-[a-f0-9]{64})?$/.test(payload.tag)?payload.tag:'stockroom';
-  event.waitUntil(Promise.all([self.registration.showNotification('Stockroom',{
-    body:typeof payload.body==='string'?payload.body:'You have a new Stockroom update.',
-    icon:'/pip-icon.png',tag,data:{tab,chat}
+  const title=typeof payload.title==='string'&&payload.title.length<60?payload.title:'Stockroom';
+  const body=typeof payload.body==='string'?payload.body.slice(0,180):'You have a new Stockroom update.';
+  const kind=typeof payload.kind==='string'&&/^[a-z]{1,20}$/.test(payload.kind)?payload.kind:'';
+  event.waitUntil(Promise.all([self.registration.showNotification(title,{
+    body,icon:'/pip-icon.png',badge:'/pip-icon.png',tag,renotify:true,vibrate:[60,40,120],data:{tab,chat}
   }),self.clients.matchAll({type:'window'}).then(windows=>{
-    for(const client of windows)client.postMessage({type:'stockroom-update',tab,chat});
+    for(const client of windows)client.postMessage({type:'stockroom-update',tab,chat,title,body,kind});
   })]));
 });
 self.addEventListener('notificationclick',event=>{

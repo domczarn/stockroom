@@ -6,6 +6,9 @@ workers_dev = true
 # Gmail OAuth is pinned to this origin.
 routes = [{ pattern = "stockroom.bookednpaid.com", custom_domain = true }]
 
+[triggers]
+crons = ["*/10 * * * *"]
+
 [observability]
 enabled = true
 

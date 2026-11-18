@@ -115,7 +115,8 @@ export function receiptUpdate(message,days,now=Date.now()){
   const subject=header('subject').replace(/\s+/g,' ').trim().slice(0,230);
   let category;
   if(/offer|favou?rite|password|sign.in|new message|verification code/i.test(subject))return null;
-  if(/\b(?:refund(?:ed)?|cancel(?:led|ed|lation))\b/i.test(subject))category='Refund / cancellation';
+  if(/^your receipt for\b/i.test(subject))category='Purchase';
+  else if(/\b(?:refund(?:ed)?|cancel(?:led|ed|lation))\b/i.test(subject))category='Refund / cancellation';
   else if(/\b(?:you sold|item sold|sale (?:confirmed|complete|completed)|sold an item)\b/i.test(subject))category='Sale';
   else if(/\b(?:purchase (?:confirmed|successful|confirmation)|you (?:just )?bought|order confirmed|payment successful)\b/i.test(subject))category='Purchase';
   else if(/\b(?:delivered|delivery|shipped|posted|on its way|parcel|confirmation needed|ready for (?:pickup|collection))\b/i.test(subject))category='Delivery';
@@ -124,7 +125,7 @@ export function receiptUpdate(message,days,now=Date.now()){
   return {id:message.id,subject,category,receivedAt:new Date(received).toISOString(),reviewed:false};
 }
 
-async function check(env,user,context,row){
+export async function check(env,user,context,row){
   if(!row.enabled)throw new HttpError(409,'Resume Gmail sync before checking.');
   if(row.state==='reconnect')throw new HttpError(409,'Reconnect Gmail to continue.');
   const now=Date.now();
@@ -157,6 +158,12 @@ async function check(env,user,context,row){
         format:'metadata',metadataHeaders:['From','Subject','Authentication-Results'],fields:'id,internalDate,payload(headers)'
       })));
       results.push(...batch.map(message=>receiptUpdate(message,row.days,now)).filter(Boolean));
+    }
+    if(user.admin){
+      const bought=await importPurchases(env,access_token,results.filter(receipt=>receipt.category==='Purchase'));
+      if(bought.length)notifyAccount(context,env,user.id,'purchase',null,bought.length===1
+        ?'Added to stock: '+bought[0].name+' · £'+bought[0].cost.toFixed(2)
+        :bought.length+' purchases added to stock: '+bought.map(item=>item.name).join(', ').slice(0,140));
     }
     const added=await update('connected',results);
     return {added:added||0,...publicConnection(await connection(env,user.id),env)};
@@ -201,3 +208,71 @@ export async function gmailRoute(request,url,env,user,context){
   return publicConnection(await connection(env,user.id),env);
 }
 
+
+
+// ---------- Vinted purchase receipts -> stock (owner only) ----------
+const entities={amp:'&',lt:'<',gt:'>',quot:'"',apos:"'",nbsp:' ',pound:'£',rsquo:'’',lsquo:'‘',ldquo:'“',rdquo:'”'};
+function decodePart(data){
+  const bin=atob(String(data||'').replace(/-/g,'+').replace(/_/g,'/'));
+  return new TextDecoder().decode(Uint8Array.from(bin,c=>c.charCodeAt(0)));
+}
+function findBody(part,type){
+  if(!part)return '';
+  if(part.mimeType===type&&part.body?.data)return decodePart(part.body.data);
+  for(const child of part.parts||[]){const found=findBody(child,type);if(found)return found;}
+  return '';
+}
+export function receiptText(html){
+  return html.replace(/<(?:style|script)[\s\S]*?<\/(?:style|script)>/gi,' ')
+    .replace(/<(?:br|\/td|\/th|\/p|\/tr|\/div|\/li|\/h\d)[^>]*>/gi,'\n').replace(/<[^>]+>/g,' ')
+    .replace(/&#(\d+);/g,(_,n)=>String.fromCharCode(Number(n))).replace(/&#x([0-9a-f]+);/gi,(_,n)=>String.fromCharCode(parseInt(n,16)))
+    .replace(/&([a-z]+);/gi,(m,name)=>entities[name.toLowerCase()]??m)
+    .split('\n').map(line=>line.replace(/\s+/g,' ').trim()).filter(Boolean).join('\n');
+}
+export function parsePurchaseReceipt(text){
+  const pick=pattern=>text.match(pattern)?.[1]?.trim()||'';
+  const name=pick(/(?:^|\n)Order\n([^\n]{1,400})\n/);
+  const cost=Number(pick(/(?:^|\n)Paid\n£\s*([\d,]+\.\d{2})/).replace(/,/g,''));
+  const transactionId=pick(/Transaction ID\n#?\s*(\d{5,30})/);
+  const date=text.match(/Payment date\n(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{2}):(\d{2}))?/);
+  const seller=pick(/(?:^|\n)Seller\n([^\n]{1,80})\n/);
+  if(!name||!(cost>0&&cost<1000000)||!transactionId||!date)return null;
+  const purchasedAt=date[3]+'-'+date[2]+'-'+date[1]+(date[4]?'T'+date[4]+':'+date[5]:'');
+  return {transactionId,name,brand:'',cost:Math.round(cost*100)/100,purchasedAt,seller};
+}
+async function importPurchases(env,token,receipts){
+  if(!receipts.length)return [];
+  const owner=await env.DB.prepare('SELECT payload FROM workspaces w JOIN profiles p ON p.user_id=w.owner_id WHERE p.owner=1 LIMIT 1').first();
+  const inStock=new Set();
+  try{for(const item of JSON.parse(owner?.payload||'{}').items||[])if(item.sourceTransactionId)inStock.add(String(item.sourceTransactionId));}catch{}
+  const added=[];
+  for(const receipt of receipts.slice(0,12)){
+    const seen=await env.DB.prepare("SELECT 1 FROM purchase_imports WHERE json_extract(payload,'$.gmailId')=? LIMIT 1").bind(receipt.id).first();
+    if(seen)continue;
+    try{
+      const message=await getGmail('messages/'+receipt.id,token,{format:'full',fields:'id,payload'});
+      const html=findBody(message.payload,'text/html')||findBody(message.payload,'text/plain');
+      const purchase=parsePurchaseReceipt(receiptText(html));
+      if(!purchase){console.error('Receipt not understood',receipt.id);continue;}
+      const now=new Date().toISOString();
+      // Already in stock from before Gmail sync: record it so it is not fetched again, without touching the item.
+      const payload={transactionId:purchase.transactionId,sourceStockId:'',name:purchase.name,brand:'',cost:purchase.cost,purchasedAt:purchase.purchasedAt,
+        size:'',color:'',garment:'',listingUrl:'',referencePhotos:[],photoStatus:'Listing photos unavailable',updatedAt:now,gmailId:receipt.id,seller:purchase.seller,
+        ...(inStock.has(purchase.transactionId)?{alreadyInStock:true}:{})};
+      const insert=await env.DB.prepare('INSERT INTO purchase_imports (transaction_id,payload,updated_at) VALUES (?,?,?) ON CONFLICT(transaction_id) DO NOTHING')
+        .bind(purchase.transactionId,JSON.stringify(payload),now).run();
+      if(insert.meta.changes&&!inStock.has(purchase.transactionId))added.push(purchase);
+    }catch(error){console.error('Receipt import failed',receipt.id,String(error?.message||error).slice(0,120));}
+  }
+  return added;
+}
+
+// Runs from the Worker cron so purchases arrive without opening the app.
+export async function scheduledGmail(env,context){
+  const owner=await env.DB.prepare('SELECT user_id FROM profiles WHERE owner=1 LIMIT 1').first();
+  const rows=(await env.DB.prepare("SELECT * FROM gmail_connections WHERE enabled=1 AND state<>'reconnect'").all()).results||[];
+  for(const row of rows){
+    try{await check(env,{id:row.owner_id,admin:Boolean(owner&&row.owner_id===owner.user_id)},context,row);}
+    catch(error){if(error?.status!==409)console.error('Scheduled Gmail check failed',String(error?.message||error).slice(0,160));}
+  }
+}

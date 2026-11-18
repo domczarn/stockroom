@@ -43,12 +43,13 @@ async function vapidKeys(env,create=false){
   return keys&&{subject,publicKey:keys.public_key,privateKey:keys.private_key};
 }
 
-async function deliver(env,row,keys,kind,chat){
+async function deliver(env,row,keys,kind,chat,body){
   try{
     const subscription=JSON.parse(row.subscription);
     if(!endpointAllowed(subscription.endpoint)||!validKeys(subscription.keys))return false;
     const conversation=(kind==='message'||kind==='testmessage')&&/^[a-f0-9]{64}$/.test(chat||'')?chat:null;
-    const data=JSON.stringify({body:options[kind].body,tab:options[kind].tab,tag:'stockroom-'+kind+(conversation?'-'+conversation:''),...(conversation?{chat:conversation}:{})});
+    const titles={purchase:'New stock added',gmail:'Vinted update',receipt:'Sale receipt ready',message:'New message'};
+    const data=JSON.stringify({title:titles[kind]||'Stockroom',body:typeof body==='string'&&body?body.slice(0,180):options[kind].body,tab:options[kind].tab,kind,tag:'stockroom-'+kind+(conversation?'-'+conversation:''),...(conversation?{chat:conversation}:{})});
     const payload=await buildPushPayload({data,options:{ttl:3600}},subscription,keys);
     const response=await fetch(subscription.endpoint,{...payload,redirect:'manual',signal:AbortSignal.timeout(8000)});
     if([404,410].includes(response.status)){
@@ -60,18 +61,18 @@ async function deliver(env,row,keys,kind,chat){
   }catch{return false;}
 }
 
-async function deliverToAccount(env,ownerId,kind,chat){
+async function deliverToAccount(env,ownerId,kind,chat,body){
   if(!ownerId)return;
   const rows=await env.DB.prepare('SELECT * FROM push_devices WHERE owner_id=? ORDER BY updated_at DESC LIMIT 8').bind(ownerId).all();
   if(!rows.results.length)return;
   const keys=await vapidKeys(env);
   if(!keys)return;
-  const results=await Promise.all(rows.results.map(row=>deliver(env,row,keys,kind,chat)));
+  const results=await Promise.all(rows.results.map(row=>deliver(env,row,keys,kind,chat,body)));
   console.info('stockroom-push',kind,{accepted:results.filter(Boolean).length,attempted:results.length});
 }
 
-export function notifyAccount(context,env,ownerId,kind,chat){
-  if(context?.waitUntil)context.waitUntil(deliverToAccount(env,ownerId,kind,chat).catch(()=>{}));
+export function notifyAccount(context,env,ownerId,kind,chat,body){
+  if(context?.waitUntil)context.waitUntil(deliverToAccount(env,ownerId,kind,chat,body).catch(()=>{}));
 }
 export function notifyOwner(context,env,kind){
   if(!context?.waitUntil)return;

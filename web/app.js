@@ -824,8 +824,9 @@ function mergePurchases(data,purchases) {
     if(item.deletedAt)continue;
     item.sourceTransactionId = purchase.transactionId;
     if (!item.purchaseDateReviewed) item.purchasedAt ||= (purchase.purchasedAt||'').slice(0,10);
-    item.referencePhotos = purchase.referencePhotos || [];
-    item.photoStatus = purchase.photoStatus;
+    // Never blank photos already on an item: Gmail receipt imports carry none.
+    if (purchase.referencePhotos?.length || !item.referencePhotos?.length) item.referencePhotos = purchase.referencePhotos || [];
+    if (purchase.referencePhotos?.length || !item.photoStatus) item.photoStatus = purchase.photoStatus;
     item.listingUrl ||= purchase.listingUrl || '';
     item.size ||= purchase.size || '';
     item.color ||= purchase.color || '';
@@ -852,8 +853,14 @@ async function refreshImports() {
     purchaseNoticeKeys=source.purchases.filter(row=>row.purchasedAt?.slice(0,10)>=recent)
       .flatMap(row=>['purchase:'+row.transactionId,...(row.referencePhotos||[]).map(photo=>'purchase-photo:'+photo.url)]);
     renderNotifications();
+    const beforeIds = new Set(db.items.map(item=>item.id));
     const merged = mergePurchases(db,source.purchases);
     if(JSON.stringify(merged.data)!==JSON.stringify(db))await persist(merged.data);
+    if (merged.added) {
+      const fresh = merged.data.items.filter(item=>!beforeIds.has(item.id));
+      pipNotify({tone:'go', tab:'Stock', title: fresh.length===1 ? 'Added to stock: '+fresh[0].name : fresh.length+' new purchases in stock',
+        body: fresh.slice(0,3).map(item=>item.name+' · '+gbp(item.cost)).join('  ·  ')});
+    }
     $('syncState').textContent = merged.added ? merged.added + ' new purchase(s) added' : 'Purchase imports checked';
   } catch {
     $('syncState').textContent = 'Purchase check unavailable · Try Refresh purchases';

@@ -455,3 +455,38 @@ nav.subnav {
 
 .update-banner { position: fixed; left: 50%; transform: translateX(-50%); top: calc(env(safe-area-inset-top, 0px) + 12px); z-index: 1000;
   background: var(--ink) !important; color: #000 !important; border: 0; border-radius: 999px; padding: 10px 18px; font: 500 14px var(--font); box-shadow: 0 10px 40px rgba(0,0,0,.6); cursor: pointer; }
+
+/* ---------- Pip notification cards ---------- */
+.pip-toasts { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 16px); right: 16px; z-index: 1200; display: grid; gap: 10px; width: min(380px, calc(100vw - 32px)); pointer-events: none; }
+.pip-toast {
+  pointer-events: auto; position: relative; overflow: hidden; display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center;
+  padding: 14px 14px 16px; border-radius: 16px; color: var(--ink);
+  background: linear-gradient(135deg, rgba(155,140,255,.16), rgba(57,135,229,.06) 45%, rgba(10,10,10,.92) 70%), rgba(10,10,10,.92);
+  border: 1px solid rgba(155,140,255,.35); box-shadow: 0 0 0 1px rgba(0,0,0,.5), 0 18px 50px rgba(0,0,0,.65), 0 0 40px rgba(155,140,255,.18);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4); backdrop-filter: blur(18px) saturate(1.4);
+  opacity: 0; transform: translateY(-12px) scale(.98); transition: opacity .28s ease, transform .35s cubic-bezier(.2,.9,.2,1.2);
+}
+.pip-toast.shown { opacity: 1; transform: none; }
+.pip-toast.leaving { opacity: 0; transform: translateY(-8px) scale(.98); transition-duration: .22s; }
+.pip-toast::before { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,.09) 50%, transparent 70%); transform: translateX(-100%); }
+.pip-toast.shown::before { animation: pipSweep 1.1s .1s ease-out; }
+.pip-toast-orb { width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; background: radial-gradient(circle, rgba(155,140,255,.45), rgba(155,140,255,.05) 70%); box-shadow: 0 0 0 1px rgba(155,140,255,.35), 0 0 22px rgba(155,140,255,.4); }
+.pip-toast-orb img { width: 28px; height: auto; }
+.pip-toast-copy { min-width: 0; display: grid; gap: 2px; }
+.pip-toast-eyebrow { font-family: var(--mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--pip); }
+.pip-toast[data-tone="go"] .pip-toast-eyebrow { color: var(--good); }
+.pip-toast strong { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+.pip-toast small { color: var(--ink-2); font-size: 13px; line-height: 1.35; overflow-wrap: anywhere; }
+.pip-toast-actions { display: flex; gap: 6px; align-items: center; }
+.pip-toast-open { background: var(--ink); color: #000; border: 0; border-radius: 999px; padding: 7px 12px; font: 500 13px var(--font); cursor: pointer; }
+.pip-toast-close { background: transparent; color: var(--ink-3); border: 0; font-size: 13px; width: 28px; height: 28px; border-radius: 50%; cursor: pointer; }
+.pip-toast-close:hover { color: var(--ink); background: rgba(255,255,255,.06); }
+.pip-toast-timer { position: absolute; left: 0; bottom: 0; height: 2px; width: 100%; background: linear-gradient(90deg, var(--pip), var(--blue)); transform-origin: left; }
+.pip-toast.shown .pip-toast-timer { animation: pipTimer 8s linear forwards; }
+@keyframes pipTimer { to { transform: scaleX(0); } }
+@keyframes pipSweep { to { transform: translateX(100%); } }
+@media (max-width: 800px) { .pip-toasts { left: 12px; right: 12px; width: auto; top: calc(env(safe-area-inset-top, 0px) + 10px); } }
+@media (prefers-reduced-motion: reduce) { .pip-toast, .pip-toast.shown { transition: none; transform: none; } .pip-toast.shown::before { animation: none; } }
+.sound-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 16px !important; margin-bottom: 12px; }
+.sound-row strong { display: block; color: var(--ink) !important; } .sound-actions { display: flex; gap: 8px; }
+.sound-actions [aria-pressed="true"] { background: var(--ink) !important; color: #000 !important; }
