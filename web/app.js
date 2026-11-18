@@ -180,8 +180,8 @@ function row(i) {
     : '<button class="photo-button" data-edit="' + esc(i.id) + '" aria-label="Add photos to ' + esc(i.name) + '"><span class="no-photo">＋<br>Add photo</span></button>';
   const picker=stockSelectionBox(i);
   return '<tr data-stock-entry><td><div class="item-cell">' + picker + thumbnail + '<div class="item-copy"><small>' + esc(i.brand) + ' · ' + esc(i.id) + '</small><button data-edit="' + esc(i.id) + '">' + esc(i.name) + '</button><div class="muted">' + esc([i.size, i.condition,i.stage].filter(Boolean).join(' · ')) + '</div>' + stockAge(i) + '</div></div></td>' +
-    '<td><input aria-label="Total cost for ' + esc(i.name) + '" data-cost="' + esc(i.id) + '" type="number" min="0" step=".01" value="' + esc(i.cost) + '"></td>' +
-    '<td>' + (i.status === 'In Stock' ? '<input aria-label="Expected resale for ' + esc(i.name) + '" data-price="' + esc(i.id) + '" type="number" min="0" step=".01" value="' + esc(i.price) + '">' : gbp(proceeds(i))) + '</td>' +
+    '<td><input aria-label="Total cost for ' + esc(i.name) + '" data-cost="' + esc(i.id) + '" type="number" inputmode="decimal" min="0" step=".01" value="' + esc(i.cost) + '"></td>' +
+    '<td>' + (i.status === 'In Stock' ? '<input aria-label="Expected resale for ' + esc(i.name) + '" data-price="' + esc(i.id) + '" type="number" inputmode="decimal" min="0" step=".01" value="' + esc(i.price) + '">' : gbp(proceeds(i))) + '</td>' +
     '<td class="' + (result < 0 ? 'neg' : 'pos') + '">' + gbp(result) + '</td><td>' + (result == null || !roiCost ? '—' : (100 * result / roiCost).toFixed(1) + '%') +
     '</td><td><span class="tag ' + (i.status === 'Refund pending' ? 'pending' : '') + '">' + esc(order?tradeStatus(order):i.status) + '</span></td><td><div class="stock-row-actions">'+stockNextAction(i)+stockMore(i)+'</div></td></tr>';
 }
@@ -310,7 +310,7 @@ function activity() {
   const legacyRows = db.sales.map((row, index) => '<tr><td><span class="tag">Sale</span></td><td>' + esc(row[0]) + '</td><td>' + gbp(row[1]) + '</td><td>' + (Number.isFinite(row[3]) ? gbp(row[1]-row[3]) : '<span class="pending tag">Cost needed</span>') + '</td><td>' + esc(row[2]) + '</td><td><button class="link" data-ledger="sale" data-index="' + index + '">Edit</button><button class="link expense-remove" data-kind="sale" data-expense-remove="' + index + '">Remove</button></td></tr>');
   const expenseRows = db.expenses.map((row, index) => '<tr><td><span class="tag neutral-tag">Expense</span></td><td>' + esc(row[0]) + '</td><td>' + gbp(-row[1]) + '</td><td>—</td><td>Recorded</td><td><button class="link" data-ledger="expense" data-index="' + index + '">Edit</button><button class="link expense-remove" data-expense-remove="' + index + '">Remove</button></td></tr>');
   const stockSales = db.items.filter(item => item.status !== 'In Stock').map(item => '<tr><td><span class="tag">' + (item.status==='Sold'?'Sale':'Return') + '</span></td><td>' + esc(item.name) + '</td><td>' + gbp(proceeds(item)) + '</td><td>' + gbp(profit(item)) + '</td><td>' + esc(item.status) + '</td><td><button class="link" data-edit="' + esc(item.id) + '">Edit</button></td></tr>');
-  return '<div class="tools"><p>Sales, business expenses and returns in one place.</p><button class="secondary" data-ledger="sale">+ Add sale</button><button class="secondary" data-ledger="expense">+ Add expense</button></div>' +
+  return '<div class="tools"><button class="secondary" data-ledger="expense">＋ Add expense</button></div>' +
     table(['Type','Item / description','Amount','Item profit','Status',''], [...legacyRows, ...expenseRows, ...stockSales].join('') || '<tr><td colspan="6">Your transactions will appear here.</td></tr>')+removedExpensesView('sale');
 }
 function expensesView() {
@@ -318,7 +318,7 @@ function expensesView() {
   const thisMonth = total(db.expenses.filter(row=>row[4]?.startsWith(todayUK().slice(0,7))),row=>row[1]);
   return '<div class="metrics expense-metrics">'+metric('Total spent',gbp(spend.total),'Clothing and business expenses','featured')+metric('Clothing spend',gbp(spend.clothing),'Recorded stock and bulk orders')+metric('Business expenses',gbp(spend.overhead),db.expenses.length+' recorded expenses')+
     metric('Business expenses this month',gbp(thisMonth),'Based on recorded expense dates')+'</div>'+
-    '<div class="tools"><p>Packaging, postage, cleaning and other business costs.</p><button class="action" data-ledger="expense">＋ Add expense</button></div>'+
+    '<div class="tools"><p>Packaging, postage, cleaning and other business costs.</p></div>'+
     table(['Description','Category','Date','Amount','Notes',''],db.expenses.map((row,index)=>
       '<tr><td>'+esc(row[0])+'</td><td><span class="tag neutral-tag">'+esc(row[2]||'Other')+'</span></td><td>'+esc(row[4]?dateLabel(row[4]):'Date needed')+
       '</td><td>'+gbp(row[1])+'</td><td class="expense-notes">'+esc(row[5]||'—')+'</td><td><button class="link" data-ledger="expense" data-index="'+index+'">Edit</button><button class="link expense-remove" data-expense-remove="'+index+'">Remove</button></td></tr>'
@@ -331,12 +331,14 @@ function render() {
     button.classList.toggle('active', active);
     if (active) button.setAttribute('aria-current','page'); else button.removeAttribute('aria-current');
   });
+  const headerAction = page => page==='Expenses'?'<button class="action" id="add" data-ledger="expense">＋ Add expense</button>':
+    page==='Activity'?'<button class="action" id="add" data-ledger="sale">＋ Add sale</button>':'<button class="action" id="add">＋ Add stock</button>';
   const titles = {Orders:'Bulk orders',Resources:'Reseller resources','Customer care':'Customer care',Dashboard: 'Business overview', Stock: 'Stock collection', Activity: 'Transactions', Expenses:'Business expenses',Account:'Settings',Profile:'Your profile',Admin:'Account management', 'Buying research': 'Buying research',Reports:'Reports','Buying insights':'Buying insights','Sale receipts':'Sale receipts','Vinted updates':'Vinted updates',Leaderboard:'Revenue leaderboard'};
   const subtitles = {Orders:'Every supplier, every batch, from purchase to your stockroom.',Resources:'Your directory of suppliers, auction sellers and useful tools.','Customer care':'Thoughtful updates for every customer, from purchase to delivery.',Dashboard:'Your resale business at a glance.',Stock:'See what’s in, what’s selling and what needs your attention.',Activity:'Track sales, expenses and completed returns.',Account:'Your account, connections and preferences, in one place.',Profile:'Your identity and access in Stockroom.',Admin:'Suspend, reactivate or review member accounts.',Expenses:'Record and review the costs of running your resale business.','Buying research':'UK market data and comparable asking prices.',Reports:'Review your numbers by month or across all time.','Buying insights':'Use your completed sales to guide your next buy.','Sale receipts':'Review and match imported Vinted orders.','Vinted updates':'Connect the inbox you use for Vinted and review recent order emails.',Leaderboard:'See how the Stockroom community ranks by recorded sales revenue.'};
   let html = tab==='Dashboard'?welcome():'<section class="top'+(tab==='Stock'?' stock-page-heading':'')+'"><div>'+
     (tab==='Stock'?'':'<div class="eyebrow">'+esc(tab.toUpperCase())+'</div>')+
     '<h1>'+titles[tab]+'</h1>'+(tab==='Stock'?'':'<p>'+subtitles[tab]+'</p>')+
-    '</div><button class="action" id="add">＋ Add stock</button></section>';
+    '</div>'+headerAction(tab)+'</section>';
   if (tab === 'Dashboard') html += dashboard();
   if (tab === 'Stock') html+=stockPage();
   if (tab === 'Activity') html += activity();
@@ -375,7 +377,7 @@ function render() {
   renderNotifications();
   labelViewCells($('view'));
   if(tab==='Buying research'){renderMarketResearch();void loadMarketResearch();}
-  $('add').onclick = () => openItem(null);
+  if(!$('add').dataset.ledger)$('add').onclick = () => openItem(null);
   $('mobileAddStock').hidden = isReadOnly();
   $('pageName').textContent = tab==='Account'?'Settings':tab;
   if (tab === 'Stock') connectStockControls();

@@ -109,7 +109,7 @@ let dialogAction = '';
 
 const tradeButton = (action,label,id='')=>'<button type="button" class="secondary" data-trade="'+action+'" data-stock-id="'+esc(id)+'">'+label+'</button>';
 const options = (values,selected='')=>values.map(value=>'<option '+(value===selected?'selected':'')+'>'+esc(value)+'</option>').join('');
-const moneyInput = (name,label,value='',required=true)=>'<label>'+label+'<input type="number" min="0" max="1000000" step=".01" name="'+name+'" value="'+esc(value)+'" '+(required?'required':'')+'></label>';
+const moneyInput = (name,label,value='',required=true)=>'<label>'+label+'<input type="number" inputmode="decimal" min="0" max="1000000" step=".01" name="'+name+'" value="'+esc(value)+'" '+(required?'required':'')+'></label>';
 const dateInput = (value=todayUK())=>'<label>Date<input name="date" type="date" value="'+esc(value)+'" max="'+todayUK()+'" required></label>';
 const itemOptions = items=>items.map(item=>'<option value="'+esc(item.id)+'">'+esc(item.id+' · '+item.name)+'</option>').join('');
 const tradeStatus = trade=>trade.refunds.some(r=>r.restock)?'Returned':trade.paidAt?'Paid':trade.completedAt?'Completed':trade.postedAt?'Posted':'Sold';

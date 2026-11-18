@@ -1,7 +1,7 @@
 import {build,transform} from 'esbuild';
 import {resolve} from 'node:path';
 import {readFile,writeFile,mkdir,rm} from 'node:fs/promises';
-const files = ['index.html','privacy.html','gmail.js','compat.js','app.js','finance-insights.js','customer.js','expenses.js','settings.js','orders.js','workspace.css','labels.css','resources.js','resources-data.json','style.css','seed.json','receipt.js','listing.js','experience.js','manifest.webmanifest','favicon.svg','pip.svg','social.js','trading.js','bulk.js','stock.js','market.js','notifications.js','stockroom-sw.js'];
+const files = ['index.html','privacy.html','gmail.js','compat.js','app.js','finance-insights.js','customer.js','expenses.js','settings.js','orders.js','workspace.css','labels.css','polish.css','resources.js','resources-data.json','style.css','seed.json','receipt.js','listing.js','experience.js','manifest.webmanifest','favicon.svg','pip.svg','social.js','trading.js','bulk.js','stock.js','market.js','notifications.js','stockroom-sw.js'];
 const assets = {};
 for (const file of files) {
   const source=await readFile('web/'+file,'utf8');
