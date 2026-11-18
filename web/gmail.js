@@ -84,11 +84,13 @@ async function changeGmail(path,options,automatic=false){
     else if(options.method==='DELETE')toast('Gmail disconnected and its receipt summaries removed.');
   }catch(error){
     gmailCheckMessage=error.message;
-    if(!automatic&&tab!=='Vinted updates')toast(error.message);
+    if(!automatic&&!gmailTabs.includes(tab))toast(error.message);
     try{personalGmail=await api('/api/gmail');}catch{}
   }finally{gmailBusy=false;renderGmail();renderDailyActions();renderNotifications();}
 }
 
+// The Gmail section appears on Vinted updates and in Settings (tab 'Account').
+const gmailTabs=['Vinted updates','Account'];
 function initialiseGmail(){
   if(gmailResult&&gmailOutcomes[gmailResult]){
     tab='Vinted updates';
@@ -105,7 +107,7 @@ function initialiseGmail(){
       receipt?.scrollIntoView({block:'center'});
       return;
     }
-    if(tab!=='Vinted updates'||isReadOnly()||gmailBusy)return;
+    if(!gmailTabs.includes(tab)||isReadOnly()||gmailBusy)return;
     const action=event.target.closest('[data-gmail-action]')?.dataset.gmailAction;
     if(action==='connect')void changeGmail('/api/gmail/connect',{method:'POST'});
     else if(action==='check')void changeGmail('/api/gmail/check',{method:'POST'});
@@ -118,7 +120,7 @@ function initialiseGmail(){
     }
   });
   document.addEventListener('change',event=>{
-    if(tab!=='Vinted updates'||isReadOnly())return;
+    if(!gmailTabs.includes(tab)||isReadOnly())return;
     const {gmailOption,gmailFilter}=event.target.dataset;
     if(gmailFilter){gmailFilters[gmailFilter]=event.target.value;renderGmail();return;}
     const row=personalGmail?.connection;
