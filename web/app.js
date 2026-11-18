@@ -807,6 +807,15 @@ const originalPurchases = {
   '0001':'23497232320','0002':'23497295586','0003':'23497368218',
   '0004':'23505544607','0005':'23505507497'
 };
+function sameStockItem(item,purchase){
+  const norm=value=>String(value||'').toLowerCase().replace(/[’']/g,'').replace(/[^a-z0-9]+/g,' ').trim();
+  const a=norm(item.name),b=norm(purchase.name);
+  if(!a||!b||!(a===b||a.startsWith(b)||b.startsWith(a)))return false;
+  if(Math.abs((Number(item.cost)||0)-(Number(purchase.cost)||0))>0.01)return false;
+  const day=value=>Date.parse(String(value||'').slice(0,10)+'T00:00:00Z');
+  const gap=Math.abs(day(item.purchasedAt)-day(purchase.purchasedAt));
+  return !Number.isFinite(gap)||gap<=3*86400000;
+}
 function mergePurchases(data,purchases) {
   const items = data.items.map(item=>({...item}));
   let added = 0;
@@ -814,6 +823,8 @@ function mergePurchases(data,purchases) {
     if (!purchase.transactionId || !Number.isFinite(purchase.cost)) continue;
     let item = items.find(item=>item.sourceTransactionId === purchase.transactionId);
     if (!item) item = items.find(item=>!item.sourceTransactionId && originalPurchases[item.id] === purchase.transactionId);
+    // Hand-added stock has no transaction ID: match on name, price and date so Gmail imports don't duplicate it.
+    if (!item) item = items.find(item=>!item.sourceTransactionId && sameStockItem(item,purchase));
     if (!item) {
       const id = String(Math.max(0,...items.map(item=>Number(item.id)||0))+1).padStart(4,'0');
       item = {id,name:purchase.name,brand:purchase.brand,cost:purchase.cost,price:null,status:'In Stock',photos:[],
