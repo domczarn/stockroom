@@ -35,6 +35,9 @@ assert.deepEqual(await identify({'cf-access-jwt-assertion':token(good,{alg:'RS25
 assert.deepEqual(await identify({'cf-access-jwt-assertion':token(good,{alg:'none',kid:'k1'})}),none);
 assert.deepEqual(await identify({'cf-access-jwt-assertion':token(good).slice(0,-6)+'AAAAAA'}),none);
 assert.deepEqual(await identify({'cf-access-jwt-assertion':'not-a-jwt'}),none);
+// Several audiences are accepted when configured as a list.
+assert.deepEqual(await identify({'cf-access-jwt-assertion':token({...good,aud:['second-aud']})},{...env,ACCESS_AUD:aud+', second-aud'}),{id:'user-1',email:'Member@Example.com'});
+assert.deepEqual(await identify({'cf-access-jwt-assertion':token({...good,aud:['third-aud']})},{...env,ACCESS_AUD:aud+', second-aud'}),none);
 // Missing configuration fails closed.
 assert.deepEqual(await identify({'cf-access-jwt-assertion':token(good)},{}),none);
 console.log('access ok');

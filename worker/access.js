@@ -28,7 +28,9 @@ export async function verifyAccessJwt(token,env,now=Date.now()){
     if(!valid)return null;
     const claims=JSON.parse(decoder.decode(b64(parts[1])));
     const audience=Array.isArray(claims.aud)?claims.aud:[claims.aud];
-    if(!audience.includes(env.ACCESS_AUD))return null;
+    // ACCESS_AUD may list several Access apps (workers.dev and the custom domain), comma-separated.
+    const allowed=String(env.ACCESS_AUD).split(',').map(value=>value.trim()).filter(Boolean);
+    if(!audience.some(value=>allowed.includes(value)))return null;
     if(claims.iss!=='https://'+env.ACCESS_TEAM_DOMAIN)return null;
     if(typeof claims.exp!=='number'||claims.exp*1000<=now)return null;
     if(typeof claims.nbf==='number'&&claims.nbf*1000>now+60000)return null;
