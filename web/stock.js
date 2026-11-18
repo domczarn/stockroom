@@ -216,15 +216,13 @@ function stockPage() {
       '<p class="stock-age-explainer">Review older listings first. Listing age uses your recorded listed date. Asking price updates are recorded from now on.</p>':
       '<section class="stock-overview" aria-label="Stock summary"><div><span>In stock</span><strong>'+active.length+'</strong></div>'+
       '<div><span>At purchase cost</span><strong>'+gbp(cost)+'</strong></div><div><span>Forecast profit</span><strong>'+
-      gbp(total(active.filter(item=>Number.isFinite(item.price)),item=>profit(item)))+'</strong></div></section>'+
-      pip)+
+      gbp(total(active.filter(item=>Number.isFinite(item.price)),item=>profit(item)))+'</strong></div></section>')+
     '<section class="stock-controls" aria-label="Stock filters"><div class="stock-toolbar">'+viewSwitch+
     '<div class="stock-toolbar-actions">'+
     (stockAgeView?'':'<select id="stockLayout" aria-label="Stock layout">'+[['cards','Photo grid'],['list','Detailed list'],['compact','Compact list']].map(([value,label])=>
       '<option value="'+value+'" '+(stockLayout()===value?'selected':'')+'>'+label+'</option>').join('')+'</select>')+
-    (isReadOnly()?'':'<button class="secondary shot-import-open" type="button" data-shot-import>Add from screenshots</button>')+
     '<button id="stockSelectToggle" class="secondary" type="button" data-bulk="toggle" aria-pressed="'+selectingStock+'">'+
-      (selectingStock?'Exit selection':'Select items')+'</button></div></div>'+
+      (selectingStock?'Done':'Select')+'</button></div></div>'+
     '<input id="search" type="search" placeholder="Search stock" aria-label="Search name, brand, size or stock ID" value="'+esc(query)+'">'+
     (stockAgeView?'<div class="stock-filters" role="group" aria-label="Age filters">'+ageFilters.map(([key,label])=>
       '<button type="button" data-stock-age="'+key+'" aria-pressed="'+(stockAgeFilter===key)+'">'+label+'</button>').join('')+'</div>':

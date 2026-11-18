@@ -74,7 +74,7 @@ function pipSignals() {
   const summary = inStock.length
     ? gbp(tiedUp) + ' is tied up in ' + inStock.length + ' item' + (inStock.length === 1 ? '' : 's') + (margin !== null ? '. Sold items average a '  + Math.round(margin * 100) + '% gross margin.' : '.')
     : 'No stock in yet. Add your first item and Pip will start learning your numbers.';
-  return {summary, signals:signals.slice(0, 4), stats:{tiedUp, inStock:inStock.length, margin}};
+  return {summary, signals:signals.slice(0, 3), stats:{tiedUp, inStock:inStock.length, margin}};
 }
 
 // Deterministic neural network drawn around Pip.

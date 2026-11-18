@@ -11,7 +11,7 @@ function welcome(){
  const name=account.role==='admin'?'Dom':account.email.split('@')[0].split(/[._-]/)[0];
  const today = dateLabel(todayUK());
  return '<section class="top dashboard-title"><div><h1>'+greeting+', '+esc(name)+'</h1><p>'+esc(today)+'</p></div>'+
-   '<div class="dashboard-actions"><button class="secondary" type="button" data-scan-receipt '+(isReadOnly()?'hidden':'')+'>Scan receipt</button>'+
+   '<div class="dashboard-actions"><button class="secondary" type="button" data-shot-import '+(isReadOnly()?'hidden':'')+'>From screenshots</button>'+
    '<button class="action" id="add">＋ Add stock</button></div></section>'+
    kpiStrip()+pipBrainView();
 }
@@ -91,7 +91,8 @@ function initialiseExperience(){
  $('mobileAddStock').onclick=()=>{if(db&&account&&!isReadOnly())openItem(null);};
  document.addEventListener('click',event=>{
   if(!event.target.closest('[data-scan-receipt]')||isReadOnly())return;
-  openItem(null);
+  document.getElementById('quickAdd')?.close();
+  (typeof openFullItem==='function'?openFullItem:openItem)(null);
   $('receiptEntry').open=true;
   $('receiptImage').focus();
  });

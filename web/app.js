@@ -220,7 +220,7 @@ function dailyActions() {
   const entry=(name,detail,action)=>'<button class="daily-row" type="button" '+action+'><span><strong>'+esc(name)+
     '</strong><small>'+esc(detail)+'</small></span><span aria-hidden="true">↗</span></button>';
   const tradeAction=(action,id)=>'data-trade="'+action+'" data-stock-id="'+esc(id)+'"';
-  const card=(key,title,rows,empty,link='')=>'<article class="daily-card" data-daily-card="'+key+'"><div class="daily-card-head"><h3>'+
+  const card=(key,title,rows,empty,link='')=>!rows.length?'':'<article class="daily-card" data-daily-card="'+key+'"><div class="daily-card-head"><h3>'+
     title+'</h3><span class="daily-count">'+rows.length+'</span></div>'+
     (rows.length?rows.slice(0,2).join(''):'<p>'+empty+'</p>')+
     (rows.length>2?'<details><summary>Show '+(rows.length-2)+' more</summary>'+rows.slice(2).join('')+'</details>':'')+link+'</article>';
@@ -278,7 +278,25 @@ function dashboard() {
   const openOrders = (db.bulkOrders || []).filter(order => ['Ordered','Dispatched'].includes(order.stage)).length;
   const rows = accountingRows(db);
   const soldCount = rows.filter(row => row.kind === 'Sale').length;
-  return financeInsights(rows)+
+  return '<div class="finance-insights home-chart"><div id="financeChart">'+revenueChart(rows,todayUK())+'</div></div>'+
+    (isReadOnly() ? '' : '<section class="daily-actions" aria-labelledby="dailyActionTitle"><div class="daily-heading"><h2 id="dailyActionTitle">To do</h2></div><div class="daily-grid" id="dailyActionCards"></div></section>');
+}
+function moneyDetail() {
+  const f = finances(db);
+  const spend = recordedSpending(db);
+  const clothingProfit = pounds(cents(f.revenue) - cents(f.knownCost));
+  const breakdown = [
+    ['Sales revenue', f.revenue],
+    ['Cost of clothes sold', -f.knownCost],
+    ['Clothing profit', clothingProfit],
+    ['Business expenses', -spend.overhead],
+    ...(f.returnAdjustment ? [['Return adjustments', f.returnAdjustment]] : []),
+    ['Net profit', f.realised]
+  ];
+  const line = ([label, amount]) => '<div class="finance-line"><span>' + label + '</span><strong>' + gbp(amount || 0) + '</strong></div>';
+  const openOrders = (db.bulkOrders || []).filter(order => ['Ordered','Dispatched'].includes(order.stage)).length;
+  const today = todayUK(), rows = accountingRows(db);
+  return '<div class="finance-insights">'+financeProjection(rows,today)+platformReporting(db,today)+'</div>'+
     '<section class="finance-overview" aria-label="Spending overview">' +
     '<div class="finance-overview-heading"><h2>Spending</h2><span class="profit-period">All time</span></div>' +
     '<div class="finance-kpis">' +
@@ -286,7 +304,7 @@ function dashboard() {
     metric('Business expenses', gbp(spend.overhead), 'Packaging, postage and other costs') +
     metric('Total spent', gbp(spend.total), 'Stock and business expenses', 'finance-net') +
     '</div></section>' +
-    '<div class="finance-detail"><section class="panel"><div class="panel-heading"><h2>Profit breakdown</h2><button class="secondary" data-tab="Reports">Reports</button></div>' +
+    '<div class="finance-detail"><section class="panel"><div class="panel-heading"><h2>Profit breakdown</h2></div>' +
     '<div class="finance-lines">' + breakdown.map(line).join('') + '</div>' +
     '<p class="footnote">Clothing spend includes unsold stock. Profit uses the cost of clothes already sold.</p>' +
     (f.missing ? '<button class="link" data-tab="Activity">Review missing sale costs ↗</button>' : '') +
@@ -296,8 +314,7 @@ function dashboard() {
       ['Expected resale value', total(f.priced, item => item.price)],
       ['Forecast stock profit', f.potential]
     ].map(line).join('') + '</div><p class="footnote">' + f.active.length + ' available · ' + f.priced.length + ' priced · ' + openOrders + ' bulk orders on the way</p>' +
-    '<button class="link" data-tab="Orders">View bulk orders ↗</button></section></div>' +
-    (isReadOnly() ? '' : '<section class="daily-actions" aria-labelledby="dailyActionTitle"><div class="daily-heading"><h2 id="dailyActionTitle">Daily actions</h2></div><div class="daily-grid" id="dailyActionCards"></div></section>');
+    '<button class="link" data-tab="Orders">View bulk orders ↗</button></section></div>';
 }
 function activity() {
   const legacyRows = db.sales.map((row, index) => '<tr><td><span class="tag">Sale</span></td><td>' + esc(row[0]) + '</td><td>' + gbp(row[1]) + '</td><td>' + (Number.isFinite(row[3]) ? gbp(row[1]-row[3]) : '<span class="pending tag">Cost needed</span>') + '</td><td>' + esc(row[2]) + '</td><td><button class="link" data-ledger="sale" data-index="' + index + '">Edit</button><button class="link expense-remove" data-kind="sale" data-expense-remove="' + index + '">Remove</button></td></tr>');
