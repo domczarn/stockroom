@@ -24,6 +24,8 @@ function quickSheet() {
     '<form id="quickAddForm" novalidate>' +
     '<section class="qa-photos"><div id="qaGrid" class="qa-grid"></div>' +
     '<label class="qa-upload"><input type="file" id="qaFiles" accept="image/*" multiple hidden><span>＋ Upload photos</span><small>Vinted screenshots are cropped automatically</small></label></section>' +
+    '<section class="qa-group qa-link"><label class="qa-field"><span>Vinted link <small>optional · fills the title and brand</small></span>' +
+      '<input name="vintedUrl" type="url" inputmode="url" placeholder="Paste the listing link" autocomplete="off"></label></section>' +
     '<section class="qa-group">' +
       '<label class="qa-field"><span>Title</span><input name="name" required maxlength="120" placeholder="e.g. Nike running jacket" autocomplete="off"></label>' +
       '<label class="qa-field"><span>Describe your item</span><textarea name="notes" rows="2" placeholder="e.g. worn once, no flaws"></textarea></label>' +
@@ -49,6 +51,7 @@ function quickSheet() {
     '</form>';
   document.body.append(dialog);
   dialog.querySelector('#qaFiles').onchange = event => addQuickPhotos([...event.target.files]).finally(() => { event.target.value = ''; });
+  dialog.querySelector('[name=vintedUrl]').addEventListener('input', event => fillFromVintedLink(event.target.value));
   dialog.querySelector('#quickAddForm').onsubmit = event => { event.preventDefault(); void saveQuick(); };
   return dialog;
 }
@@ -98,6 +101,29 @@ async function addQuickPhotos(files) {
   } catch (e) {
     error.textContent = e.message || 'That photo could not be opened.';
   } finally { quick.busy = false; syncQuick(); }
+}
+
+// Vinted links carry the listing title in the URL: /items/1234567890-nike-windbreaker-jacket.
+// Read it from the link itself; nothing is fetched from Vinted.
+const KNOWN_BRANDS = ['Nike','Adidas','Ralph Lauren','Polo Ralph Lauren','The North Face','North Face','True Religion','Berghaus','ASICS','Carhartt','Stone Island','Lacoste','Tommy Hilfiger','Levi\'s','Patagonia','Arc\'teryx','New Balance','Under Armour','Puma','Reebok','Champion','Fila','Columbia','Barbour','Hugo Boss','Boss','Calvin Klein','Diesel','Stussy','Supreme','Corteiz','Trapstar','Moncler','Canada Goose','Burberry','Gucci','Zara','H&M','Uniqlo','Jordan','Umbro','Kappa','Ellesse','Fred Perry','Ben Sherman','CP Company','Napapijri','Salomon','Montbell','Mammut','Rab','Helly Hansen','Timberland','Dickies','Vans','Converse','Sergio Tacchini'];
+function fillFromVintedLink(value) {
+  const form = document.getElementById('quickAddForm');
+  let url;
+  try { url = new URL(value.trim()); } catch { return; }
+  if (!/(^|\.)vinted\.[a-z.]+$/i.test(url.hostname)) { document.getElementById('qaError').textContent = 'That is not a Vinted link.'; return; }
+  const slug = (url.pathname.match(/\/items\/\d+-([^/?#]+)/) || [])[1];
+  if (!slug) { document.getElementById('qaError').textContent = 'Could not read a title from that link.'; return; }
+  const words = decodeURIComponent(slug).replace(/[-_]+/g, ' ').trim();
+  const title = words.replace(/\b([a-z])/g, c => c.toUpperCase()).replace(/\b(Xs|Xxl|Xl|Uk)\b/g, w => w.toUpperCase());
+  if (!form.elements.name.value.trim()) form.elements.name.value = title;
+  const brands = [...new Set([...recentValues('brand', 60), ...KNOWN_BRANDS])].sort((a, b) => b.length - a.length);
+  const brand = brands.find(b => new RegExp('\\b' + b.replace(/[.*+?^${}()|[\]\\']/g, '.?') + '\\b', 'i').test(words));
+  if (brand && !form.elements.brand.value.trim()) form.elements.brand.value = brand;
+  const size = (words.match(/\bsize (xxs|xs|s|m|l|xl|xxl|xxxl|\d{1,2})\b/i) || words.match(/\b(xxs|xs|xl|xxl|xxxl|small|medium|large)\b/i) || [])[1];
+  if (size && !form.elements.size.value.trim()) form.elements.size.value = ({small: 'S', medium: 'M', large: 'L'})[size.toLowerCase()] || size.toUpperCase();
+  if (!form.elements.notes.value.includes(url.origin + url.pathname)) form.elements.notes.value = (form.elements.notes.value ? form.elements.notes.value + '\n' : '') + 'Bought from: ' + url.origin + url.pathname;
+  document.getElementById('qaError').textContent = 'Filled from the link. Add photos and what you paid.';
+  form.querySelectorAll('[name=name],[name=brand],[name=size]').forEach(el => { if (el.value) { el.closest('.qa-field,.qa-row')?.classList.remove('qa-flash'); void el.offsetWidth; el.closest('.qa-field,.qa-row')?.classList.add('qa-flash'); } });
 }
 
 const money = value => { const n = Number(String(value).replace(/[£,\s]/g, '')); return String(value).trim() === '' ? null : n; };

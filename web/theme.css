@@ -787,3 +787,8 @@ button:active:not(:disabled), .action:active, .secondary:active { transform: sca
   *, *::before, *::after { animation-duration: .001ms !important; animation-delay: 0s !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
   .rc-draw .rc-line, .rc-draw .rc-prev { stroke-dashoffset: 0; }
 }
+
+.qa-link { margin-top: 0; }
+.qa-field span small { font-size: 12px; color: var(--ink-3); margin-left: 4px; }
+@keyframes qaFlash { 0% { background: color-mix(in srgb, var(--blue) 22%, transparent); } 100% { background: transparent; } }
+.qa-flash { animation: qaFlash 1.2s ease; }
