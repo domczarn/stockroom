@@ -745,10 +745,10 @@ button.rc-more { padding: 0 !important; min-height: 0 !important; text-decoratio
 @keyframes pop { from { opacity: 0; transform: scale(.96) translateY(8px); } to { opacity: 1; transform: none; } }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes popIn { 0% { opacity: 0; transform: scale(.7); } 70% { transform: scale(1.04); } 100% { opacity: 1; transform: none; } }
-#view.view-enter > *, #view.view-enter > section > *, #view.view-enter .finance-insights > * { animation: rise .42s cubic-bezier(.2,.8,.2,1) both; }
+#view.view-enter > *, #view.view-enter > section > *, #view.view-enter .finance-insights > * { animation: rise .42s cubic-bezier(.2,.8,.2,1) backwards; }
 #view.view-enter > *:nth-child(2) { animation-delay: .04s; } #view.view-enter > *:nth-child(3) { animation-delay: .08s; }
 #view.view-enter > *:nth-child(4) { animation-delay: .12s; } #view.view-enter > *:nth-child(n+5) { animation-delay: .16s; }
-.stock-grid > *, .stock-list > *, .rc-list li { animation: rise .38s cubic-bezier(.2,.8,.2,1) both; }
+.stock-grid > *, .stock-list > *, .stock-card-grid > *, .rc-list li { animation: rise .38s cubic-bezier(.2,.8,.2,1) backwards; }
 .stock-grid > *:nth-child(2) { animation-delay: .03s; } .stock-grid > *:nth-child(3) { animation-delay: .06s; } .stock-grid > *:nth-child(4) { animation-delay: .09s; }
 .stock-grid > *:nth-child(5) { animation-delay: .12s; } .stock-grid > *:nth-child(6) { animation-delay: .15s; } .stock-grid > *:nth-child(n+7) { animation-delay: .18s; }
 dialog[open] { animation: pop .28s cubic-bezier(.2,.8,.2,1); }
@@ -757,7 +757,8 @@ button, .action, .secondary, a.button { transition: transform .12s ease, backgro
 button:active:not(:disabled), .action:active, .secondary:active { transform: scale(.97); }
 .metric, .stock-card, .rc-metric, .pip-signal, .daily-card { transition: transform .2s ease, border-color .2s ease, background .2s ease; }
 @media (hover: hover) {
-  .stock-card:hover, .pip-signal:hover, .daily-card:hover { transform: translateY(-2px); border-color: var(--line-3) !important; }
+  .pip-signal:hover, .daily-card:hover { transform: translateY(-2px); border-color: var(--line-3) !important; }
+  .stock-card:hover { border-color: var(--line-3) !important; box-shadow: 0 10px 28px rgba(0,0,0,.28) !important; }
   .rc-metric:hover { border-color: var(--line-3) !important; }
 }
 .mobile-tabbar a[aria-current], .bottom-nav [aria-current=page] svg, .app-nav [aria-current=page] svg { animation: popIn .35s cubic-bezier(.2,.8,.2,1); }
@@ -801,3 +802,13 @@ button:active:not(:disabled), .action:active, .secondary:active { transform: sca
 .qa-reading.done .qa-pip { animation: popIn .4s ease; }
 @keyframes qaShimmer { to { transform: translateX(100%); } }
 @keyframes qaPulse { 0% { box-shadow: 0 0 0 0 rgba(155,140,255,.5); } 100% { box-shadow: 0 0 0 12px rgba(155,140,255,0); } }
+.stock-more > div.floating-menu { position: fixed !important; right: auto !important; bottom: auto !important; z-index: 60 !important; width: max-content; min-width: 170px; max-width: calc(100vw - 16px); max-height: min(70vh, 420px); overflow-y: auto; margin: 0 !important; animation: menuIn .16s ease both; transform-origin: top right; }
+.stock-more > div.floating-menu.opens-up { transform-origin: bottom right; }
+.stock-more > div.floating-menu button { justify-content: flex-start; text-align: left; }
+.stock-more > div.floating-menu button:hover { background: var(--bg-3) !important; }
+@keyframes menuIn { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: none; } }
+/* Entry animations must not leave a transform behind: it breaks fixed-position menus. */
+.view-arriving, .pane-arriving { animation-fill-mode: backwards !important; }
+.stock-more > div.floating-menu { padding: 6px !important; gap: 2px !important; border-radius: 12px !important; border: 1px solid var(--line-2) !important; }
+.stock-more > div.floating-menu button { border: 0 !important; border-radius: 8px !important; min-height: 36px !important; padding: 0 12px !important; font-size: 13.5px !important; font-weight: 500 !important; }
+.stock-more > div.floating-menu .stock-delete { color: var(--bad) !important; margin-top: 4px !important; border-top: 1px solid var(--line) !important; border-radius: 0 0 8px 8px !important; }

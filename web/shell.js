@@ -265,3 +265,34 @@ document.addEventListener('click', event => {
   const toggle = event.target.closest('[data-sound-toggle]');
   if (toggle) { try { localStorage.setItem('stockroom-sound', soundOn() ? 'off' : 'on'); } catch {} toggle.textContent = soundOn() ? 'On' : 'Off'; toggle.setAttribute('aria-pressed', String(soundOn())); }
 });
+
+// Card/list "⋯" menus float above the page so cards and tables can't clip them.
+(() => {
+  const place = details => {
+    const menu = details.querySelector(':scope > div'), button = details.querySelector('summary');
+    if (!menu || !button) return;
+    menu.classList.add('floating-menu');
+    const r = button.getBoundingClientRect();
+    menu.style.top = '0px'; menu.style.left = '0px';
+    const h = menu.offsetHeight, w = menu.offsetWidth;
+    const below = r.bottom + 6 + h <= window.innerHeight - 8;
+    menu.style.top = Math.max(8, below ? r.bottom + 6 : r.top - 6 - h) + 'px';
+    menu.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, r.right - w)) + 'px';
+    menu.classList.toggle('opens-up', !below);
+  };
+  const closeAll = except => document.querySelectorAll('details.stock-more[open]').forEach(d => { if (d !== except) d.open = false; });
+  document.addEventListener('toggle', event => {
+    const details = event.target;
+    if (!(details instanceof HTMLDetailsElement) || !details.classList.contains('stock-more')) return;
+    if (details.open) { closeAll(details); place(details); }
+  }, true);
+  document.addEventListener('click', event => {
+    const open = document.querySelector('details.stock-more[open]');
+    if (!open) return;
+    if (!open.contains(event.target)) open.open = false;
+    else if (event.target.closest('.floating-menu button')) setTimeout(() => { open.open = false; }, 0);
+  });
+  document.addEventListener('keydown', event => { if (event.key === 'Escape') closeAll(); });
+  window.addEventListener('scroll', () => { const open = document.querySelector('details.stock-more[open]'); if (open) place(open); }, {passive: true, capture: true});
+  window.addEventListener('resize', () => closeAll());
+})();
