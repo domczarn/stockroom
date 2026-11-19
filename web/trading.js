@@ -23,10 +23,12 @@ function accountingRows(data) {
     for (const refund of trade.refunds) rows.push({kind:'Sale refund',name,date:refund.date,revenue:-refund.amount,cost:refund.restock?-trade.cost:0,expense:refund.postage});
   }
   for (const item of data.items) {
+    // No sale date recorded: fall back to the item's latest known date so every time range counts it the same way.
+    const lastSeen = item.priceChangedAt||item.listedAt||item.receivedAt||item.purchasedAt||'';
     if (!recorded.has(item.id) && item.status==='Sold' && Number.isFinite(item.sale))
-      rows.push({kind:'Sale',name:item.name,date:item.soldAt||'',revenue:item.sale,cost:item.cost,expense:0});
+      rows.push({kind:'Sale',name:item.name,date:item.soldAt||lastSeen,estimated:!item.soldAt,revenue:item.sale,cost:item.cost,expense:0});
     if (item.status==='Refunded' && Number.isFinite(item.refund))
-      rows.push({kind:'Purchase refund',name:item.name,date:item.refundedAt||'',revenue:0,cost:0,expense:pounds(cents(item.cost)-cents(item.refund))});
+      rows.push({kind:'Purchase refund',name:item.name,date:item.refundedAt||lastSeen,estimated:!item.refundedAt,revenue:0,cost:0,expense:pounds(cents(item.cost)-cents(item.refund))});
   }
   for (const row of data.sales) rows.push({kind:'Sale',name:row[0],date:row[4]||'',revenue:row[1],cost:row[3]??null,expense:0});
   for (const row of data.expenses) rows.push({kind:'Expense',name:row[0],date:row[4]||'',revenue:0,cost:0,expense:row[1]});

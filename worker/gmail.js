@@ -116,13 +116,33 @@ export function receiptUpdate(message,days,now=Date.now()){
   let category;
   if(/offer|favou?rite|password|sign.in|new message|verification code/i.test(subject))return null;
   if(/^your receipt for\b/i.test(subject))category='Purchase';
-  else if(/\b(?:refund(?:ed)?|cancel(?:led|ed|lation))\b/i.test(subject))category='Refund / cancellation';
+  else if(/\b(?:refund(?:ed)?|cancel(?:led|ed|lation)|return completed)\b/i.test(subject))category='Refund / cancellation';
   else if(/\b(?:you sold|item sold|sale (?:confirmed|complete|completed)|sold an item)\b/i.test(subject))category='Sale';
   else if(/\b(?:purchase (?:confirmed|successful|confirmation)|you (?:just )?bought|order confirmed|payment successful)\b/i.test(subject))category='Purchase';
-  else if(/\b(?:delivered|delivery|shipped|posted|on its way|parcel|confirmation needed|ready for (?:pickup|collection))\b/i.test(subject))category='Delivery';
+  else if(/\b(?:delivered|delivery|shipped|posted|on its way|parcel|confirmation needed|shipping label|ready for (?:pickup|collection))\b/i.test(subject))category='Delivery';
   else if(/\b(?:payout|paid|payment|order|purchase|sale|transaction)\b/i.test(subject))category='Order update';
   else return null;
-  return {id:message.id,subject,category,receivedAt:new Date(received).toISOString(),reviewed:false};
+  const receivedAt=new Date(received).toISOString();
+  const event=vintedEvent(subject,message.snippet,receivedAt);
+  return {id:message.id,subject,category,receivedAt,reviewed:false,...(event?{event}:{})};
+}
+
+// Turn a Vinted email (subject + Gmail's text preview) into a stock update Stockroom can apply.
+const snippetEntities={amp:'&',lt:'<',gt:'>',quot:'"',apos:"'",nbsp:' ',pound:'£'};
+const decodeSnippet=text=>String(text||'').replace(/&#(\d+);/g,(_,n)=>String.fromCharCode(Number(n))).replace(/&([a-z]+);/gi,(m,n)=>snippetEntities[n.toLowerCase()]??m).replace(/\s+/g,' ').trim();
+const ukDate=iso=>new Date(iso).toLocaleDateString('en-CA',{timeZone:'Europe/London'});
+const title=text=>String(text||'').replace(/^["“”']+|["“”']+$/g,'').trim().slice(0,160);
+export function vintedEvent(subject,snippet,receivedAt){
+  const text=decodeSnippet(snippet), date=ukDate(receivedAt);
+  let m;
+  if(/^you.ve sold an item/i.test(subject)&&(m=text.match(/,\s*(\S+) has bought (.+?) £\s?([\d,]+(?:\.\d{1,2})?)/i)))
+    return {type:'sold',title:title(m[2]),amount:Number(m[3].replace(/,/g,'')),buyer:m[1].slice(0,60),date};
+  if(/^this order is completed/i.test(subject)&&(m=text.match(/your sale of (.+?) was completed successfully\.?(?:.*?transaction id:\s*#?(\d+))?(?:.*?date:\s*(\d{2})\/(\d{2})\/(\d{4}))?/i)))
+    return {type:'completed',title:title(m[1]),transactionId:m[2]||'',date:m[5]?m[5]+'-'+m[4]+'-'+m[3]:date};
+  if((m=subject.match(/^(.+?)\s+-\s+confirmation needed$/i)))return {type:'delivered',title:title(m[1]),date};
+  if(!/^return/i.test(subject)&&(m=subject.match(/^(.+?)\s+shipping label\b/i)))return {type:'label',title:title(m[1]),date};
+  if((m=subject.match(/^your refund for (.+?) is on its way/i))||(m=subject.match(/^return completed\s*-\s*(.+)$/i)))return {type:'refund',title:title(m[1]),date};
+  return null;
 }
 
 export async function check(env,user,context,row){
@@ -139,7 +159,7 @@ export async function check(env,user,context,row){
     if(current?.connection_id!==row.connection_id||current.lease!==lease)return false;
     const before=JSON.parse(current.receipts);
     const merged=new Map(before.map(receipt=>[receipt.id,receipt]));
-    for(const receipt of receipts)if(!merged.has(receipt.id))merged.set(receipt.id,receipt);
+    for(const receipt of receipts){const known=merged.get(receipt.id);if(!known)merged.set(receipt.id,receipt);else if(receipt.event&&!known.event)merged.set(receipt.id,{...known,event:receipt.event});}
     const recent=[...merged.values()].sort((a,b)=>b.receivedAt.localeCompare(a.receivedAt)).slice(0,75);
     const result=await env.DB.prepare('UPDATE gmail_connections SET state=?,checked_at=?,receipts=?,lease=0 WHERE owner_id=? AND connection_id=? AND lease=? AND enabled=1 AND receipts=?')
       .bind(state,new Date().toISOString(),JSON.stringify(recent),user.id,row.connection_id,lease,current.receipts).run();
@@ -155,7 +175,7 @@ export async function check(env,user,context,row){
     const results=[];
     for(let i=0;i<ids.length;i+=6){
       const batch=await Promise.all(ids.slice(i,i+6).map(({id})=>getGmail('messages/'+id,access_token,{
-        format:'metadata',metadataHeaders:['From','Subject','Authentication-Results'],fields:'id,internalDate,payload(headers)'
+        format:'metadata',metadataHeaders:['From','Subject','Authentication-Results'],fields:'id,internalDate,snippet,payload(headers)'
       })));
       results.push(...batch.map(message=>receiptUpdate(message,row.days,now)).filter(Boolean));
     }

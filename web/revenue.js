@@ -270,11 +270,11 @@ revenueChart = function revenueStudio(rows, today) {
 };
 
 function rcUndated(rows) {
-  const undated = rows.filter(row => !row.date && (row.revenue || row.cost || row.expense));
+  const undated = rows.filter(row => (row.estimated || !row.date) && row.kind === 'Sale');
   if (!undated.length) return '';
   const items = db.items.filter(item => item.status === 'Sold' && !item.soldAt && Number.isFinite(item.sale));
-  return '<div class="rc-undated"><strong>' + undated.length + ' sale' + (undated.length === 1 ? '' : 's') + ' with no date (' + gbp(undated.reduce((n, row) => n + row.revenue - (row.cost || 0) - (row.expense || 0), 0)) + ' profit)</strong>' +
-    '<span>Counted in All time totals but can\'t be placed on the line, so it\'s missing from shorter ranges. Add the sale date to fix.</span>' +
+  return '<div class="rc-undated"><strong>' + undated.length + ' sale' + (undated.length === 1 ? '' : 's') + ' missing a sale date (' + gbp(undated.reduce((n, row) => n + row.revenue - (row.cost || 0) - (row.expense || 0), 0)) + ' profit)</strong>' +
+    '<span>Placed on its last known date for now, so totals match across ranges. Add the real sale date to make the chart exact.</span>' +
     items.map(item => '<label class="rc-fix-row"><span>#' + esc(item.id) + ' ' + esc(item.name) + ' · ' + gbp(item.sale) + '</span>' +
       '<span class="rc-fix-ctl"><input type="date" max="' + todayUK() + '" data-rc-date="' + esc(item.id) + '" aria-label="Sale date"><button type="button" class="action" data-rc-fix="' + esc(item.id) + '">Save date</button></span></label>').join('') + '</div>';
 }

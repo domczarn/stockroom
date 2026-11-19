@@ -371,6 +371,7 @@ function expensesView() {
     '</section>';
 }
 function render() {
+  if (tab === 'Resources') tab = 'Customer care';
   parkNotificationPreferences();
   document.querySelectorAll('.menu-links button').forEach(button => {
     const active = button.dataset.tab === tab;
