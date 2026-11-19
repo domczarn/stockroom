@@ -35,8 +35,8 @@ function parse(text) {
   };
 }
 
-async function run(env, image) {
-  const input = {messages: [{role: 'user', content: PROMPT}], image, max_tokens: 400, temperature: 0.1};
+async function run(env, image, prompt = PROMPT, max_tokens = 400, temperature = 0.1) {
+  const input = {messages: [{role: 'user', content: prompt}], ...(image ? {image} : {}), max_tokens, temperature};
   try { return await env.AI.run(MODEL, input); }
   catch (error) {
     // First use on an account needs Meta's licence accepted once.
@@ -61,4 +61,55 @@ export async function visionRoute(request, env, user) {
     throw new HttpError(502, 'Screenshot reading is busy. Try again in a moment.');
   }
   return {listing: parse(result?.response ?? result)};
+}
+
+// ---------- Write a Vinted listing from the item's details (+ cover photo) ----------
+const LISTING_PROMPT = facts => `You write second-hand clothing listings for Vinted UK that sell fast. ${facts.photo ? 'The image is the seller\'s photo of the item.' : ''}
+Item details from the seller (trust these over the photo):
+${Object.entries(facts.details).filter(([, v]) => v).map(([k, v]) => `- ${k}: ${v}`).join('\n')}
+
+Write the listing and reply with ONLY a JSON object, no other text:
+{"title": string, "description": string, "hashtags": [string]}
+Rules:
+- title: max 60 characters. Format: Brand + item type + key feature + colour + "Size X". No emojis, no ALL CAPS, no hype words like "rare" unless given.
+- description: British English, friendly and honest, 50-110 words. Structure:
+  1. One short opening line about the item.
+  2. A few lines starting with "• " covering: brand, size (and fit if known), colour, condition, and visible features from the photo (e.g. logo, hood, zip, pockets, cuffs).
+  3. Flaws: state the given flaws exactly; if none were given write "No major flaws, see photos."
+  4. End with: "Posted within 1–2 working days. Bundle for a discount."
+- Never invent material, measurements, flaws or authenticity claims that were not given. Do not include a price.
+- hashtags: 6-8 lowercase search tags without spaces, starting with #, e.g. #nike #windbreaker #mensjacket.`;
+
+const field = (v, max) => typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, max) : '';
+export async function writeListingRoute(request, env, user) {
+  if (request.method !== 'POST') throw new HttpError(405, 'Method not allowed.');
+  if (!user) throw new HttpError(401, 'Sign in first.');
+  if (!env.AI) throw new HttpError(503, 'Listing writing is not set up yet.');
+  const body = await readBody(request, 3_000_000) || {};
+  const item = body.item && typeof body.item === 'object' ? body.item : {};
+  const details = {
+    'Name': field(item.name, 160), 'Brand': field(item.brand, 60), 'Item type': field(item.garment, 40), 'Size': field(item.size, 20),
+    'Colour': field(item.color, 30), 'Condition': field(item.condition, 40), 'Flaws': field(item.flaws, 300),
+    'Material': field(item.material, 120), 'Measurements': field(item.measurements, 200), 'Seller notes': field(item.notes, 300)
+  };
+  if (!details.Name && !details.Brand) throw new HttpError(400, 'Add a name or brand first.');
+  let image = null;
+  const match = typeof body.image === 'string' && body.image.match(/^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$/);
+  if (match && match[2].length <= 2_800_000) image = [...Uint8Array.from(atob(match[2]), c => c.charCodeAt(0))];
+  let result;
+  try { result = await run(env, image, LISTING_PROMPT({details, photo: !!image}), 700, 0.5); }
+  catch (error) {
+    console.log(JSON.stringify({listing: 'error', message: String(error?.message || error).slice(0, 300)}));
+    throw new HttpError(502, 'Pip is busy. Try again in a moment.');
+  }
+  const raw = String(result?.response ?? result ?? '');
+  const json = raw.match(/\{[\s\S]*\}/);
+  let data;
+  try { data = JSON.parse(json?.[0] || ''); } catch { throw new HttpError(502, 'Pip wrote something unusable. Try again.'); }
+  const tags = (Array.isArray(data.hashtags) ? data.hashtags : String(data.hashtags || '').split(/\s+/))
+    .map(t => '#' + String(t).toLowerCase().replace(/[^a-z0-9]/g, '')).filter(t => t.length > 2).slice(0, 8);
+  const description = typeof data.description === 'string' ? data.description.replace(/\r/g, '').replace(/\n{3,}/g, '\n\n').trim().slice(0, 1500) : '';
+  const title = field(data.title, 80);
+  if (!title || !description) throw new HttpError(502, 'Pip wrote something unusable. Try again.');
+  return {listing: {title, description, hashtags: [...new Set(tags)]}};
 }

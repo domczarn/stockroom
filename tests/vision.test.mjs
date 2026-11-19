@@ -26,3 +26,15 @@ test('rejects non-image payloads and anonymous callers', async () => {
   await assert.rejects(visionRoute(req({image: 'hello'}), env, {id: 'u1'}), /screenshot/);
   await assert.rejects(visionRoute(req({image: png}), env, null), /Sign in/);
 });
+
+import {writeListingRoute} from '../worker/vision.js';
+test('writes a listing and cleans the hashtags', async () => {
+  let prompt = '';
+  const env = {AI: {run: async (model, input) => { prompt = input.messages[0].content;
+    return {response: '{"title":"Nike Windbreaker Jacket Black Size M","description":"Lightweight Nike windbreaker.\\n• Size M\\n\\n\\n\\nPosted within 1–2 working days.","hashtags":["#Nike","windbreaker","#mens jacket"]}'}; }}};
+  const {listing} = await visionRoute.length >= 0 && await writeListingRoute(req({item: {name: 'Nike Windbreaker', brand: 'Nike', size: 'M', flaws: 'Small mark on cuff'}}), env, {id: 'u1'});
+  assert.equal(listing.title, 'Nike Windbreaker Jacket Black Size M');
+  assert.deepEqual(listing.hashtags, ['#nike', '#windbreaker', '#mensjacket']);
+  assert.ok(!listing.description.includes('\n\n\n'));
+  assert.match(prompt, /Flaws: Small mark on cuff/);
+});

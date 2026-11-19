@@ -811,6 +811,40 @@ $('regenerateListing').onclick = () => {
   $('copyStatus').textContent = 'Draft refreshed from the item details. Review before listing.';
   updateListingChecks();
 };
+// Pip writes the listing with Workers AI from the item's details and its cover photo.
+async function listingPhotoData(src) {
+  if (!src) return null;
+  try {
+    const blob = src.startsWith('data:') ? await (await fetch(src)).blob() : await (await fetch(photoUrl(src) || src, {credentials: 'same-origin'})).blob();
+    const bitmap = await createImageBitmap(blob);
+    const scale = Math.min(1, 900 / Math.max(bitmap.width, bitmap.height)), canvas = document.createElement('canvas');
+    canvas.width = Math.round(bitmap.width * scale); canvas.height = Math.round(bitmap.height * scale);
+    canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height); bitmap.close();
+    return canvas.toDataURL('image/jpeg', 0.8);
+  } catch { return null; }
+}
+$('pipWriteListing').onclick = async () => {
+  const button = $('pipWriteListing'), note = $('pipWriteNote');
+  if (button.disabled) return;
+  const item = editorItem();
+  button.disabled = true; button.classList.add('writing'); button.lastChild.textContent = 'Pip is writing…';
+  note.textContent = 'Looking at the photo and details. This takes a few seconds.';
+  try {
+    const cover = (item.photos || [])[0];
+    const image = await listingPhotoData(typeof cover === 'string' ? cover : cover?.url || '');
+    const {listing} = await api('/api/vision/write-listing', {method: 'POST', body: JSON.stringify({image, item: {
+      name: item.name, brand: item.brand, garment: item.garment, size: item.size, color: item.color, condition: item.condition,
+      flaws: item.flaws, material: item.material, measurements: item.measurements, notes: item.notes}})});
+    liveDraftFields = new Set();
+    form.elements.listingTitle.value = listing.title;
+    form.elements.listingDescription.value = listing.description + (listing.hashtags.length ? '\n\n' + listing.hashtags.join(' ') : '');
+    ['listingTitle', 'listingDescription'].forEach(name => { const el = form.elements[name]; el.classList.remove('pw-flash'); void el.offsetWidth; el.classList.add('pw-flash'); });
+    note.textContent = 'Written by Pip' + (image ? ' from your photo and details' : ' from your details') + '. Check it, then copy into Vinted. Tap again for a different version.';
+    updateListingChecks();
+  } catch (error) {
+    note.textContent = (error.message || 'Pip could not write this one.') + ' “Refresh from details” still works.';
+  } finally { button.disabled = false; button.classList.remove('writing'); button.lastChild.textContent = 'Write with Pip'; }
+};
 document.querySelectorAll('[data-copy]').forEach(button=>button.onclick=async()=>{
   const text = form.elements[button.dataset.copy].value;
   try {
