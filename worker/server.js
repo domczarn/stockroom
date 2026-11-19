@@ -5,6 +5,7 @@ import {gmailRoute} from './gmail.js';
 import {notifyOwner,pushRoute} from './push.js';
 import { socialRoute, ownProfile, findConnection } from './social.js';
 import { pipSvg } from './pip.js';
+import {visionRoute} from './vision.js';
 import {ADMIN_EMAIL,identity,authorize,adminOnly,readBody,validateWorkspace,storePhotos,audit,HttpError,emptyWorkspace,rateLimit,exactDate,paid,tx} from './security.js';
 const json = (value, status = 200) => new Response(JSON.stringify(value), {
   status, headers: {'content-type':'application/json','cache-control':'private, no-store'}
@@ -96,6 +97,7 @@ export default {
         const result=await gmailRoute(request,url,env,user,context);
         return result instanceof Response?result:json(result);
       }
+      if(url.pathname==='/api/vision/listing')return json(await visionRoute(request,env,user));
       if(url.pathname==='/api/market-research')return json(await marketResearchRoute(request,env,user));
       if (importRoute && user && !user.admin) return json(url.pathname==='/api/purchases'?{purchases:[]}:{error:'Admin access required'},url.pathname==='/api/purchases'?200:403);
       if(url.pathname==='/api/notification-reads'){

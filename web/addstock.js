@@ -23,7 +23,8 @@ function quickSheet() {
     '<header class="qa-top"><button type="button" class="qa-x" data-qa-close aria-label="Close">✕</button><h2>Add stock</h2><span></span></header>' +
     '<form id="quickAddForm" novalidate>' +
     '<section class="qa-photos"><div id="qaGrid" class="qa-grid"></div>' +
-    '<label class="qa-upload"><input type="file" id="qaFiles" accept="image/*" multiple hidden><span>＋ Upload photos</span><small>Vinted screenshots are cropped automatically</small></label></section>' +
+    '<label class="qa-upload"><input type="file" id="qaFiles" accept="image/*" multiple hidden><span>＋ Upload photos</span><small>Add a Vinted screenshot and Pip fills in the details</small></label>' +
+    '<div class="qa-reading" id="qaReading" hidden><span class="qa-pip"></span><div><strong>Pip is reading your screenshot…</strong><small>Title, brand, size, condition, colour and price</small></div></div></section>' +
     '<section class="qa-group qa-link"><label class="qa-field"><span>Vinted link <small>optional · fills the title and brand</small></span>' +
       '<input name="vintedUrl" type="url" inputmode="url" placeholder="Paste the listing link" autocomplete="off"></label></section>' +
     '<section class="qa-group">' +
@@ -72,7 +73,8 @@ function openQuickAdd() {
   const dialog = quickSheet();
   const form = dialog.querySelector('form');
   form.reset();
-  Object.assign(quick, {photos: [], busy: false, arrived: false, condition: ''});
+  Object.assign(quick, {photos: [], busy: false, arrived: false, condition: '', read: false});
+  document.getElementById('qaReading').hidden = true;
   form.elements.purchasedAt.value = todayUK();
   form.elements.purchasedAt.max = todayUK();
   const fill = (id, field) => { document.getElementById(id).innerHTML = recentValues(field).map(v => '<option value="' + esc(v) + '"></option>').join(''); };
@@ -95,6 +97,7 @@ async function addQuickPhotos(files) {
       if (tall && typeof cropListingPhoto === 'function') {
         const crop = await cropListingPhoto(file);
         quick.photos.push(crop.image);
+        if (!quick.read) { quick.read = true; void readListing(file); }
       } else quick.photos.push(await compressPhoto(file));
     }
     error.textContent = files.length > room ? 'Only 4 photos per item. Extra photos were skipped.' : '';
@@ -124,6 +127,40 @@ function fillFromVintedLink(value) {
   if (!form.elements.notes.value.includes(url.origin + url.pathname)) form.elements.notes.value = (form.elements.notes.value ? form.elements.notes.value + '\n' : '') + 'Bought from: ' + url.origin + url.pathname;
   document.getElementById('qaError').textContent = 'Filled from the link. Add photos and what you paid.';
   form.querySelectorAll('[name=name],[name=brand],[name=size]').forEach(el => { if (el.value) { el.closest('.qa-field,.qa-row')?.classList.remove('qa-flash'); void el.offsetWidth; el.closest('.qa-field,.qa-row')?.classList.add('qa-flash'); } });
+}
+
+// Send the full screenshot to Pip (Workers AI) and fill only the fields that are still empty.
+async function screenshotForReading(file) {
+  const bitmap = await createImageBitmap(file);
+  try {
+    const scale = Math.min(1, 1000 / bitmap.width), canvas = document.createElement('canvas');
+    canvas.width = Math.round(bitmap.width * scale); canvas.height = Math.round(bitmap.height * scale);
+    const ctx = canvas.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL('image/jpeg', 0.8);
+  } finally { bitmap.close(); }
+}
+async function readListing(file) {
+  const panel = document.getElementById('qaReading'), error = document.getElementById('qaError');
+  const form = document.getElementById('quickAddForm');
+  panel.hidden = false; panel.classList.remove('done');
+  try {
+    const {listing} = await api('/api/vision/listing', {method: 'POST', body: JSON.stringify({image: await screenshotForReading(file)})});
+    if (!document.getElementById('quickAdd').open) return;
+    const filled = [];
+    const set = (name, value) => { const el = form.elements[name]; if (value && el && !el.value.trim()) { el.value = value; filled.push(el); } };
+    set('name', listing.title); set('brand', listing.brand); set('size', listing.size); set('color', listing.colour);
+    set('garment', listing.category); set('notes', listing.description);
+    if (listing.price && !form.elements.cost.value.trim()) { form.elements.cost.value = listing.price.toFixed(2); filled.push(form.elements.cost); }
+    if (listing.condition && !quick.condition) { quick.condition = listing.condition; syncQuick(); }
+    filled.forEach(el => { const row = el.closest('.qa-field,.qa-row'); row?.classList.remove('qa-flash'); void row?.offsetWidth; row?.classList.add('qa-flash'); });
+    panel.classList.add('done');
+    panel.querySelector('strong').textContent = filled.length || listing.condition ? 'Pip filled in the details' : 'Pip could not find listing details';
+    panel.querySelector('small').textContent = listing.price ? 'Price paid uses the listing price. Add buyer protection and postage if you want them counted.' : 'Check everything before saving.';
+  } catch (e) {
+    panel.hidden = true;
+    error.textContent = (e.message || 'Could not read the screenshot.') + ' You can still fill it in yourself.';
+  }
 }
 
 const money = value => { const n = Number(String(value).replace(/[£,\s]/g, '')); return String(value).trim() === '' ? null : n; };

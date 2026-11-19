@@ -28,3 +28,6 @@ binding = "BUCKET"
 bucket_name = "stockroom-photos"
 
 # Secrets (wrangler secret put): STOCKROOM_SERVICE_KEY, GOOGLE_GMAIL_CLIENT_ID, GOOGLE_GMAIL_CLIENT_SECRET
+
+[ai]
+binding = "AI"
