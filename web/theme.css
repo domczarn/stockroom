@@ -702,3 +702,12 @@ nav.subnav {
 .rc-sum strong { font-size: 15px; font-variant-numeric: tabular-nums; }
 button.rc-more { padding: 0 !important; min-height: 0 !important; text-decoration: underline; }
 @media (max-width: 800px) { .rc-sum { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+.rc-undated { display: grid; gap: 6px; justify-items: start; margin-top: 14px; padding: 12px 14px; border: 1px solid color-mix(in srgb, var(--warn) 45%, var(--line)); border-radius: 12px; background: color-mix(in srgb, var(--warn) 8%, var(--bg-2)); }
+.rc-undated strong { font-size: 14px; } .rc-undated span { font-size: 13px; color: var(--ink-2); }
+.rc-undated button { min-height: 34px !important; font-size: 13px !important; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.rc-fix-row { display: grid; gap: 6px; width: 100%; padding-top: 6px; }
+.rc-fix-row > span:first-child { font-size: 13px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rc-fix-ctl { display: flex; gap: 8px; } .rc-fix-ctl input { flex: 1; min-width: 0; color-scheme: dark; min-height: 38px; }
+.rc-fix-ctl button { min-height: 38px !important; white-space: nowrap; }

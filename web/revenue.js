@@ -271,9 +271,20 @@ revenueChart = function revenueStudio(rows, today) {
     '<div class="rc-plot">' + rcSvg(model, width) + '<div class="rc-tip" role="status" hidden></div></div>' +
     '<p class="rc-hint">Tap or hover a ' + {day: 'day', week: 'week', month: 'month'}[win.grain] + ' for the breakdown.</p>' +
     rcInsights(model) + rcDetail(model) +
+    rcUndated(rows) +
     (total.missing ? '<p class="finance-note">Provisional · ' + total.missing + ' sale cost' + (total.missing === 1 ? '' : 's') + ' missing, so profit may be overstated.</p>' : '') +
     '</section>';
 };
+
+function rcUndated(rows) {
+  const undated = rows.filter(row => !row.date && row.revenue);
+  if (!undated.length) return '';
+  const items = db.items.filter(item => item.status === 'Sold' && !item.soldAt && Number.isFinite(item.sale));
+  return '<div class="rc-undated"><strong>' + undated.length + ' sale' + (undated.length === 1 ? '' : 's') + ' with no date (' + gbp(undated.reduce((n, row) => n + row.revenue, 0)) + ')</strong>' +
+    '<span>Not on the chart, but counted in Reports. Add the sale date to fix.</span>' +
+    items.map(item => '<label class="rc-fix-row"><span>#' + esc(item.id) + ' ' + esc(item.name) + ' · ' + gbp(item.sale) + '</span>' +
+      '<span class="rc-fix-ctl"><input type="date" max="' + todayUK() + '" data-rc-date="' + esc(item.id) + '" aria-label="Sale date"><button type="button" class="action" data-rc-fix="' + esc(item.id) + '">Save date</button></span></label>').join('') + '</div>';
+}
 
 let rcLastModel = null;
 function rcRefresh() {
@@ -311,6 +322,16 @@ document.addEventListener('click', event => {
   if (grain) { rc.grain = grain.dataset.rcGrain; rc.selected = -1; rcSave(); rcRefresh(); return; }
   if (t.closest('[data-rc-compare]')) { rc.compare = !rc.compare; rcSave(); rcRefresh(); return; }
   if (t.closest('[data-rc-running]')) { rc.running = !rc.running; rcSave(); rcRefresh(); return; }
+  const fix = t.closest('[data-rc-fix]');
+  if (fix) {
+    const id = fix.dataset.rcFix, input = document.querySelector('[data-rc-date="' + CSS.escape(id) + '"]');
+    if (!input?.value) { input?.focus(); toast('Pick the date it sold.'); return; }
+    const next = structuredClone(db), item = next.items.find(row => row.id === id);
+    if (!item) return;
+    item.soldAt = input.value; fix.disabled = true;
+    persist(next).then(() => { rcRefresh(); toast('Sale date saved'); }).catch(e => { fix.disabled = false; toast(e.message || 'Could not save.'); });
+    return;
+  }
   if (t.closest('[data-rc-all]')) { rc.all = !rc.all; rcRefresh(); return; }
   if (t.closest('[data-rc-clear]')) { rc.selected = -1; rcRefresh(); return; }
   const hit = t.closest('.rc-hit');
