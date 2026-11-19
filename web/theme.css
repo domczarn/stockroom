@@ -711,3 +711,79 @@ button.rc-more { padding: 0 !important; min-height: 0 !important; text-decoratio
 .rc-fix-row > span:first-child { font-size: 13px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rc-fix-ctl { display: flex; gap: 8px; } .rc-fix-ctl input { flex: 1; min-width: 0; color-scheme: dark; min-height: 38px; }
 .rc-fix-ctl button { min-height: 38px !important; white-space: nowrap; }
+
+/* ---------- Stripe-style line chart ---------- */
+.rc-line { fill: none; stroke-width: 2.25; stroke-linejoin: round; stroke-linecap: round; }
+.rc-prev { fill: none; stroke: var(--ink-3); stroke-width: 1.5; stroke-dasharray: none; opacity: .55; }
+.rc-key.prev { border-top-style: solid; opacity: .7; }
+.rc-area { opacity: 1; }
+.rc-grid { stroke: var(--line); stroke-dasharray: 2 4; }
+.rc-zero { stroke: var(--line-2); }
+.rc-ytick { fill: var(--ink-3); font-size: 11px; }
+.rc-xtick { fill: var(--ink-3); font-size: 11px; }
+.rc-cross-line { stroke: var(--ink-3); stroke-width: 1; }
+.rc-cross-dot { stroke: var(--bg-1); stroke-width: 2.5; }
+.rc-cross-prev { fill: var(--bg-1); stroke: var(--ink-3); stroke-width: 2; }
+.rc-now-halo { opacity: .25; transform-box: fill-box; transform-origin: center; animation: rcpulse 2.4s ease-out infinite; }
+.rc-solo { stroke: var(--bg-1); stroke-width: 2; }
+.rc-tip { transition: left .12s ease; }
+@keyframes rcpulse { 0% { transform: scale(.6); opacity: .45; } 70% { transform: scale(1.8); opacity: 0; } 100% { opacity: 0; } }
+.rc-draw .rc-line { stroke-dasharray: 1; stroke-dashoffset: 1; animation: rcdraw 1s cubic-bezier(.3,.7,.2,1) forwards; }
+.rc-draw .rc-prev { stroke-dasharray: 1; stroke-dashoffset: 1; animation: rcdraw 1s .12s cubic-bezier(.3,.7,.2,1) forwards; }
+.rc-draw .rc-area { opacity: 0; animation: rcfade .7s .35s ease forwards; }
+.rc-draw .rc-now, .rc-draw .rc-now-halo { opacity: 0; animation: rcfade .3s .9s ease forwards, rcpulse 2.4s 1.2s ease-out infinite; }
+.rc-draw .rc-now { animation: rcfade .3s .9s ease forwards; }
+.rc-draw .rc-hero, .rc-draw .rc-hero-sub { animation: rise .45s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes rcdraw { to { stroke-dashoffset: 0; } }
+@keyframes rcfade { to { opacity: 1; } }
+.rc-metric, .rc-ranges button, .rc-grains button, .rc-toggle { transition: background .18s ease, color .18s ease, border-color .18s ease, box-shadow .18s ease, transform .12s ease !important; }
+.revenue-studio + .pip-brain { margin-top: 16px; }
+
+/* ---------- Motion system ---------- */
+@keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes sheetUp { from { transform: translateY(100%); } to { transform: none; } }
+@keyframes pop { from { opacity: 0; transform: scale(.96) translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes popIn { 0% { opacity: 0; transform: scale(.7); } 70% { transform: scale(1.04); } 100% { opacity: 1; transform: none; } }
+#view.view-enter > *, #view.view-enter > section > *, #view.view-enter .finance-insights > * { animation: rise .42s cubic-bezier(.2,.8,.2,1) both; }
+#view.view-enter > *:nth-child(2) { animation-delay: .04s; } #view.view-enter > *:nth-child(3) { animation-delay: .08s; }
+#view.view-enter > *:nth-child(4) { animation-delay: .12s; } #view.view-enter > *:nth-child(n+5) { animation-delay: .16s; }
+.stock-grid > *, .stock-list > *, .rc-list li { animation: rise .38s cubic-bezier(.2,.8,.2,1) both; }
+.stock-grid > *:nth-child(2) { animation-delay: .03s; } .stock-grid > *:nth-child(3) { animation-delay: .06s; } .stock-grid > *:nth-child(4) { animation-delay: .09s; }
+.stock-grid > *:nth-child(5) { animation-delay: .12s; } .stock-grid > *:nth-child(6) { animation-delay: .15s; } .stock-grid > *:nth-child(n+7) { animation-delay: .18s; }
+dialog[open] { animation: pop .28s cubic-bezier(.2,.8,.2,1); }
+dialog[open]::backdrop { animation: fadeIn .25s ease; }
+button, .action, .secondary, a.button { transition: transform .12s ease, background .18s ease, color .18s ease, border-color .18s ease, opacity .18s ease; }
+button:active:not(:disabled), .action:active, .secondary:active { transform: scale(.97); }
+.metric, .stock-card, .rc-metric, .pip-signal, .daily-card { transition: transform .2s ease, border-color .2s ease, background .2s ease; }
+@media (hover: hover) {
+  .stock-card:hover, .pip-signal:hover, .daily-card:hover { transform: translateY(-2px); border-color: var(--line-3) !important; }
+  .rc-metric:hover { border-color: var(--line-3) !important; }
+}
+.mobile-tabbar a[aria-current], .bottom-nav [aria-current=page] svg, .app-nav [aria-current=page] svg { animation: popIn .35s cubic-bezier(.2,.8,.2,1); }
+
+/* Add stock: slide up like a native sheet, sections cascade in */
+@media (max-width: 800px) {
+  dialog.quick-add[open], dialog.shot-dialog[open] { animation: sheetUp .38s cubic-bezier(.2,.85,.2,1); }
+}
+.quick-add[open] .qa-photos, .quick-add[open] .qa-group, .quick-add[open] .qa-links { animation: rise .4s cubic-bezier(.2,.8,.2,1) both; }
+.quick-add[open] .qa-group:nth-of-type(2) { animation-delay: .05s; } .quick-add[open] .qa-group:nth-of-type(3) { animation-delay: .1s; } .quick-add[open] .qa-group:nth-of-type(4) { animation-delay: .15s; }
+.quick-add[open] .qa-links { animation-delay: .2s; }
+.qa-grid figure { animation: popIn .35s cubic-bezier(.2,.8,.2,1) both; }
+.qa-upload { transition: border-color .2s ease, background .2s ease, padding .25s ease; }
+.qa-upload:hover, .qa-upload:active { border-color: var(--ink-2); background: var(--bg-2); }
+.qa-upload > span { transition: transform .15s ease, background .2s ease; }
+.qa-upload:active > span { transform: scale(.96); }
+.qa-chips button[aria-pressed=true], .qa-seg button[aria-pressed=true] { animation: popIn .25s ease; }
+.qa-row, .qa-field { transition: background .18s ease; }
+.qa-foot .action { transition: transform .12s ease, opacity .2s ease, background .2s ease; }
+.qa-foot .action:disabled { opacity: .6; }
+.qa-error:not(:empty) { animation: rise .25s ease; }
+.shot-row { animation: rise .35s cubic-bezier(.2,.8,.2,1) both; }
+.pip-brain-face { transition: transform .4s cubic-bezier(.2,.8,.2,1); }
+.pip-brain:hover .pip-brain-face { transform: scale(1.06) rotate(-3deg); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; animation-delay: 0s !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
+  .rc-draw .rc-line, .rc-draw .rc-prev { stroke-dashoffset: 0; }
+}

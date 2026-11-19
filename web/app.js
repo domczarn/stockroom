@@ -278,7 +278,7 @@ function dashboard() {
   const openOrders = (db.bulkOrders || []).filter(order => ['Ordered','Dispatched'].includes(order.stage)).length;
   const rows = accountingRows(db);
   const soldCount = rows.filter(row => row.kind === 'Sale').length;
-  return '<div class="finance-insights home-chart"><div id="financeChart">'+revenueChart(rows,todayUK())+'</div></div>'+
+  return '<div class="finance-insights home-chart"><div id="financeChart">'+revenueChart(rows,todayUK())+'</div></div>'+pipBrainView()+
     (isReadOnly() ? '' : '<section class="daily-actions" aria-labelledby="dailyActionTitle"><div class="daily-heading"><h2 id="dailyActionTitle">To do</h2></div><div class="daily-grid" id="dailyActionCards"></div></section>');
 }
 function moneyDetail() {

@@ -118,72 +118,64 @@ function rcModel(rows, today) {
   return {win, meta, buckets, series, prevSeries, total, prevTotal, running};
 }
 
+// Monotone cubic (Fritsch–Carlson): smooth like Stripe, never overshoots the data.
+function rcCurve(pts) {
+  if (pts.length < 2) return pts.length ? 'M' + pts[0][0] + ',' + pts[0][1] : '';
+  const n = pts.length, dx = [], m = [], t = [];
+  for (let i = 0; i < n - 1; i++) { dx[i] = pts[i + 1][0] - pts[i][0]; m[i] = (pts[i + 1][1] - pts[i][1]) / (dx[i] || 1); }
+  t[0] = m[0]; t[n - 1] = m[n - 2];
+  for (let i = 1; i < n - 1; i++) t[i] = m[i - 1] * m[i] <= 0 ? 0 : 3 * (dx[i - 1] + dx[i]) / ((2 * dx[i] + dx[i - 1]) / m[i - 1] + (dx[i] + 2 * dx[i - 1]) / m[i]);
+  let d = 'M' + pts[0][0].toFixed(1) + ',' + pts[0][1].toFixed(1);
+  for (let i = 0; i < n - 1; i++) {
+    const h = dx[i] / 3;
+    d += 'C' + (pts[i][0] + h).toFixed(1) + ',' + (pts[i][1] + t[i] * h).toFixed(1) + ' ' + (pts[i + 1][0] - h).toFixed(1) + ',' + (pts[i + 1][1] - t[i + 1] * h).toFixed(1) + ' ' + pts[i + 1][0].toFixed(1) + ',' + pts[i + 1][1].toFixed(1);
+  }
+  return d;
+}
+const rcSegments = pts => { const segs = []; let cur = []; pts.forEach(p => { if (p) cur.push(p); else if (cur.length) { segs.push(cur); cur = []; } }); if (cur.length) segs.push(cur); return segs; };
+
 function rcSvg(model, width) {
-  const {buckets, series, prevSeries, meta, win, running} = model;
-  const H = 240, padL = 44, padR = 8, padT = 12, padB = 26;
+  const {buckets, series, prevSeries, meta, win} = model;
+  const H = width < 600 ? 220 : 260, padL = 2, padR = 2, padT = 22, padB = 28;
   const plotW = Math.max(120, width - padL - padR), plotH = H - padT - padB;
-  const values = [...series, ...(rc.compare ? prevSeries : [])].filter(v => v !== null && Number.isFinite(v));
+  const showPrev = rc.compare && prevSeries.length;
+  const values = [...series, ...(showPrev ? prevSeries : [])].filter(v => v !== null && Number.isFinite(v));
   const hi = Math.max(0, ...values), lo = Math.min(0, ...values);
   const unit = rcNiceMax(Math.max(hi, -lo), meta.kind) / 3;
   const top = Math.max(unit, Math.ceil(hi / unit - 1e-9) * unit), bottom = -Math.ceil(-lo / unit - 1e-9) * unit;
   const y = v => padT + plotH * (top - v) / (top - bottom || 1);
-  const n = buckets.length, step = plotW / n;
-  const cx = i => padL + step * (i + 0.5);
-  const asLine = running || !meta.additive || n > 120;
-  const ticks = []; for (let v = bottom; v <= top + unit / 2; v += unit) ticks.push(v);
-  let svg = '<svg class="rc-svg" width="' + width + '" height="' + H + '" viewBox="0 0 ' + width + ' ' + H + '" role="img" aria-label="' + esc(meta.label + ' chart') + '">';
-  svg += ticks.map(v => '<line class="rc-grid" x1="' + padL + '" x2="' + (width - padR) + '" y1="' + y(v).toFixed(1) + '" y2="' + y(v).toFixed(1) + '"/>' +
-    '<text class="rc-ytick" x="' + (padL - 8) + '" y="' + (y(v) + 4).toFixed(1) + '" text-anchor="end">' + esc(rcTick(v, meta.kind)) + '</text>').join('');
-  svg += '<line class="rc-zero" x1="' + padL + '" x2="' + (width - padR) + '" y1="' + y(0).toFixed(1) + '" y2="' + y(0).toFixed(1) + '"/>';
-  // average reference
-  const real = series.filter(v => v !== null);
-  if (!running && real.length > 1 && meta.additive) {
-    const avg = real.reduce((a, b) => a + b, 0) / real.length;
-    if (avg > 0) svg += '<line class="rc-avg" x1="' + padL + '" x2="' + (width - padR) + '" y1="' + y(avg).toFixed(1) + '" y2="' + y(avg).toFixed(1) + '"/>' +
-      '<text class="rc-avg-label" x="' + (padL + 4) + '" y="' + (y(avg) - 5).toFixed(1) + '" text-anchor="start">avg ' + esc(rcValue(avg, meta.kind)) + '</text>';
-  }
-  // previous period ghost
-  if (rc.compare && prevSeries.length) {
-    const pts = prevSeries.map((v, i) => v === null ? null : cx(i).toFixed(1) + ',' + y(v).toFixed(1));
-    const segs = []; let cur = [];
-    pts.forEach(p => { if (p) cur.push(p); else if (cur.length) { segs.push(cur); cur = []; } });
-    if (cur.length) segs.push(cur);
-    svg += segs.map(s => s.length > 1 ? '<polyline class="rc-prev" points="' + s.join(' ') + '"/>' : '').join('');
-  }
-  // main series
-  if (asLine) {
-    const pts = series.map((v, i) => v === null ? null : [cx(i), y(v)]);
-    const segs = []; let cur = [];
-    pts.forEach(p => { if (p) cur.push(p); else if (cur.length) { segs.push(cur); cur = []; } });
-    if (cur.length) segs.push(cur);
-    if (running && segs[0]) {
-      const s = segs[0];
-      svg += '<polygon class="rc-area" fill="' + meta.color + '" points="' + s[0][0].toFixed(1) + ',' + y(0).toFixed(1) + ' ' + s.map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ') + ' ' + s[s.length - 1][0].toFixed(1) + ',' + y(0).toFixed(1) + '"/>';
-    }
-    svg += segs.map(s => '<polyline class="rc-line" stroke="' + meta.color + '" points="' + s.map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ') + '"/>').join('');
-    if (n <= 60) svg += pts.map((p, i) => p ? '<circle class="rc-dot" data-i="' + i + '" fill="' + meta.color + '" cx="' + p[0].toFixed(1) + '" cy="' + p[1].toFixed(1) + '" r="4"/>' : '').join('');
-  } else {
-    const bw = Math.max(2, Math.min(32, step - 2));
-    svg += series.map((v, i) => {
-      if (!v) return '';
-      const x = cx(i) - bw / 2, y0 = y(0), y1 = y(v), h = Math.max(1.5, Math.abs(y1 - y0));
-      const r = Math.min(4, bw / 2, h);
-      const yTop = v > 0 ? y0 - h : y0;
-      // rounded on the data end only
-      const path = v > 0
-        ? 'M' + x + ',' + y0 + 'V' + (yTop + r) + 'Q' + x + ',' + yTop + ' ' + (x + r) + ',' + yTop + 'H' + (x + bw - r) + 'Q' + (x + bw) + ',' + yTop + ' ' + (x + bw) + ',' + (yTop + r) + 'V' + y0 + 'Z'
-        : 'M' + x + ',' + y0 + 'V' + (y0 + h - r) + 'Q' + x + ',' + (y0 + h) + ' ' + (x + r) + ',' + (y0 + h) + 'H' + (x + bw - r) + 'Q' + (x + bw) + ',' + (y0 + h) + ' ' + (x + bw) + ',' + (y0 + h - r) + 'V' + y0 + 'Z';
-      return '<path class="rc-bar" data-i="' + i + '" fill="' + meta.color + '" d="' + path + '"/>';
-    }).join('');
-  }
-  // selection marker
-  if (rc.selected >= 0 && rc.selected < n) svg += '<line class="rc-sel" x1="' + cx(rc.selected).toFixed(1) + '" x2="' + cx(rc.selected).toFixed(1) + '" y1="' + padT + '" y2="' + (padT + plotH) + '"/>';
-  // x labels: about 6, never colliding
-  const every = Math.max(1, Math.ceil(n / Math.max(2, Math.floor(plotW / 74))));
-  svg += buckets.map((b, i) => ((i % every === 0 && n - 1 - i >= every * 0.6) || i === n - 1)
-    ? '<text class="rc-xtick" x="' + cx(i).toFixed(1) + '" y="' + (H - 6) + '" text-anchor="' + (i === 0 && n > 1 ? 'start' : i === n - 1 && n > 1 ? 'end' : 'middle') + '">' + esc(win.grain === 'week' ? rcDayFmt.format(rcT(b.from)) : rcLabel(b, win.grain)) + '</text>' : '').join('');
-  // hit targets (full height, wider than marks)
-  svg += buckets.map((b, i) => '<rect class="rc-hit" data-i="' + i + '" x="' + (padL + step * i).toFixed(1) + '" y="' + padT + '" width="' + step.toFixed(1) + '" height="' + plotH + '"/>').join('');
+  const n = buckets.length;
+  const cx = i => n === 1 ? padL + plotW / 2 : padL + plotW * i / (n - 1);
+  const cur = series.map((v, i) => v === null ? null : [cx(i), y(v)]);
+  const prev = showPrev ? prevSeries.map((v, i) => v === null ? null : [cx(i), y(v)]) : [];
+  const id = 'rcg' + rc.metric;
+  let svg = '<svg class="rc-svg" width="' + width + '" height="' + H + '" viewBox="0 0 ' + width + ' ' + H + '" role="img" aria-label="' + esc(meta.label + ' line chart') + '"' +
+    ' data-cur="' + esc(JSON.stringify(cur.map(p => p && [+p[0].toFixed(1), +p[1].toFixed(1)]))) + '" data-prev="' + esc(JSON.stringify(prev.map(p => p && [+p[0].toFixed(1), +p[1].toFixed(1)]))) + '">' +
+    '<defs><linearGradient id="' + id + '" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="' + meta.color + '" stop-opacity=".28"/><stop offset="1" stop-color="' + meta.color + '" stop-opacity="0"/></linearGradient></defs>';
+  // Stripe keeps the frame almost empty: a faint top line, the zero line, two value labels.
+  svg += '<line class="rc-grid" x1="' + padL + '" x2="' + (width - padR) + '" y1="' + y(top).toFixed(1) + '" y2="' + y(top).toFixed(1) + '"/>' +
+    '<text class="rc-ytick" x="' + padL + '" y="' + (y(top) - 7).toFixed(1) + '">' + esc(rcTick(top, meta.kind)) + '</text>';
+  if (bottom < 0) svg += '<line class="rc-grid" x1="' + padL + '" x2="' + (width - padR) + '" y1="' + y(bottom).toFixed(1) + '" y2="' + y(bottom).toFixed(1) + '"/>' +
+    '<text class="rc-ytick" x="' + padL + '" y="' + (y(bottom) - 7).toFixed(1) + '">' + esc(rcTick(bottom, meta.kind)) + '</text>';
+  svg += '<line class="rc-zero" x1="' + padL + '" x2="' + (width - padR) + '" y1="' + y(0).toFixed(1) + '" y2="' + y(0).toFixed(1) + '"/>' +
+    (bottom < 0 ? '<text class="rc-ytick" x="' + padL + '" y="' + (y(0) - 7).toFixed(1) + '">' + esc(rcTick(0, meta.kind)) + '</text>' : '');
+  if (showPrev) svg += rcSegments(prev).map(sg => '<path class="rc-prev" pathLength="1" d="' + rcCurve(sg) + '"/>').join('');
+  const segs = rcSegments(cur);
+  svg += segs.map(sg => sg.length > 1 ? '<path class="rc-area" fill="url(#' + id + ')" d="' + rcCurve(sg) + 'L' + sg[sg.length - 1][0].toFixed(1) + ',' + y(Math.max(bottom, 0)).toFixed(1) + 'L' + sg[0][0].toFixed(1) + ',' + y(Math.max(bottom, 0)).toFixed(1) + 'Z"/>' : '').join('');
+  svg += segs.map(sg => sg.length > 1 ? '<path class="rc-line" stroke="' + meta.color + '" pathLength="1" d="' + rcCurve(sg) + '"/>' : '<circle class="rc-solo" fill="' + meta.color + '" cx="' + sg[0][0].toFixed(1) + '" cy="' + sg[0][1].toFixed(1) + '" r="3.5"/>').join('');
+  // live end point
+  const last = [...cur].reverse().find(Boolean);
+  if (last && rc.range !== 'All') svg += '<circle class="rc-now-halo" fill="' + meta.color + '" cx="' + last[0].toFixed(1) + '" cy="' + last[1].toFixed(1) + '" r="8"/><circle class="rc-now" fill="' + meta.color + '" cx="' + last[0].toFixed(1) + '" cy="' + last[1].toFixed(1) + '" r="3.5"/>';
+  // crosshair (moved on hover)
+  svg += '<g class="rc-cross" visibility="hidden"><line class="rc-cross-line" y1="' + padT + '" y2="' + (padT + plotH) + '"/>' +
+    (showPrev ? '<circle class="rc-cross-prev" r="4"/>' : '') + '<circle class="rc-cross-dot" r="5" fill="' + meta.color + '"/></g>';
+  // x labels: start, end (and middle when there is room), like Stripe
+  const label = b => win.grain === 'week' ? rcDayFmt.format(rcT(b.from)) : rcLabel(b, win.grain);
+  const xs = n > 1 ? (plotW > 520 ? [0, Math.floor((n - 1) / 2), n - 1] : [0, n - 1]) : [0];
+  svg += [...new Set(xs)].map(i => '<text class="rc-xtick" x="' + cx(i).toFixed(1) + '" y="' + (H - 8) + '" text-anchor="' + (n === 1 ? 'middle' : i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle') + '">' + esc(label(buckets[i])) + '</text>').join('');
+  // hit targets: one column per point
+  const half = n > 1 ? plotW / (n - 1) / 2 : plotW / 2;
+  svg += buckets.map((b, i) => '<rect class="rc-hit" data-i="' + i + '" x="' + Math.max(0, cx(i) - half).toFixed(1) + '" y="0" width="' + (Math.min(width, cx(i) + half) - Math.max(0, cx(i) - half)).toFixed(1) + '" height="' + H + '"/>').join('');
   return svg + '</svg>';
 }
 
@@ -287,29 +279,47 @@ function rcUndated(rows) {
 }
 
 let rcLastModel = null;
-function rcRefresh() {
+function rcRefresh(animate = true) {
   const host = document.getElementById('financeChart');
   if (!host || !db) return;
   const today = todayUK();
   host.innerHTML = revenueChart(accountingRows(db), today);
   rcLastModel = rcModel(accountingRows(db), today);
+  const studio = host.querySelector('.revenue-studio');
+  if (animate && studio) studio.classList.add('rc-draw');
+  const plot = host.querySelector('.rc-plot');
+  if (plot && rc.selected >= 0) rcCross(rc.selected, plot);
 }
 
+function rcCross(i, plot) {
+  const svg = plot.querySelector('.rc-svg'), cross = svg?.querySelector('.rc-cross');
+  if (!cross) return;
+  if (i < 0) { cross.setAttribute('visibility', 'hidden'); return; }
+  const cur = JSON.parse(svg.dataset.cur || '[]'), prev = JSON.parse(svg.dataset.prev || '[]');
+  const hit = svg.querySelector('.rc-hit[data-i="' + i + '"]');
+  const x = cur[i]?.[0] ?? (Number(hit.getAttribute('x')) + Number(hit.getAttribute('width')) / 2);
+  cross.querySelector('.rc-cross-line').setAttribute('x1', x); cross.querySelector('.rc-cross-line').setAttribute('x2', x);
+  const dot = cross.querySelector('.rc-cross-dot');
+  if (cur[i]) { dot.setAttribute('cx', cur[i][0]); dot.setAttribute('cy', cur[i][1]); dot.setAttribute('visibility', 'visible'); } else dot.setAttribute('visibility', 'hidden');
+  const pd = cross.querySelector('.rc-cross-prev');
+  if (pd) { if (prev[i]) { pd.setAttribute('cx', prev[i][0]); pd.setAttribute('cy', prev[i][1]); pd.setAttribute('visibility', 'visible'); } else pd.setAttribute('visibility', 'hidden'); }
+  cross.setAttribute('visibility', 'visible');
+  return x;
+}
 function rcShowTip(i, plot) {
   const tip = plot.querySelector('.rc-tip');
   if (!rcLastModel) rcLastModel = rcModel(accountingRows(db), todayUK());
-  if (i < 0 || !rcLastModel.buckets[i]) { tip.hidden = true; return; }
+  if (i < 0 || !rcLastModel.buckets[i]) { tip.hidden = true; rcCross(-1, plot); return; }
+  const x = rcCross(i, plot);
+  if (window.matchMedia('(hover: none)').matches) return;
   tip.innerHTML = rcTooltip(rcLastModel, i);
   tip.hidden = false;
-  const hit = plot.querySelector('.rc-hit[data-i="' + i + '"]');
-  const x = Number(hit.getAttribute('x')) + Number(hit.getAttribute('width')) / 2;
   const w = tip.offsetWidth, max = plot.clientWidth - w - 4;
-  tip.style.left = Math.max(4, Math.min(max, x - w / 2)) + 'px';
-  plot.querySelectorAll('.rc-bar, .rc-dot').forEach(el => el.classList.toggle('dim', el.dataset.i !== String(i)));
+  tip.style.left = Math.max(4, Math.min(max, x + 16 + w > plot.clientWidth ? x - w - 16 : x + 16)) + 'px';
 }
 function rcHideTip(plot) {
   plot.querySelector('.rc-tip').hidden = true;
-  plot.querySelectorAll('.dim').forEach(el => el.classList.remove('dim'));
+  if (rc.selected >= 0) rcCross(rc.selected, plot); else rcCross(-1, plot);
 }
 
 document.addEventListener('click', event => {
@@ -332,18 +342,16 @@ document.addEventListener('click', event => {
     persist(next).then(() => { rcRefresh(); toast('Sale date saved'); }).catch(e => { fix.disabled = false; toast(e.message || 'Could not save.'); });
     return;
   }
-  if (t.closest('[data-rc-all]')) { rc.all = !rc.all; rcRefresh(); return; }
-  if (t.closest('[data-rc-clear]')) { rc.selected = -1; rcRefresh(); return; }
+  if (t.closest('[data-rc-all]')) { rc.all = !rc.all; rcRefresh(false); return; }
+  if (t.closest('[data-rc-clear]')) { rc.selected = -1; rcRefresh(false); return; }
   const hit = t.closest('.rc-hit');
   if (hit) {
     const i = Number(hit.dataset.i);
     rc.selected = rc.selected === i ? -1 : i;
-    rcRefresh();
-    const touch = window.matchMedia('(hover: none)').matches;
+    rcRefresh(false);
     if (rc.selected >= 0) {
       const plot = document.querySelector('.revenue-studio .rc-plot');
-      if (!touch) rcShowTip(i, plot);
-      else plot.querySelectorAll('.rc-bar, .rc-dot').forEach(el => el.classList.toggle('dim', el.dataset.i !== String(i)));
+      rcShowTip(i, plot);
       if (window.matchMedia('(max-width: 800px)').matches) document.querySelector('.rc-detail')?.scrollIntoView({behavior: 'smooth', block: 'nearest'});
     }
   }
@@ -351,15 +359,14 @@ document.addEventListener('click', event => {
 document.addEventListener('pointermove', event => {
   if (event.pointerType !== 'mouse') return;
   const plot = event.target.closest?.('.revenue-studio .rc-plot');
-  const open = document.querySelector('.revenue-studio .rc-tip:not([hidden])');
-  if (!plot) { if (open && rc.selected < 0) rcHideTip(open.parentElement); return; }
+  if (!plot) { const p = document.querySelector('.revenue-studio .rc-plot'); if (p && (!p.querySelector('.rc-tip').hidden || p.querySelector('.rc-cross[visibility=visible]'))) rcHideTip(p); return; }
   const hit = event.target.closest('.rc-hit');
   if (hit) rcShowTip(Number(hit.dataset.i), plot);
 });
 let rcResize = 0;
 window.addEventListener('resize', () => {
   clearTimeout(rcResize);
-  rcResize = setTimeout(() => { if (document.querySelector('.revenue-studio')) rcRefresh(); }, 150);
+  rcResize = setTimeout(() => { if (document.querySelector('.revenue-studio')) rcRefresh(false); }, 150);
 });
 // First paint happens before the container has a width; redraw once at the real size.
 new MutationObserver(() => {

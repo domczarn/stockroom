@@ -13,7 +13,7 @@ function welcome(){
  return '<section class="top dashboard-title"><div><h1>'+greeting+', '+esc(name)+'</h1><p>'+esc(today)+'</p></div>'+
    '<div class="dashboard-actions"><button class="secondary" type="button" data-shot-import '+(isReadOnly()?'hidden':'')+'>From screenshots</button>'+
    '<button class="action" id="add">＋ Add stock</button></div></section>'+
-   kpiStrip()+pipBrainView();
+   kpiStrip();
 }
 function guideView() {
  const financials = finances(db);
@@ -56,6 +56,7 @@ function navigate(next){
  tabScroll[tab]=window.scrollY;
  if(['Dashboard','Stock','Expenses','Activity'].includes(tab))lastMainTab=tab;
  tab=next;render();window.scrollTo({top:tabScroll[next]||0,behavior:'instant'});
+ const viewEl=$('view');viewEl.classList.remove('view-enter');void viewEl.offsetWidth;viewEl.classList.add('view-enter');
  const heading=$('view').querySelector('h1');if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true});}
  if(['Account','Admin'].includes(tab))loadImportNoticeStatus().catch(()=>{});
  if(tab==='Leaderboard')loadLeaderboard(1);
