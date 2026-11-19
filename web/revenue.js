@@ -106,7 +106,8 @@ function rcModel(rows, today) {
     const from = rcD(rcT(b.from) - shift), to = rcD(rcT(b.to) - shift);
     return rcStats(inRange(from, to));
   }) : [];
-  const total = rcStats(inRange(rcD(win.start), rcD(win.end)));
+  // All time means everything: undated sales can't be plotted, but they still count in the totals.
+  const total = rcStats([...inRange(rcD(win.start), rcD(win.end)), ...(rc.range === 'All' ? rows.filter(row => !row.date) : [])]);
   const prevTotal = win.comparable ? rcStats(inRange(rcD(win.start - shift), rcD(win.end - shift))) : null;
   let series = buckets.map(b => b.stats[rc.metric]);
   let prevSeries = prevBuckets.map(s => s[rc.metric]);
@@ -273,7 +274,7 @@ function rcUndated(rows) {
   if (!undated.length) return '';
   const items = db.items.filter(item => item.status === 'Sold' && !item.soldAt && Number.isFinite(item.sale));
   return '<div class="rc-undated"><strong>' + undated.length + ' sale' + (undated.length === 1 ? '' : 's') + ' with no date (' + gbp(undated.reduce((n, row) => n + row.revenue, 0)) + ')</strong>' +
-    '<span>Not on the chart, but counted in Reports. Add the sale date to fix.</span>' +
+    '<span>Counted in All time totals but can\'t be placed on the line, so it\'s missing from shorter ranges. Add the sale date to fix.</span>' +
     items.map(item => '<label class="rc-fix-row"><span>#' + esc(item.id) + ' ' + esc(item.name) + ' · ' + gbp(item.sale) + '</span>' +
       '<span class="rc-fix-ctl"><input type="date" max="' + todayUK() + '" data-rc-date="' + esc(item.id) + '" aria-label="Sale date"><button type="button" class="action" data-rc-fix="' + esc(item.id) + '">Save date</button></span></label>').join('') + '</div>';
 }
