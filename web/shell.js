@@ -3,7 +3,7 @@
 
 const SECTIONS = [
   {key:'home', label:'Home', tabs:[['Dashboard','Overview'],['Vinted updates','Vinted updates'],['Sale receipts','Sale receipts','admin']]},
-  {key:'stock', label:'Stock', tabs:[['Stock','Collection'],['Orders','Bulk orders'],['Buying insights','Insights'],['Buying research','Market research']]},
+  {key:'stock', label:'Stock', tabs:[['Stock','Collection'],['Orders','Bulk orders'],['Buying insights','Performance'],['Buying research','Market research']]},
   {key:'money', label:'Money', tabs:[['Activity','Transactions'],['Expenses','Expenses'],['Reports','Reports']]},
   {key:'care', label:'Customer care', tabs:[['Customer care','Customer care']]},
   {key:'account', label:'Account', tabs:[['Account','Settings'],['Profile','Profile'],['Leaderboard','Leaderboard'],['Admin','Members','admin']]}
