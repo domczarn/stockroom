@@ -115,3 +115,25 @@ test('AI status explains why Claude is or is not in use', async () => {
   assert.equal((await call(env, '/api/admin/ai-status', 'admin')).data.ok, true);
   assert.equal((await call(env, '/api/admin/ai-status', 'a')).status, 403);
 });
+
+test('Gmail beta cap and company details on the legal pages', async () => {
+  const env = await seeded(); env.GOOGLE_GMAIL_CLIENT_ID = 'fixture'; env.GOOGLE_GMAIL_CLIENT_SECRET = 'fixture';
+  await call(env, '/api/admin/settings', 'admin', 'PUT', {gmail_cap: 0, company_number: '12345678', company_address: '1 High Street, Southampton, SO14 1AA'});
+  const r = await call(env, '/api/gmail/connect', 'a', 'POST', {});
+  assert.ok([402, 403].includes(r.status));
+  await env.DB.prepare("INSERT INTO accounts (id,email,created_at,plan) VALUES ('member-a','a@example.com','2026-01-01','pro') ON CONFLICT(id) DO UPDATE SET plan='pro'").run();
+  const capped = await call(env, '/api/gmail/connect', 'a', 'POST', {});
+  assert.equal(capped.status, 403); assert.match(capped.data.error, /beta/);
+  const page = await (await app.fetch(new Request('https://test.local/privacy.html'), env)).text();
+  assert.match(page, /company number 12345678, registered office 1 High Street, Southampton, SO14 1AA/);
+});
+
+import {scheduledAlerts, logError} from '../worker/alerts.js';
+test('server errors are logged, shown in admin and emailed once when they spike', async () => {
+  const env = await seeded(); env.RESEND_API_KEY = 're'; const sent = [];
+  env.RESEND_FETCH = async (u, init) => { sent.push(JSON.parse(init.body)); return new Response('{}', {status: 200}); };
+  for (let i = 0; i < 12; i++) await logError(env, new URL('https://x/api/pip/ask'), 500, new Error('boom ' + i));
+  assert.equal((await call(env, '/api/admin/overview', 'admin')).data.errors.count, 12);
+  await scheduledAlerts(env); await scheduledAlerts(env);
+  assert.equal(sent.length, 1); assert.match(sent[0].subject, /12 errors/);
+});

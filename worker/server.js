@@ -11,6 +11,7 @@ import {offerRoute,askRoute,scanRoute} from './pipai.js';
 import {weeklyRoute,unsubscribePage} from './weekly.js';
 import {authRoute} from './auth.js';
 import {adminRoute,appSettings} from './admin.js';
+import {logError} from './alerts.js';
 import {loadWorkspace,saveWorkspace} from './workspace-store.js';
 import {billingRoute,planFor,requirePro,checkNewItems,recordNewItems,deleteOwnAccount} from './billing.js';
 import {ADMIN_EMAIL,identity,authorize,adminOnly,readBody,validateWorkspace,storePhotos,audit,HttpError,emptyWorkspace,rateLimit,exactDate,paid,tx} from './security.js';
@@ -303,6 +304,11 @@ export default {
       }
       if (!['GET','HEAD'].includes(request.method)) return json({error:'Method not allowed'},405);
       if(url.pathname==='/seed.json' && !rawUser?.admin) return json({error:'Admin access required'},403);
+      if(['/privacy.html','/terms.html'].includes(url.pathname)&&request.method==='GET'){
+        const s=await appSettings(env),e=v=>String(v).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+        const details=[s.company_number&&'company number '+e(s.company_number),s.company_address&&'registered office '+e(s.company_address)].filter(Boolean).join(', ');
+        return new Response(assets[url.pathname].replace('<!--company-->',details?' ('+details+')':''),{headers:{'content-type':'text/html;charset=utf-8','cache-control':'no-cache','x-content-type-options':'nosniff','content-security-policy':"default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'"}});
+      }
       if (!(url.pathname in assets)) return new Response('Not found',{status:404});
       const assetTag='"'+(JSON.parse(assets['/version.json']||'{}').version||'v')+'"';
       if(request.headers.get('if-none-match')===assetTag&&url.pathname!=='/version.json')return new Response(null,{status:304,headers:{etag:assetTag,'cache-control':'private, no-cache'}});
@@ -310,7 +316,9 @@ export default {
       const type = url.pathname.endsWith('.svg')?'image/svg+xml':url.pathname.endsWith('.webmanifest')?'application/manifest+json':url.pathname.endsWith('.js')?'text/javascript':url.pathname.endsWith('.css')?'text/css':url.pathname.endsWith('.json')?'application/json':'text/html';
       return new Response(request.method === 'HEAD'?null:assets[url.pathname],{headers:{'content-type':type+';charset=utf-8','cache-control':'private, no-cache',etag:assetTag,'x-content-type-options':'nosniff','referrer-policy':'same-origin','x-robots-tag':'noindex, nofollow','content-security-policy':url.pathname==='/receipt-ocr-worker.js' ? "default-src 'none'; script-src 'self' https://cdn.jsdelivr.net 'wasm-unsafe-eval'; connect-src 'self' https://cdn.jsdelivr.net" : "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; base-uri 'self'; frame-ancestors 'self'; form-action 'self'; object-src 'none'"}});
     } catch (error) {
-      return json({error:error instanceof HttpError?error.message:'Stockroom could not complete this request. Please try again.'},error instanceof HttpError?error.status:500);
+      const status=error instanceof HttpError?error.status:500;
+      if(status>=500&&context?.waitUntil)context.waitUntil(logError(env,url,status,error));else if(status>=500)await logError(env,url,status,error);
+      return json({error:error instanceof HttpError?error.message:'Stockroom could not complete this request. Please try again.'},status);
     }
   }
 };

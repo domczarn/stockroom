@@ -67,6 +67,9 @@ function admOverview() {
      list('Invited, not joined yet', people.filter(m => !m.userId), () => 'Waiting') +
      list('Suspended', people.filter(m => m.status === 'suspended'), () => 'No access') ||
      '<p class="footnote">Nothing needs you right now.</p>') + '</section>' +
+    '<section class="panel"><div class="adm-panel-head"><h2>Server errors</h2><span class="footnote">Last 24 hours</span></div>' +
+      (o.errors?.count ? '<p><b class="err-count">' + o.errors.count + '</b> error' + (o.errors.count === 1 ? '' : 's') + '. You get an email if 10+ happen within an hour.</p><details class="adm-errors"><summary>Show latest</summary>' + o.errors.recent.slice(0, 15).map(e => '<div class="mini-stat"><span>' + esc(e.status + ' ' + e.path) + '<small>' + esc(e.message) + '</small></span><b>' + esc(ago(e.at)) + '</b></div>').join('') + '</details>'
+        : '<p class="ai-status ok"><b>✓ No errors</b></p>') + '</section>' +
     '<section class="panel adm-status"><h2>App status</h2>' +
     '<div class="mini-stat"><span>Sign-ups</span><b>' + (adminData.settings.signups_open === '1' ? 'Open to anyone' : 'Invite-only') + '</b></div>' +
     '<div class="mini-stat"><span>Free plan</span><b>' + esc(adminData.settings.free_limit) + ' new items a month</b></div>' +
@@ -129,6 +132,8 @@ function admSettings() {
   const s = adminData.settings;
   return admAiCard() + '<section class="panel"><h2>Sign-ups</h2>' +
     '<label class="adm-switch"><input type="checkbox" id="admSignups"' + (s.signups_open === '1' ? ' checked' : '') + '><span></span><div><b>Anyone can sign up</b><small>Turn off for invite-only. Existing members can always sign in.</small></div></label></section>' +
+    '<section class="panel"><h2>Gmail beta</h2><label>Spaces for Gmail auto-updates<input type="number" id="admGmailCap" min="0" max="100000" step="1" inputmode="numeric" value="' + esc(s.gmail_cap) + '"></label><p class="footnote">Google allows 100 people to connect an unverified app. Keep this below 100 until Google verifies Stockroom.</p></section>' +
+    '<section class="panel"><h2>Company details</h2><p>Shown on the Privacy policy and Terms.</p><label>Company number<input id="admCompanyNumber" maxlength="12" value="' + esc(s.company_number) + '" placeholder="e.g. 12345678"></label><label>Registered office address<input id="admCompanyAddress" maxlength="200" value="' + esc(s.company_address) + '" placeholder="Street, town, postcode"></label></section>' +
     '<section class="panel"><h2>Free plan</h2><label>New items per month on Free<input type="number" id="admFreeLimit" min="0" max="10000" step="1" inputmode="numeric" value="' + esc(s.free_limit) + '"></label><p class="footnote">Pro is always unlimited. Changes apply immediately.</p></section>' +
     '<section class="panel"><h2>Announcement banner</h2><p>Shows at the top of the app for every member. Good for updates, new features or downtime.</p>' +
     '<label>Message<textarea id="admAnnouncement" rows="3" maxlength="280" placeholder="e.g. New: Pip can now write your Vinted listings.">' + esc(s.announcement) + '</textarea></label>' +
@@ -241,7 +246,8 @@ document.addEventListener('click', async event => {
     try {
       const {settings} = await api('/api/admin/settings', {method: 'PUT', body: JSON.stringify({
         signups_open: document.getElementById('admSignups').checked, free_limit: Number(document.getElementById('admFreeLimit').value),
-        announcement: document.getElementById('admAnnouncement').value, announcement_tone: document.getElementById('admTone').value, announcement_on: document.getElementById('admAnnounceOn').checked})});
+        announcement: document.getElementById('admAnnouncement').value, announcement_tone: document.getElementById('admTone').value, announcement_on: document.getElementById('admAnnounceOn').checked,
+        gmail_cap: Number(document.getElementById('admGmailCap').value), company_number: document.getElementById('admCompanyNumber').value, company_address: document.getElementById('admCompanyAddress').value})});
       adminData.settings = settings; account.announcement = settings.announcement_on === '1' && settings.announcement ? {text: settings.announcement, tone: settings.announcement_tone} : null;
       toast('App settings saved.'); await loadAdmin(); render();
     } catch (error) { toast(error.message); button.disabled = false; }

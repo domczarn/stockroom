@@ -206,7 +206,18 @@ export async function gmailRoute(request,url,env,user,context){
     return publicConnection(null,env);
   }
   if(!configured(env))throw new HttpError(503,'Google authorization has not been configured for Stockroom.');
-  if(path==='/api/gmail/connect'&&method==='POST')return start(env,user,url);
+  if(path==='/api/gmail/connect'&&method==='POST'){
+    // Gmail is in beta: until Google verifies the app, only a limited number of people can connect.
+    if(!user.admin){
+      const mine=await env.DB.prepare('SELECT 1 FROM gmail_connections WHERE owner_id=?').bind(user.id).first();
+      if(!mine){
+        const cap=Number((await env.DB.prepare("SELECT value FROM app_settings WHERE key='gmail_cap'").first().catch(()=>null))?.value??90);
+        const used=(await env.DB.prepare('SELECT COUNT(*) AS n FROM gmail_connections').first())?.n||0;
+        if(used>=cap)throw new HttpError(403,'Gmail auto-updates are in beta and all spaces are taken right now. You’ll be able to connect as soon as more open up.');
+      }
+    }
+    return start(env,user,url);
+  }
   if(path==='/api/gmail/callback'&&method==='GET')return finish(env,user,url);
   const row=await connection(env,user.id);
   if(!row)throw new HttpError(409,'Connect the Gmail inbox that receives your Vinted emails.');

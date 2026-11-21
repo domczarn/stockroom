@@ -3,8 +3,9 @@
 import {HttpError, readBody, audit, adminOnly, ADMIN_EMAIL} from './security.js';
 import {aiStatus} from './llm.js';
 import {loadWorkspace} from './workspace-store.js';
+import {recentErrors} from './alerts.js';
 
-const DEFAULTS = {signups_open: '1', free_limit: '20', announcement: '', announcement_on: '0', announcement_tone: 'info'};
+const DEFAULTS = {signups_open: '1', free_limit: '20', gmail_cap: '90', company_number: '', company_address: '', announcement: '', announcement_on: '0', announcement_tone: 'info'};
 const validEmail = email => email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
 const month = () => new Date().toISOString().slice(0, 7);
 const now = () => new Date().toISOString();
@@ -73,7 +74,7 @@ async function overview(env) {
     pro: pro.length, paid: paid.length, comped: pro.length - paid.length, mrr,
     neverUsed: rows.filter(r => !r.items).length, atLimit: rows.filter(r => r.plan === 'free' && r.addedThisMonth >= Number(settings.free_limit)).length,
     items: rows.reduce((s, r) => s + r.items, 0), revenue: Math.round(rows.reduce((s, r) => s + r.revenue, 0) * 100) / 100,
-    signups, settings,
+    signups, settings, errors: await recentErrors(env, 24),
   };
 }
 
@@ -220,6 +221,9 @@ export async function adminRoute(request, url, env, user) {
       if ('free_limit' in body) { const n = Number(body.free_limit); if (!Number.isInteger(n) || n < 0 || n > 10000) throw new HttpError(400, 'Free limit must be a whole number.'); next.free_limit = String(n); }
       if ('announcement' in body) next.announcement = String(body.announcement || '').slice(0, 280);
       if ('announcement_on' in body) next.announcement_on = body.announcement_on ? '1' : '0';
+      if ('gmail_cap' in body) { const n = Number(body.gmail_cap); if (!Number.isInteger(n) || n < 0 || n > 100000) throw new HttpError(400, 'Gmail spaces must be a whole number.'); next.gmail_cap = String(n); }
+      if ('company_number' in body) next.company_number = String(body.company_number || '').replace(/[^A-Za-z0-9 ]/g, '').trim().slice(0, 12);
+      if ('company_address' in body) next.company_address = String(body.company_address || '').replace(/\s+/g, ' ').trim().slice(0, 200);
       if ('announcement_tone' in body) next.announcement_tone = ['info', 'success', 'warning'].includes(body.announcement_tone) ? body.announcement_tone : 'info';
       for (const [key, value] of Object.entries(next)) await env.DB.prepare('INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at').bind(key, value, now()).run();
       if (Object.keys(next).length) await audit(env, user, 'app', 'admin_settings_' + Object.keys(next).join('_'));
