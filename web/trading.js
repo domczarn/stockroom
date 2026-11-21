@@ -19,7 +19,7 @@ function accountingRows(data) {
   const rows = [];
   for (const trade of trades) {
     const name = items.get(trade.itemId)?.name || trade.name;
-    rows.push({kind:'Sale',name,date:trade.soldAt,revenue:trade.amount,cost:trade.cost,expense:0});
+    rows.push({kind:'Sale',name,date:trade.soldAt,revenue:trade.amount,cost:trade.cost,expense:trade.extraCost||0});
     for (const refund of trade.refunds) rows.push({kind:'Sale refund',name,date:refund.date,revenue:-refund.amount,cost:refund.restock?-trade.cost:0,expense:refund.postage});
   }
   for (const item of data.items) {
@@ -54,7 +54,7 @@ function splitCost(amount, weights) {
   return parts.map(part=>pounds(part.floor));
 }
 
-function recordSale(data, itemId, amount, soldAt, receipt) {
+function recordSale(data, itemId, amount, soldAt, receipt, extraCost = 0) {
   const item = data.items.find(row=>row.id===itemId);
   const last = lastTrade(data,itemId);
   if (!item || !['In Stock','Sold'].includes(item.status) || (last && (item.status!=='In Stock'||!last.refunds.some(r=>r.restock))))
@@ -66,6 +66,7 @@ function recordSale(data, itemId, amount, soldAt, receipt) {
   const next = cloneWorkspace(data);
   const current = next.items.find(row=>row.id===itemId);
   const trade = {id:newId(),itemId,name:item.name,cost:item.cost,amount,soldAt,listedAt:item.listedAt||'',refunds:[],orderId:receipt?.transactionId||''};
+  if (Number.isFinite(extraCost) && extraCost > 0) trade.extraCost = Math.round(extraCost * 100) / 100;
   (next.trades ||= []).push(trade);
   Object.assign(current,{status:'Sold',sale:amount,soldAt,stage:''});
   return next;
@@ -138,28 +139,11 @@ function reportsView() {
   return '<div class="tools"><label>Period <select id="reportMonth"><option value="">All time</option>'+options(months,reportMonth)+'</select></label>'+
     tradeButton('csv','Export period CSV')+'</div><div class="metrics">'+metric('Sales revenue',gbp(summary.revenue),'After recorded sale refunds','featured')+
     metric('Net profit',gbp(summary.profit),summary.missing?summary.missing+' sale costs missing · provisional':'After costs, expenses and returns')+
-    metric('Net expenses',gbp(summary.expense),'Includes return adjustments')+metric('Awaiting payout',gbp(pending),'Across all recorded orders')+'</div>'+moneyDetail()+'<h2 class="report-table-title">Transactions</h2>'+
+    metric('Net expenses',gbp(summary.expense),'Includes return adjustments')+metric('Awaiting payout',gbp(pending),'Across all recorded orders')+'</div>'+moneyDetail()+(typeof taxCard==='function'?taxCard():'')+'<h2 class="report-table-title">Transactions</h2>'+
     '<p class="footnote">'+all.filter(row=>!row.date).length+' undated entries are included in All time.</p>'+
     table(['Transaction','Date','Revenue','Cost','Expenses','Profit'],sorted.map(row=>'<tr><td><b>'+esc(row.name)+'</b><br>'+row.kind+'</td><td>'+esc(row.date?dateLabel(row.date):'Undated')+'</td><td>'+gbp(row.revenue)+'</td><td>'+gbp(row.cost)+'</td><td>'+gbp(row.expense)+'</td><td>'+gbp(row.cost===null?null:row.revenue-row.cost-row.expense)+'</td></tr>').join('')||'<tr><td colspan="6">No entries in this period.</td></tr>');
 }
 
-function insightsView() {
-  const groups=new Map();
-  for (const sale of db.trades||[]) {
-    if (!(sale.completedAt||sale.paidAt)||sale.refunds.length) continue;
-    const item=db.items.find(row=>row.id===sale.itemId);
-    if (!item) continue;
-    const key=[item.brand,item.garment||'Uncategorised'].join(' · ');
-    const group=groups.get(key)||{name:key,profits:[],days:[]};
-    group.profits.push(sale.amount-sale.cost);
-    const listed=sale.listedAt;
-    if(listed && listed<=sale.soldAt)group.days.push((Date.parse(sale.soldAt)-Date.parse(listed))/86400000);
-    groups.set(key,group);
-  }
-  const average=arr=>arr.reduce((n,v)=>n+v,0)/arr.length;
-  return '<section class="panel"><span class="eyebrow">YOUR SELLING HISTORY</span><h2>What has worked for you</h2><p>Compare actual gross profit and time listed across completed, unreturned sales. General expenses are tracked separately.</p></section>'+
-    table(['Brand and type','Completed sales','Average gross profit','Average days listed'],[...groups.values()].sort((a,b)=>average(b.profits)-average(a.profits)).map(group=>'<tr><td>'+esc(group.name)+'</td><td>'+group.profits.length+(group.profits.length<3?' · Small sample':'')+'</td><td>'+gbp(average(group.profits))+'</td><td>'+(group.days.length?average(group.days).toFixed(1):'—')+'</td></tr>').join('')||'<tr><td colspan="4">Complete a sale to start building insights.</td></tr>');
-}
 
 function csvCell(value) {
   let text=String(value??'');
@@ -204,14 +188,15 @@ function tradeEditor(action,itemId='',receipt=null) {
   let content='', title='';
   if (action==='sale') {
     title='Record sale';
-    content=moneyInput('amount','Actual sale price (£)',receipt?.amount??item.sale??'')+dateInput(receipt?.date||todayUK());
+    content=moneyInput('amount','Actual sale price (£)',receipt?.amount??item.sale??'')+dateInput(receipt?.date||todayUK())+
+      moneyInput('extraCost','Other costs for this sale (£): postage you paid, bumps. Optional','',false);
   } else if(action==='order') {
     title='Order and payout';
     content=tradeHistory(item)+(trade&&tradeStatus(trade)!=='Returned'&&tradeStatus(trade)!=='Paid'?tradeButton('advance','Update progress',itemId):'')+
       (trade&&saleRemaining(trade)>0?tradeButton('refund','Record refund',itemId):'');
   } else if(action==='post') {
     title='Record postage';
-    content=dateInput();
+    content=dateInput()+moneyInput('extraCost','Postage or packaging you paid (£). Leave blank if the buyer paid',trade?.extraCost||'',false);
   } else if(action==='advance') {
     title='Update order';
     const choices=orderStages.slice(orderStages.indexOf(tradeStatus(trade))+1);
@@ -478,11 +463,14 @@ function initialiseTrading() {
         openItem(item);
         return;
       }
-      if(action==='sale')next=recordSale(db,id,amount,date);
+      const extraCost=Number(fields.get('extraCost')||0);
+      if(!Number.isFinite(extraCost)||extraCost<0)throw Error('Other costs must be £0 or more.');
+      if(action==='sale')next=recordSale(db,id,amount,date,undefined,extraCost);
       if(action==='post'){
         const order=lastTrade(db,id);
         if(!order||tradeStatus(order)!=='Sold')throw Error('This order has already progressed.');
         next=advanceOrder(db,id,'Posted',date);
+        const posted=lastTrade(next,id); if(extraCost>0)posted.extraCost=Math.round(extraCost*100)/100; else delete posted.extraCost;
       }
       if(action==='advance')next=advanceOrder(db,id,fields.get('stage'),date,Number(fields.get('paid')));
       const refund=(value,day)=>({amount:value,date:day,reason:String(fields.get('reason')).trim(),postage:Number(fields.get('postage')),restock:fields.has('restock')});

@@ -1,6 +1,6 @@
 'use strict';
 // Performance: what's working. Every bought piece, how it sold, how fast, and what earns.
-// Replaces insightsView() (tab id stays 'Buying insights'; shown as "Performance").
+// Rendered by insightsView() (tab id stays 'Buying insights'; shown as "Performance").
 
 const pf = {range: 'all', dim: 'brand', sort: 'profit'};
 try { Object.assign(pf, JSON.parse(localStorage.getItem('stockroom-performance') || '{}')); } catch {}
@@ -29,7 +29,8 @@ function pfPieces() {
     else if (trade && !returned) { state = 'sold'; revenue = pounds(cents(trade.amount) - cents(refunded)); soldAt = trade.soldAt; }
     else if (item.status === 'Sold' && Number.isFinite(item.sale)) { state = 'sold'; revenue = item.sale; soldAt = item.soldAt || null; }
     const cost = Number.isFinite(item.cost) ? item.cost : null;
-    const profit = state === 'sold' && cost !== null ? pounds(cents(revenue) - cents(cost)) : state === 'cancelled' && Number.isFinite(item.refund) && cost !== null ? -pounds(cents(cost) - cents(item.refund)) : null;
+    const extra = state === 'sold' && trade && !returned ? (trade.extraCost || 0) : 0;
+    const profit = state === 'sold' && cost !== null ? pounds(cents(revenue) - cents(cost) - cents(extra)) : state === 'cancelled' && Number.isFinite(item.refund) && cost !== null ? -pounds(cents(cost) - cents(item.refund)) : null;
     const boughtAt = item.purchasedAt ? String(item.purchasedAt).slice(0, 10) : null;
     const band = cost === null ? 'Unknown' : PF_BANDS.find(([lo, hi]) => cost >= lo && cost < hi)[2];
     return {
@@ -100,6 +101,13 @@ function pfInRange(pieces) {
   return pieces.filter(p => p.boughtAt && p.boughtAt >= from);
 }
 
+// Spread business expenses (bags, labels, tools) bought in the same period across the pieces sold.
+function pfAfterCosts(pieces, all) {
+  if (!all.sold) return 'no sales yet';
+  const from = pf.range === 'all' ? '' : new Date(Date.parse(todayUK()) - (Number(pf.range) - 1) * pfDay).toISOString().slice(0, 10);
+  const spend = (db.expenses || []).filter(e => Array.isArray(e) && (!from || String(e[4] || '') >= from)).reduce((n, e) => n + (Number(e[1]) || 0), 0);
+  return pfMoney((all.totalProfit - spend) / all.sold) + ' after business costs';
+}
 const pfMoney = v => v === null ? '—' : gbp(v);
 const pfPct = v => v === null ? '—' : Math.round(v * 100) + '%';
 const pfDaysLabel = v => v === null ? '—' : Math.round(v) + (Math.round(v) === 1 ? ' day' : ' days');
@@ -155,8 +163,7 @@ function pfRankList(title, sub, list, kind) {
     : '<p class="pf-empty">Nothing here yet.</p>') + '</section>';
 }
 
-// eslint-disable-next-line no-global-assign
-insightsView = function performanceView() {
+function insightsView() {
   const pieces = pfInRange(pfPieces());
   const all = pfGroupStats(pieces);
   const keyed = new Map();
@@ -183,7 +190,7 @@ insightsView = function performanceView() {
     '<div class="pf-kpis">' +
       kpi('Pieces bought', all.bought, pfMoney(all.avgBuy) + ' average buy') +
       kpi('Sold', all.sold + ' <em>' + pfPct(all.sellThrough) + '</em>', 'sell-through' + (all.cancelled ? ' · ' + all.cancelled + ' cancelled' : '')) +
-      kpi('Profit per piece', pfMoney(all.avgProfit), pfMoney(all.totalProfit) + ' from sales') +
+      kpi('Profit per piece', pfMoney(all.avgProfit), pfAfterCosts(pieces, all)) +
       kpi('Return on cost', pfPct(all.roi), 'profit ÷ what you paid') +
       kpi('Time to sell', pfDaysLabel(all.days), 'median, bought → sold') +
       kpi('Still in stock', all.unsold, pfMoney(all.tiedUp) + ' tied up') +
@@ -203,9 +210,9 @@ insightsView = function performanceView() {
       pfRankList('Best flips', 'Highest profit per piece', best, 'best') + '</div>' +
     '<div class="pf-grid">' + pfRankList('Weakest flips', sold.length > 5 ? 'Lowest profit per piece' : 'Shows once you have more than 5 sales', worst, 'worst') +
       pfRankList('Slowest movers', 'Unsold the longest', stale, 'stale') + '</div>' +
-    '<p class="pf-foot">Profit here is sale price minus what you paid for the piece. Packaging and other business costs are in Money → Reports. Tap any item to open it.</p>' +
+    '<p class="pf-foot">Profit per piece is sale price minus what you paid and any costs recorded on that sale. “After business costs” also spreads your expenses (bags, labels, tools) across the pieces sold. Tap any item to open it.</p>' +
     '</section>';
-};
+}
 
 document.addEventListener('click', event => {
   const t = event.target;

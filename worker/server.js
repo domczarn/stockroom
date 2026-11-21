@@ -93,6 +93,23 @@ export default {
       const user = url.pathname.startsWith('/api/') && !(!rawUser&&await isStockroomService(request,env,url.pathname))
         ? await authorize(request,env) : rawUser;
       if(url.pathname.startsWith('/api/')&&!['GET','HEAD'].includes(request.method))await rateLimit(env,user?.id||'stockroom-sync-service');
+      // Emails Pip has already applied or you skipped, shared by all your devices.
+      if(url.pathname==='/api/gmail/done'){
+        if(!user)throw new HttpError(401,'Sign in first.');
+        if(request.method==='GET'){
+          const result=await env.DB.prepare('SELECT gmail_id FROM email_updates_done WHERE owner_id = ? ORDER BY created_at DESC LIMIT 2000').bind(user.id).all();
+          return json({ids:result.results.map(row=>row.gmail_id)});
+        }
+        if(request.method==='POST'){
+          const body=await readBody(request,40000)||{};
+          const ids=Array.isArray(body.ids)?[...new Set(body.ids)].filter(id=>typeof id==='string'&&/^[a-f0-9]{8,40}$/.test(id)).slice(0,500):[];
+          if(!ids.length)return json({saved:0});
+          const now=new Date().toISOString();
+          for(const id of ids)await env.DB.prepare('INSERT INTO email_updates_done (owner_id,gmail_id,created_at) VALUES (?,?,?) ON CONFLICT DO NOTHING').bind(user.id,id,now).run();
+          return json({saved:ids.length});
+        }
+        throw new HttpError(405,'Method not allowed.');
+      }
       if(url.pathname==='/api/gmail'||url.pathname.startsWith('/api/gmail/')){
         const result=await gmailRoute(request,url,env,user,context);
         return result instanceof Response?result:json(result);

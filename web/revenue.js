@@ -1,6 +1,5 @@
 'use strict';
 // Revenue studio: the Home chart. Range, metric, grain, comparison, running total, tap-for-detail.
-// Replaces revenueChart() from finance-insights.js (same signature, so dashboard() is unchanged).
 
 const RC_RANGES = [['1W', 7], ['1M', 30], ['3M', 91], ['6M', 182], ['1Y', 365], ['All', 0]];
 const RC_ICON_CAL = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>';
@@ -257,8 +256,7 @@ function rcInsights(model) {
     '</div>';
 }
 
-// eslint-disable-next-line no-global-assign
-revenueChart = function revenueStudio(rows, today) {
+function revenueChart(rows, today) {
   const model = rcModel(rows, today);
   const {meta, total, prevTotal, win} = model;
   const host = document.getElementById('financeChart');
@@ -298,7 +296,7 @@ revenueChart = function revenueStudio(rows, today) {
     rcUndated(rows) +
     (total.missing ? '<p class="finance-note">Provisional · ' + total.missing + ' sale cost' + (total.missing === 1 ? '' : 's') + ' missing, so profit may be overstated.</p>' : '') +
     '</section>';
-};
+}
 
 function rcUndated(rows) {
   const undated = rows.filter(row => (row.estimated || !row.date) && row.kind === 'Sale');

@@ -302,3 +302,16 @@ document.addEventListener('scroll', event => {
   const row = event.target;
   if (row instanceof Element && row.classList.contains('stock-filters')) row.classList.toggle('at-end', row.scrollLeft + row.clientWidth >= row.scrollWidth - 4);
 }, true);
+
+// Offline banner: the app keeps working from the last synced copy; saves wait until you're back online.
+(() => {
+  const bar = document.createElement('div');
+  bar.className = 'offline-bar'; bar.setAttribute('role', 'status'); bar.hidden = navigator.onLine;
+  bar.textContent = 'Offline · last synced copy. Changes save when you’re back online.';
+  document.body.append(bar);
+  addEventListener('offline', () => { bar.hidden = false; });
+  addEventListener('online', () => { bar.hidden = true; if (typeof syncCloud === 'function') syncCloud(true).catch(() => {}); });
+})();
+
+// Register the service worker for everyone (offline copy), not only when notifications are switched on.
+if ('serviceWorker' in navigator) addEventListener('load', () => { navigator.serviceWorker.register('/stockroom-sw.js').catch(() => {}); });

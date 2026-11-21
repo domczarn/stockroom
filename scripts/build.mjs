@@ -2,7 +2,7 @@ import {build,transform} from 'esbuild';
 import {resolve} from 'node:path';
 import {readFile,writeFile,mkdir,rm} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
-const files = ['index.html','privacy.html','gmail.js','compat.js','app.js','finance-insights.js','shell.js','screenshots.js','revenue.js','performance.js','addstock.js','refresh.js','autoupdate.js','customer.js','expenses.js','settings.js','orders.js','workspace.css','labels.css','theme.css','resources.js','resources-data.json','style.css','seed.json','receipt.js','listing.js','experience.js','manifest.webmanifest','favicon.svg','pip.svg','social.js','trading.js','bulk.js','stock.js','market.js','notifications.js','stockroom-sw.js'];
+const files = ['index.html','privacy.html','gmail.js','compat.js','app.js','finance-insights.js','shell.js','screenshots.js','revenue.js','pricing.js','tax.js','performance.js','addstock.js','refresh.js','autoupdate.js','customer.js','expenses.js','settings.js','orders.js','workspace.css','labels.css','theme.css','resources.js','resources-data.json','style.css','seed.json','receipt.js','listing.js','experience.js','manifest.webmanifest','favicon.svg','pip.svg','social.js','trading.js','bulk.js','stock.js','market.js','notifications.js','stockroom-sw.js'];
 const assets = {};
 for (const file of files) {
   const source=await readFile('web/'+file,'utf8');

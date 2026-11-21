@@ -2,9 +2,8 @@
 // Vinted-style "Add stock": photos first, then simple rows, one save button.
 // Editing an existing item still opens the full editor.
 
-const openFullItem = openItem;
-// eslint-disable-next-line no-global-assign
-openItem = (item, pane) => item ? openFullItem(item, pane) : openQuickAdd();
+// New stock opens the quick sheet; existing items open the full editor (openFullItem in app.js).
+function openItem(item, pane) { return item ? openFullItem(item, pane) : openQuickAdd(); }
 
 const quick = {photos: [], busy: false, arrived: false, condition: ''};
 const CONDITIONS = ['New with tags', 'New without tags', 'Very good', 'Good', 'Satisfactory'];
@@ -42,6 +41,7 @@ function quickSheet() {
     '<section class="qa-group">' +
       '<label class="qa-row"><span>Price paid</span><span class="qa-money">£<input name="cost" inputmode="decimal" placeholder="0.00" autocomplete="off"></span></label>' +
       '<label class="qa-row"><span>Selling for</span><span class="qa-money">£<input name="price" inputmode="decimal" placeholder="optional" autocomplete="off"></span></label>' +
+      '<div class="pg-hint qa-pg" aria-live="polite"></div>' +
       '<label class="qa-row"><span>Bought on</span><input type="date" name="purchasedAt"></label>' +
       '<div class="qa-row"><span>Delivery</span><div class="qa-seg" role="group"><button type="button" data-qa-arrived="false">On its way</button><button type="button" data-qa-arrived="true">Got it</button></div></div>' +
     '</section>' +
@@ -81,6 +81,7 @@ function openQuickAdd() {
   fill('qaBrands', 'brand'); fill('qaGarments', 'garment'); fill('qaSizes', 'size'); fill('qaColours', 'color');
   document.getElementById('qaError').textContent = '';
   syncQuick();
+  if (typeof pgRefresh === 'function') pgRefresh(form);
   dialog.showModal ? dialog.showModal() : dialog.setAttribute('open', '');
   dialog.scrollTop = 0;
 }
@@ -155,6 +156,7 @@ async function readListing(file) {
     if (listing.condition && !quick.condition) { quick.condition = listing.condition; syncQuick(); }
     filled.forEach(el => { const row = el.closest('.qa-field,.qa-row'); row?.classList.remove('qa-flash'); void row?.offsetWidth; row?.classList.add('qa-flash'); });
     panel.classList.add('done');
+    if (typeof pgRefresh === 'function') pgRefresh(form);
     panel.querySelector('strong').textContent = filled.length || listing.condition ? 'Pip filled in the details' : 'Pip could not find listing details';
     panel.querySelector('small').textContent = listing.price ? 'Price paid uses the listing price. Add buyer protection and postage if you want them counted.' : 'Check everything before saving.';
   } catch (e) {

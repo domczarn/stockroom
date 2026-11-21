@@ -38,3 +38,16 @@ test('writes a listing and cleans the hashtags', async () => {
   assert.ok(!listing.description.includes('\n\n\n'));
   assert.match(prompt, /Flaws: Small mark on cuff/);
 });
+
+import app from '../dist/server/app.js';
+import {environment} from './support.mjs';
+test('email updates memory is shared across devices', async () => {
+  const env = environment();
+  const call = (method, body) => app.fetch(new Request('https://stockroom.bookednpaid.com/api/gmail/done', {method, headers: {'content-type': 'application/json', 'oai-authenticated-user-id': 'alice', 'oai-authenticated-user-email': 'alice@example.test'}, ...(body ? {body: JSON.stringify(body)} : {})}), env);
+  const res = await call('POST', {ids: ['1a1f3f2b43d8b59e', 'not valid!', '1a1f3f2b43d8b59e']});
+  const saved = await res.json();
+  assert.equal(res.status, 200, JSON.stringify(saved));
+  assert.equal(saved.saved, 1);
+  const {ids} = await (await call('GET')).json();
+  assert.deepEqual(ids, ['1a1f3f2b43d8b59e']);
+});

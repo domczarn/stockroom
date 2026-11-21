@@ -4,7 +4,26 @@
 
 const AU_DONE_KEY = 'stockroom-email-updates';
 const auDone = new Set((() => { try { return JSON.parse(localStorage.getItem(AU_DONE_KEY) || '[]'); } catch { return []; } })());
-const auSaveDone = () => { try { localStorage.setItem(AU_DONE_KEY, JSON.stringify([...auDone].slice(-400))); } catch {} };
+// Handled emails are remembered on this device and on the server, so your phone and laptop never ask twice.
+let auSynced = new Set(), auServerLoaded = false, auPushTimer = 0;
+const auSaveDone = () => {
+  try { localStorage.setItem(AU_DONE_KEY, JSON.stringify([...auDone].slice(-400))); } catch {}
+  clearTimeout(auPushTimer);
+  auPushTimer = setTimeout(() => {
+    const ids = [...auDone].filter(id => !auSynced.has(id));
+    if (!ids.length) return;
+    api('/api/gmail/done', {method: 'POST', body: JSON.stringify({ids})}).then(() => ids.forEach(id => auSynced.add(id))).catch(() => {});
+  }, 800);
+};
+async function auLoadServerDone() {
+  if (auServerLoaded) return;
+  try {
+    const {ids} = await api('/api/gmail/done');
+    ids.forEach(id => { auDone.add(id); auSynced.add(id); });
+    auServerLoaded = true;
+    if ([...auDone].some(id => !auSynced.has(id))) auSaveDone();
+  } catch {}
+}
 let auBusy = false, auSignature = '', auQuestions = [];
 const auAsked = new Set();
 
@@ -186,5 +205,5 @@ async function auRefreshGmail() {
   auFetched = Date.now();
   try { personalGmail = await api('/api/gmail'); } catch {}
 }
-setInterval(() => { void auRefreshGmail().then(auRun); }, 4000);
+setInterval(() => { void auLoadServerDone().then(auRefreshGmail).then(auRun); }, 4000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) { auFetched = 0; void auRefreshGmail().then(auRun); } });

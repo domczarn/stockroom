@@ -47,6 +47,9 @@ async function persist(next=db){
   if(cloudSaving)throw Error('A save is in progress. Please try again.');
   if(pendingLocal && next!==pendingLocal)throw Error('An unsaved change is waiting. Open Settings to retry or discard it first.');
   if(cloudConflict)throw Error('Resolve the sync conflict in Settings before saving. Your changes are still here.');
+  // Storage cap is 1.5 MB per workspace on the server (about 1,500 items). Warn early, once per session.
+  const size=JSON.stringify(next).length;
+  if(size>1125000&&!persist.warned){persist.warned=true;toast('Your workspace is '+Math.round(size/15000)+'% full. Archive old sold items soon.');}
   cloudSaving=true;cloudState('Saving…','saving');
   pendingLocal=cloneWorkspace(next);
   await pendingRecord({data:pendingLocal,revision:cloudRevision},true).catch(()=>{});
@@ -483,7 +486,7 @@ function updateDuplicateStockHint() {
   hint.textContent = duplicate ? 'A stock item already has this name, brand and cost. Check before adding another.' : '';
 }
 
-function openItem(item, pane = 'details') {
+function openFullItem(item, pane = 'details') {
   if(isReadOnly()){toast('This account is read-only.');return;}
   if(item?.deletedAt)return;
   edit = item?.id ?? null;
@@ -525,6 +528,7 @@ function openItem(item, pane = 'details') {
   updateListingChecks();
   openPanel($('modal'));
   $('modal').scrollTop = 0;
+  if (typeof pgRefresh === 'function') pgRefresh(form);
 }
 async function compressPhoto(file) {
   if (file.size > 25 * 1024 * 1024) throw new Error('Choose a photo under 25 MB.');

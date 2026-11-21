@@ -1,6 +1,30 @@
 'use strict';
+// Offline: network first, last good copy when there is no signal.
+// Only plain same-origin GETs are kept: the app itself, your last workspace and photos. Sign-in redirects are never cached.
+const CACHE='stockroom-offline-v1';
+const KEEP=/^\/(?:$|index\.html$|[\w.-]+\.(?:js|css|woff2|png|svg|webmanifest|json)$|api\/(?:me|workspace|gmail|purchases)$|api\/media\/)/;
 self.addEventListener('install',event=>event.waitUntil(self.skipWaiting()));
-self.addEventListener('activate',event=>event.waitUntil(self.clients.claim()));
+self.addEventListener('activate',event=>event.waitUntil((async()=>{
+  for(const key of await caches.keys())if(key!==CACHE)await caches.delete(key);
+  await self.clients.claim();
+})()));
+self.addEventListener('fetch',event=>{
+  const request=event.request, url=new URL(request.url);
+  if(request.method!=='GET'||url.origin!==self.location.origin||!KEEP.test(url.pathname)||url.pathname==='/version.json')return;
+  event.respondWith((async()=>{
+    const cache=await caches.open(CACHE);
+    const key=request.mode==='navigate'?'/':url.pathname+url.search;
+    try{
+      const response=await fetch(request);
+      if(response.ok&&response.type==='basic'&&!response.redirected)cache.put(key,response.clone()).catch(()=>{});
+      return response;
+    }catch(error){
+      const cached=await cache.match(key)||(request.mode==='navigate'?await cache.match('/'):null);
+      if(cached)return cached;
+      throw error;
+    }
+  })());
+});
 self.addEventListener('push',event=>{
   let payload={};
   try{payload=event.data?.json()||{};}catch{}
