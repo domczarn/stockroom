@@ -28,7 +28,7 @@ function writeSaved(data) {
     transaction.onabort = () => reject(transaction.error);
   });
 }
-let account=null, workspaceOwner='', cloudRevision=null, cloudSaving=false, cloudConflict=false, cloudAvailable=false, pendingLocal=null, cloudPolling=false, sortBy='newest', members=[], adminEvents=[];
+let account=null, workspaceOwner='', cloudRevision=null, cloudSaving=false, cloudConflict=false, cloudAvailable=false, pendingLocal=null, cloudPolling=false, sortBy=(()=>{try{return localStorage.getItem('stockroom-sort')||'newest';}catch{return 'newest';}})(), members=[], adminEvents=[];
 const emptyData=()=>({items:[],sales:[],expenses:[],research:[],sources:[]});
 function toast(message){$('toast').textContent=message;$('toast').hidden=false;clearTimeout(toast.timer);toast.timer=setTimeout(()=>$('toast').hidden=true,4500);}
 function cloudState(message,kind=''){const el=$('cloudStatus');el.textContent=message;el.dataset.state=kind;el.setAttribute('aria-label','Cloud sync: '+message);}

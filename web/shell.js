@@ -296,3 +296,9 @@ document.addEventListener('click', event => {
   window.addEventListener('scroll', () => { const open = document.querySelector('details.stock-more[open]'); if (open) place(open); }, {passive: true, capture: true});
   window.addEventListener('resize', () => closeAll());
 })();
+
+// Remove the right-edge fade once the chip row is scrolled to the end.
+document.addEventListener('scroll', event => {
+  const row = event.target;
+  if (row instanceof Element && row.classList.contains('stock-filters')) row.classList.toggle('at-end', row.scrollLeft + row.clientWidth >= row.scrollWidth - 4);
+}, true);

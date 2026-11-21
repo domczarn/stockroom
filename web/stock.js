@@ -142,7 +142,7 @@ function visibleStock() {
     (!stockBrand||stockFacetValue(item,'brand')===stockBrand)&&
     (!stockLocation||stockFacetValue(item,'location')===stockLocation)&&
     stockMatchesSearch(item,needle))
-    .sort((a,b)=>sortBy==='name'?a.name.localeCompare(b.name):sortBy==='profit'?(profit(b)??-Infinity)-(profit(a)??-Infinity):
+    .sort((a,b)=>sortBy==='label'?(Number(a.id)||0)-(Number(b.id)||0)||String(a.id).localeCompare(String(b.id)):sortBy==='label-desc'?(Number(b.id)||0)-(Number(a.id)||0)||String(b.id).localeCompare(String(a.id)):sortBy==='name'?a.name.localeCompare(b.name):sortBy==='profit'?(profit(b)??-Infinity)-(profit(a)??-Infinity):
       sortBy==='cost'?b.cost-a.cost:sortBy==='oldest'?(a.purchasedAt||'9999').localeCompare(b.purchasedAt||'9999'):
         (b.purchasedAt||'').localeCompare(a.purchasedAt||''));
 }
@@ -219,6 +219,7 @@ function stockPage() {
       gbp(total(active.filter(item=>Number.isFinite(item.price)),item=>profit(item)))+'</strong></div></section>')+
     '<section class="stock-controls" aria-label="Stock filters"><div class="stock-toolbar">'+viewSwitch+
     '<div class="stock-toolbar-actions">'+
+    (stockAgeView?'':'<select id="sortQuick" class="sort-quick" aria-label="Sort stock">'+[['newest','Newest'],['oldest','Oldest'],['label','Label # ↑'],['label-desc','Label # ↓'],['profit','Most profit'],['cost','Highest cost'],['name','A–Z']].map(([v,l])=>'<option value="'+v+'" '+(sortBy===v?'selected':'')+'>'+l+'</option>').join('')+'</select>')+
     (stockAgeView?'':'<select id="stockLayout" aria-label="Stock layout">'+[['cards','Photo grid'],['list','Detailed list'],['compact','Compact list']].map(([value,label])=>
       '<option value="'+value+'" '+(stockLayout()===value?'selected':'')+'>'+label+'</option>').join('')+'</select>')+
     '<button id="stockSelectToggle" class="secondary" type="button" data-bulk="toggle" aria-pressed="'+selectingStock+'">'+
@@ -232,7 +233,7 @@ function stockPage() {
     (stockAgeView?'':'<details id="stockTools" class="stock-tools" '+(stockToolsOpen?'open':'')+'><summary>Filters &amp; tools'+
       ([filter!=='All'?filter:'',stockBrand,stockLocation].filter(Boolean).length?' <span>· '+esc([filter!=='All'?filter:'',stockBrand,stockLocation].filter(Boolean).join(' · '))+'</span>':'')+'</summary><div class="stock-tool-options"><label>Status <select id="filter" aria-label="Filter stock by status">'+
       options(['All','In Stock','Sold','Refund pending','Refunded'],filter)+'</select></label><label>Sort <select id="sortStock" aria-label="Sort stock">'+
-      [['newest','Newest purchases'],['oldest','Oldest purchases'],['profit','Highest profit'],['cost','Highest cost'],['name','Item name A–Z']].map(([value,label])=>
+      [['newest','Newest purchases'],['oldest','Oldest purchases'],['label','Label number #0001 ↑'],['label-desc','Label number ↓ (newest label)'],['profit','Highest profit'],['cost','Highest cost'],['name','Item name A–Z']].map(([value,label])=>
         '<option value="'+value+'" '+(sortBy===value?'selected':'')+'>'+label+'</option>').join('')+'</select></label>'+
       '<label>Brand <select id="stockBrand">'+stockFacetOptions(inventory,'brand',stockBrand,'All brands')+'</select></label>'+
       '<label>Storage location <select id="stockLocation">'+stockFacetOptions(inventory,'location',stockLocation,'All locations')+'</select></label>'+
@@ -273,7 +274,8 @@ function connectStockControls() {
       $(id).focus({preventScroll:true});
     };
   }
-  $('sortStock').onchange=event=>{sortBy=event.target.value;render();$('sortStock').focus({preventScroll:true});};
+  if($('sortQuick'))$('sortQuick').onchange=event=>{sortBy=event.target.value;try{localStorage.setItem('stockroom-sort',sortBy);}catch{}render();$('sortQuick')?.focus({preventScroll:true});};
+  $('sortStock').onchange=event=>{sortBy=event.target.value;try{localStorage.setItem('stockroom-sort',sortBy);}catch{}render();$('sortStock').focus({preventScroll:true});};
   $('filter').onchange=event=>{
     filter=event.target.value;
     stockWorkflowFilter='all';

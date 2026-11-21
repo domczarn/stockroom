@@ -1047,3 +1047,16 @@ button:active:not(:disabled), .action:active, .secondary:active { transform: sca
   .rc-nav-labels span:nth-child(2) { display: none; }
 }
 .rc-flag b { margin-left: 4px; font-variant-numeric: tabular-nums; }
+
+/* Mobile: the stock filter chips scroll sideways (with snap and a fade on the right). */
+@media (max-width: 800px) {
+  .stock-controls .stock-filters { display: flex !important; flex-wrap: nowrap !important; overflow-x: auto !important; overflow-y: hidden !important; -webkit-overflow-scrolling: touch;
+    touch-action: pan-x pan-y; overscroll-behavior-x: contain; scroll-snap-type: x proximity; scroll-padding: 0 16px; scrollbar-width: none; max-width: 100% !important; width: 100% !important;
+    -webkit-mask-image: linear-gradient(90deg, #000 85%, transparent); mask-image: linear-gradient(90deg, #000 85%, transparent); padding-right: 28px !important; }
+  .stock-controls .stock-filters::-webkit-scrollbar { display: none; }
+  .stock-controls .stock-filters > * { flex: 0 0 auto !important; scroll-snap-align: start; white-space: nowrap; }
+  .stock-controls .stock-filters.at-end { -webkit-mask-image: none; mask-image: none; }
+}
+
+.sort-quick { min-width: 0; }
+@media (max-width: 800px) { .stock-toolbar-actions > select.sort-quick { flex: 1 1 0 !important; } .stock-toolbar-actions > select#stockLayout { flex: 1 1 0 !important; } }
