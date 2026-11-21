@@ -41,7 +41,7 @@ function upgradeSheet() {
   dialog.id = 'upgradeDialog';
   dialog.className = 'upgrade-dialog';
   dialog.innerHTML = '<button type="button" class="close-panel" data-close-dialog="upgradeDialog" aria-label="Close">×</button>' +
-    '<img src="/pip.svg" width="64" height="60" alt=""><span class="eyebrow">STOCKROOM PRO</span><h2>Let Pip do the boring bits</h2><p id="upgradeReason" class="upgrade-reason"></p>' +
+    '<img src="/pip-orb.svg" width="120" height="120" alt="" class="orb-hero"><span class="eyebrow">STOCKROOM PRO</span><h2>Let Pip do the boring bits</h2><p id="upgradeReason" class="upgrade-reason"></p>' +
     '<ul class="upgrade-features">' + PRO_FEATURES.map(([t, d]) => '<li><strong>' + t + '</strong><span>' + d + '</span></li>').join('') + '</ul>' +
     '<div class="upgrade-toggle" role="radiogroup" aria-label="Billing">' +
     '<button type="button" role="radio" data-interval="year"><strong>£60 a year</strong><span>£5 a month · save £24</span></button>' +

@@ -241,7 +241,7 @@ function pipNotify({title, body, tab, tone = 'info'}) {
   const card = document.createElement('div');
   card.className = 'pip-toast';
   card.dataset.tone = tone;
-  card.innerHTML = '<span class="pip-toast-orb"><img src="/pip.svg" alt="" width="30" height="28"></span>' +
+  card.innerHTML = '<span class="pip-toast-orb"><img src="/pip-orb.svg" alt="" width="44" height="44"></span>' +
     '<span class="pip-toast-copy"><span class="pip-toast-eyebrow">Pip · ' + (tone === 'go' ? 'Stock update' : 'Update') + '</span>' +
     '<strong>' + esc(title) + '</strong>' + (body ? '<small>' + esc(body) + '</small>' : '') + '</span>' +
     '<span class="pip-toast-actions">' + (tab ? '<button type="button" class="pip-toast-open">View</button>' : '') +

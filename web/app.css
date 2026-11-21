@@ -2394,3 +2394,27 @@ dialog[open]::backdrop { animation: dsFade .3s var(--ease) both !important; }
 .pu-more { padding: 4px 14px 0; } .pu-more summary { font-size: 13px; color: var(--accent-ink); cursor: pointer; padding: 6px 0; }
 .pu-more .pu-lines { padding: 4px 0 0; }
 .pu-skipped { margin: 6px 14px 0; font-size: 12.5px; color: var(--ink-3); }
+
+/* ---------- Pip's network: the visual signature ---------- */
+/* Faint constellation behind every page title */
+html body { background: url(/constellation.svg) right top / min(1100px, 140vw) auto no-repeat, var(--bg) !important; }
+@media (min-width: 801px) { html body { background-size: 1000px auto, auto !important; background-position: right -40px top -20px, 0 0 !important; } }
+/* Pip's network wherever Pip is thinking or talking */
+.qa-pip, .pu-pip, .studio-pip { background: url(pip-orb.svg) center / 160% no-repeat !important; border-radius: 0 !important; box-shadow: none !important; animation: none !important; }
+.qa-pip { width: 46px !important; height: 46px !important; }
+.pu-pip { width: 46px !important; height: 46px !important; }
+.studio-pip { width: 110px !important; height: 110px !important; background-size: 120% !important; }
+.pip-toast-orb { background: none !important; box-shadow: none !important; width: 46px !important; height: 46px !important; }
+.pip-toast-orb img { width: 46px !important; height: 46px !important; }
+.ask-pip-head img { width: 52px; height: 52px; margin: -6px -2px -6px -8px; }
+.orb-hero { display: block; width: 120px !important; height: 120px !important; margin: -12px auto -4px !important; }
+.care-intro > img { width: 96px; height: 96px; }
+.scan-drop-orb { width: 96px; height: 96px; margin: -10px 0 -4px; }
+.launch-orb { width: clamp(200px, 34vw, 260px) !important; height: auto !important; animation: none !important; }
+/* Empty screens get Pip in his network instead of a bare line of text */
+.stock-empty, .empty-state, .pf-empty { text-align: center; }
+.stock-empty::before, .empty-state::before, .pf-empty::before { content: ''; display: block; width: 110px; height: 110px; margin: 0 auto 6px; background: url(pip-orb.svg) center / contain no-repeat; }
+.pf-empty::before { width: 80px; height: 80px; }
+.app-header:not(.scrolled) { background: transparent !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+.stock-overview > * > strong { font-size: clamp(17px, 5vw, 23px) !important; white-space: nowrap; }
+@media (max-width: 800px) { .sidebar .brand { display: none !important; } }

@@ -40,7 +40,7 @@ function askPipSheet() {
   let d = document.getElementById('askPipDialog');
   if (d) return d;
   d = document.createElement('dialog'); d.id = 'askPipDialog'; d.className = 'utility-dialog ask-pip-dialog';
-  d.innerHTML = '<div class="sheet-heading"><div class="ask-pip-head"><img src="/pip.svg" alt="" width="40" height="38"><div><span class="eyebrow">ASK PIP</span><h2>Your numbers, answered</h2></div></div><button type="button" class="close-panel" data-close-dialog="askPipDialog" aria-label="Close">×</button></div>' +
+  d.innerHTML = '<div class="sheet-heading"><div class="ask-pip-head"><img src="/pip-orb.svg" alt="" width="52" height="52"><div><span class="eyebrow">ASK PIP</span><h2>Your numbers, answered</h2></div></div><button type="button" class="close-panel" data-close-dialog="askPipDialog" aria-label="Close">×</button></div>' +
     '<div class="ask-pip-log" id="askPipLog" aria-live="polite"></div>' +
     '<form class="ask-pip-bar in-sheet" data-ask-pip-form><input name="q" autocomplete="off" maxlength="500" placeholder="Ask a follow-up…" aria-label="Ask Pip"><button type="submit" aria-label="Ask">↑</button></form>';
   document.body.append(d);
@@ -86,7 +86,7 @@ function scanRender() {
   const verdictText = r ? ({buy: 'Buy it', maybe: 'Only if you love it', pass: 'Pass', unknown: 'Pay up to ' + gbp(r.maxBuy)})[r.verdict] : '';
   d.innerHTML = '<div class="sheet-heading"><div><span class="eyebrow">BUY OR PASS</span><h2>' + (r ? esc(r.name) : 'Snap the item') + '</h2></div><button type="button" class="close-panel" data-close-dialog="scanDialog" aria-label="Close">×</button></div>' +
     (s.photo ? '<div class="scan-photo"><img src="' + s.photo + '" alt="Item photo">' + (s.busy ? '<div class="scan-sweep"></div>' : '') + '</div>'
-      : '<label class="scan-drop"><input type="file" accept="image/*" capture="environment" id="scanFile" hidden><span class="scan-drop-icon">📷</span><b>Take a photo</b><small>The item, or its label for a sharper answer</small></label>') +
+      : '<label class="scan-drop"><input type="file" accept="image/*" capture="environment" id="scanFile" hidden><img class="scan-drop-orb" src="/pip-orb.svg" alt="" width="96" height="96"><b>Take a photo</b><small>The item, or its label for a sharper answer</small></label>') +
     '<label class="scan-price">Price in the shop <small>optional</small><input type="number" inputmode="decimal" min="0" step="0.01" id="scanPrice" placeholder="e.g. 4.00" value="' + (s.price ?? '') + '"></label>' +
     (s.busy ? '<div class="offer-pip thinking"><span class="qa-pip"></span><div><strong>Pip is pricing it…</strong><small>Checking the brand, Vinted prices and your own sales.</small></div></div>' : '') +
     (r ? '<div class="scan-result ' + r.verdict + '"><div class="scan-verdict"><b>' + esc(verdictText) + '</b>' + (r.price != null ? '<small>' + (r.profitAtPrice >= 0 ? 'About ' + gbp(r.profitAtPrice) + ' profit' : 'You’d lose money') + '</small>' : '') + '</div>' +

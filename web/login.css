@@ -45,3 +45,5 @@ button:disabled { opacity: .55; cursor: default; }
 .brand-lockup { display: inline-grid; line-height: 1.05; }
 .brand-lockup small { font-family: 'Geist Mono', ui-monospace, monospace; font-size: 9.5px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; color: #cdc5ff; opacity: .85; margin-bottom: 3px; }
 .brand-lockup b { font-size: 19px; font-weight: 650; letter-spacing: -0.03em; }
+body { background: url(/constellation.svg) right top / min(1100px, 160vw) auto no-repeat, #131316; }
+.brand img.brand-orb { border-radius: 0; box-shadow: none; animation: none; margin: -8px -4px -8px -10px; }
