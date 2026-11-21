@@ -31,7 +31,7 @@ function welcomePage(request,suspended=false){
   }
   const action=suspended?'<a href="/login" target="_top">Use a different email</a>':
     '<a href="'+returnTo.replace(/&/g,'&amp;')+'" target="_top">Sign in</a>';
-  return new Response(request.method==='HEAD'?null:'<!doctype html><html lang="en-GB"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+title+'</title><link rel="icon" href="/favicon.svg"><link rel="stylesheet" href="/style.css"><body class="stockroom-welcome"><main><img src="/pip.svg" width="108" height="102" alt=""><h1>'+title+'</h1><p>'+copy+'</p>'+action+'</main></body></html>',{
+  return new Response(request.method==='HEAD'?null:'<!doctype html><html lang="en-GB"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+title+'</title><link rel="icon" href="/favicon.svg"><link rel="stylesheet" href="/app.css"><body class="stockroom-welcome"><main><img src="/pip.svg" width="108" height="102" alt=""><h1>'+title+'</h1><p>'+copy+'</p>'+action+'</main></body></html>',{
     status:suspended?403:200,headers:{'content-type':'text/html; charset=utf-8','cache-control':'private, no-store','x-robots-tag':'noindex, nofollow','x-content-type-options':'nosniff','content-security-policy':"default-src 'self'; style-src 'self'; frame-ancestors 'self'; base-uri 'none'; object-src 'none'"}
   });
 }
