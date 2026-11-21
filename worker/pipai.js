@@ -124,11 +124,26 @@ You are Pip, the assistant inside Booked & Paid Stockroom, a resale stock and pr
 - Keep answers short: at most 90 words. Use **bold** for key figures and "- " for lists of up to 5 lines.
 - "Profit" means item profit (sale minus what they paid) unless they ask about business expenses.
 DATA (JSON): ${JSON.stringify(digest)}`;
-  const raw = await ask(env, {system, history, prompt: `QUESTION: ${question}\nReply with ONLY JSON: {"answer": string (plain text, not a list or object; use \"- \" lines inside the string for lists), "suggestions": [two short follow-up questions as strings]}`, maxTokens: 500, temperature: .2});
-  let data;
-  try { data = jsonFrom(raw); } catch { data = {answer: raw.slice(0, 900), suggestions: []}; }
-  return {answer: flat(data.answer).trim().slice(0, 1500) || 'I couldn’t work that out. Try asking another way.',
-    suggestions: (Array.isArray(data.suggestions) ? data.suggestions : []).map(s => text(flat(s), 80)).filter(Boolean).slice(0, 3)};
+  const raw = await ask(env, {system, history, prompt: `QUESTION: ${question}
+Write your answer as plain text (no JSON, no code). Then on a new line write FOLLOW-UPS: and two short follow-up questions they might ask next, each on its own line starting with "- ".`, maxTokens: 500, temperature: .2});
+  return parseAnswer(raw);
+}
+
+// Splits Pip's reply into the answer and follow-up suggestions. Copes with JSON replies too.
+export function parseAnswer(raw) {
+  let answer = String(raw || '').replace(/```(?:json)?/gi, '').trim(), suggestions = [];
+  if (/^\{[\s\S]*"answer"/.test(answer)) {
+    try { const data = jsonFrom(answer); answer = flat(data.answer); suggestions = (Array.isArray(data.suggestions) ? data.suggestions : []).map(flat); }
+    catch { const m = answer.match(/"answer"\s*:\s*"([\s\S]*?)"\s*,\s*"suggestions"/); if (m) answer = m[1].replace(/\\n/g, '\n').replace(/\\"/g, '"'); }
+  }
+  const marker = answer.match(/\n?\s*\**\s*follow[- ]?ups?\s*:?\**\s*:?/i);
+  if (marker) {
+    const split = marker.index;
+    suggestions = answer.slice(split + marker[0].length).split('\n').map(l => l.replace(/^\s*[-•*\d.)]+\s*/, '').replace(/^"|"$/g, '').trim()).filter(Boolean);
+    answer = answer.slice(0, split).trim();
+  }
+  return {answer: answer.slice(0, 1500) || 'I couldn’t work that out. Try asking another way.',
+    suggestions: suggestions.map(s => text(s, 80)).filter(s => s && s.length > 3).slice(0, 3)};
 }
 
 // ---------- Buy-or-pass scanner ----------

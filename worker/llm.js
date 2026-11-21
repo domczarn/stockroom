@@ -56,7 +56,25 @@ export async function ask(env, {system = '', prompt, image = null, maxTokens = 6
   return String(result?.response ?? result ?? '').trim();
 }
 
+// Models sometimes put raw line breaks or tabs inside JSON strings, or wrap JSON in ```fences```. Repair before parsing.
+export function repairJson(raw) {
+  let out = '', inString = false, escaped = false;
+  for (const ch of raw) {
+    if (inString) {
+      if (escaped) { out += ch; escaped = false; continue; }
+      if (ch === '\\') { out += ch; escaped = true; continue; }
+      if (ch === '"') { inString = false; out += ch; continue; }
+      if (ch === '\n') { out += '\\n'; continue; }
+      if (ch === '\r') continue;
+      if (ch === '\t') { out += '\\t'; continue; }
+      out += ch;
+    } else { if (ch === '"') inString = true; out += ch; }
+  }
+  return out.replace(/,\s*([}\]])/g, '$1');
+}
 export function jsonFrom(text, message = 'Pip wrote something unusable. Try again.') {
-  const match = String(text || '').match(/\{[\s\S]*\}/);
-  try { return JSON.parse(match?.[0] || ''); } catch { throw new HttpError(502, message); }
+  const match = String(text || '').replace(/```(?:json)?/gi, '').match(/\{[\s\S]*\}/);
+  if (!match) throw new HttpError(502, message);
+  try { return JSON.parse(match[0]); } catch {}
+  try { return JSON.parse(repairJson(match[0])); } catch { throw new HttpError(502, message); }
 }

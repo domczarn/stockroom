@@ -129,3 +129,16 @@ test('structured AI answers are flattened to readable text, never [object Object
   assert.equal(flat({best_brand: 'Ralph Lauren', profit: 21.4}), '- **best brand**: Ralph Lauren\n- **profit**: 21.4');
   assert.ok(!flat([{a: 1}]).includes('[object'));
 });
+
+import {parseAnswer} from '../worker/pipai.js';
+import {jsonFrom} from '../worker/llm.js';
+test('Ask Pip copes with plain text, broken JSON and follow-up lists', () => {
+  let r = parseAnswer('Ralph Lauren made **£42.04**.\n- White Quarter Zip\n- Black Zip\n\nFOLLOW-UPS:\n- Which brand sells fastest?\n- What should I reprice?');
+  assert.equal(r.answer, 'Ralph Lauren made **£42.04**.\n- White Quarter Zip\n- Black Zip');
+  assert.deepEqual(r.suggestions, ['Which brand sells fastest?', 'What should I reprice?']);
+  r = parseAnswer('{"answer": "Ralph Lauren made the most.\n- White Quarter Zip\n- Black Zip.\n", "suggestions": ["What is my average profit?", "Which brands sell well?"]}');
+  assert.match(r.answer, /^Ralph Lauren made the most\.\n- White Quarter Zip/);
+  assert.equal(r.suggestions.length, 2);
+  assert.ok(!r.answer.includes('{'));
+  assert.deepEqual(jsonFrom('```json\n{"a": "line1\nline2",}\n```'), {a: 'line1\nline2'});
+});
