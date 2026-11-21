@@ -60,7 +60,14 @@ async function persist(next=db){
     try{await writeSaved(db);}catch{/* Cloud is authoritative even if this device cannot cache it. */}
     render();cloudState('Synced to cloud','saved');$('saveState').textContent='Saved across devices';
   }catch(error){
-    if(error.status===409){cloudConflict=true;cloudState('Resolve sync conflict','error');toast('Another device saved newer data. Your edits are kept. Open Settings to resolve.');}
+    if(error.status===402){
+      // Over the free allowance: drop this change, reload the saved copy and offer Pro.
+      pendingLocal=null;await pendingRecord(null,true).catch(()=>{});
+      try{const fresh=await api('/api/workspace');if(fresh.data){db=fresh.data;cloudRevision=fresh.revision;await writeSaved(db).catch(()=>{});}}catch{}
+      cloudAvailable=true;cloudState('Synced to cloud','saved');render();
+      if(typeof openUpgrade==='function')openUpgrade(error.message);
+    }
+    else if(error.status===409){cloudConflict=true;cloudState('Resolve sync conflict','error');toast('Another device saved newer data. Your edits are kept. Open Settings to resolve.');}
     else{cloudAvailable=false;cloudState('Not saved · retry','error');}
     throw error;
   }finally{cloudSaving=false;}
@@ -753,7 +760,7 @@ $('restore').onclick=()=>{if(isReadOnly())return; $('upload').click();};
 $('upload').onchange=async e=>{try{const file=e.target.files[0];if(!file)return;if(file.size>19000000)throw Error('Backup too large.');const data=JSON.parse(await file.text());if(!['items','sales','expenses','sources','research'].every(k=>Array.isArray(data[k])))throw Error('Choose a valid Stockroom backup.');if(confirm('Replace your cloud workspace with this backup on every device? Export a backup first if you need the current data.')){await persist(data);toast('Backup restored to your cloud account.');}}catch(error){toast(error.message);}e.target.value='';};
 (async()=>{
   try{
-    const result=await api('/api/me');account=result.user;workspaceOwner=account.id;
+    const result=await api('/api/me');account=result.user;account.plan=result.plan||'free';workspaceOwner=account.id;if(typeof billingReturn==='function')setTimeout(()=>void billingReturn(),0);
     $('adminMenu').hidden=$('adminNav').hidden=account.role!=='admin';$('refreshImports').hidden=account.role!=='admin';
     applyProfile(result.profile);$('menuRole').textContent=account.role==='admin'?'Administrator':'Member';
     try{storage=await openStorage();}catch{storage=null;}
@@ -831,6 +838,7 @@ async function listingPhotoData(src) {
 $('pipWriteListing').onclick = async () => {
   const button = $('pipWriteListing'), note = $('pipWriteNote');
   if (button.disabled) return;
+  if (account?.plan !== 'pro') { openUpgrade('Write with Pip is part of Stockroom Pro.'); return; }
   const item = editorItem();
   button.disabled = true; button.classList.add('writing'); button.lastChild.textContent = 'Pip is writing…';
   note.textContent = 'Looking at the photo and details. This takes a few seconds.';

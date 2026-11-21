@@ -7,6 +7,7 @@ import { socialRoute, ownProfile, findConnection } from './social.js';
 import { pipSvg } from './pip.js';
 import {visionRoute,writeListingRoute} from './vision.js';
 import {authRoute} from './auth.js';
+import {billingRoute,planFor,requirePro,checkNewItems,recordNewItems} from './billing.js';
 import {ADMIN_EMAIL,identity,authorize,adminOnly,readBody,validateWorkspace,storePhotos,audit,HttpError,emptyWorkspace,rateLimit,exactDate,paid,tx} from './security.js';
 const json = (value, status = 200) => new Response(JSON.stringify(value), {
   status, headers: {'content-type':'application/json','cache-control':'private, no-store'}
@@ -117,10 +118,13 @@ export default {
         }
         throw new HttpError(405,'Method not allowed.');
       }
+      if(url.pathname==='/api/billing'||url.pathname.startsWith('/api/billing/'))return json(await billingRoute(request,url,env,user));
+      if(['/api/gmail/connect','/api/gmail/check'].includes(url.pathname)&&request.method==='POST')await requirePro(env,user,'Gmail auto-updates');
       if(url.pathname==='/api/gmail'||url.pathname.startsWith('/api/gmail/')){
         const result=await gmailRoute(request,url,env,user,context);
         return result instanceof Response?result:json(result);
       }
+      if(url.pathname.startsWith('/api/vision/')&&request.method==='POST')await requirePro(env,user,'Pip AI');
       if(url.pathname==='/api/vision/listing')return json(await visionRoute(request,env,user));
       if(url.pathname==='/api/vision/write-listing')return json(await writeListingRoute(request,env,user));
       if(url.pathname==='/api/market-research')return json(await marketResearchRoute(request,env,user));
@@ -150,7 +154,7 @@ export default {
         const result=await socialRoute(request,url,env,user,context);
         if(result)return json(result);
       }
-      if (url.pathname === '/api/me' && request.method === 'GET') return json({user:{id:user.id,email:user.email,role:user.admin?'admin':'member'},profile:await ownProfile(env,user),sessionManagedBy:'Cloudflare Access'});
+      if (url.pathname === '/api/me' && request.method === 'GET') return json({user:{id:user.id,email:user.email,role:user.admin?'admin':'member'},profile:await ownProfile(env,user),plan:(await planFor(env,user)).plan,sessionManagedBy:'Stockroom'});
       if (url.pathname === '/api/workspace') {
         const owner=url.searchParams.get('owner')||user.id;
         if(owner!==user.id){adminOnly(user);if(request.method!=='GET')throw new HttpError(403,'Other accounts are read-only.');}
@@ -162,9 +166,12 @@ export default {
         if(request.method==='PUT') {
           const body=await readBody(request,19000000);
           if(!(body.revision===null||typeof body.revision==='string'))throw new HttpError(400,'Missing workspace revision.');
-          const current=await env.DB.prepare('SELECT revision FROM workspaces WHERE owner_id = ?').bind(owner).first();
+          const current=await env.DB.prepare('SELECT revision, payload FROM workspaces WHERE owner_id = ?').bind(owner).first();
           if((current?.revision||null)!==body.revision)throw new HttpError(409,'A newer version was saved on another device. Your edits are kept here.');
-          const data=await storePhotos(validateWorkspace(body.data,owner),owner,env);
+          const checked=validateWorkspace(body.data,owner);
+          let previousItems=[];try{previousItems=current?JSON.parse(current.payload).items||[]:[];}catch{}
+          const added=await checkNewItems(env,user,previousItems,checked.items);
+          const data=await storePhotos(checked,owner,env);
           if(!user.admin && data.items.some(i=>i.referencePhotos?.length))throw new HttpError(400,'Reference imports belong to the admin account.');
           const revision=crypto.randomUUID(),updatedAt=new Date().toISOString();
           const payload=JSON.stringify(data);
@@ -173,6 +180,7 @@ export default {
             ?await env.DB.prepare('UPDATE workspaces SET payload = ?, revision = ?, updated_at = ? WHERE owner_id = ? AND revision = ?').bind(payload,revision,updatedAt,owner,body.revision).run()
             :await env.DB.prepare('INSERT INTO workspaces (owner_id,payload,revision,updated_at) VALUES (?,?,?,?) ON CONFLICT(owner_id) DO NOTHING').bind(owner,payload,revision,updatedAt).run();
           if(!result.meta.changes)throw new HttpError(409,'Another device saved first. Your edits are kept here.');
+          await recordNewItems(env,owner,added);
           await audit(env,user,owner,'workspace_save');
           return json({data,revision,updatedAt,owner});
         }

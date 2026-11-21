@@ -109,6 +109,7 @@ function initialiseGmail(){
     }
     if(!gmailTabs.includes(tab)||isReadOnly()||gmailBusy)return;
     const action=event.target.closest('[data-gmail-action]')?.dataset.gmailAction;
+    if((action==='connect'||action==='check')&&account?.plan!=='pro'){openUpgrade('Gmail auto-updates are part of Stockroom Pro.');return;}
     if(action==='connect')void changeGmail('/api/gmail/connect',{method:'POST'});
     else if(action==='check')void changeGmail('/api/gmail/check',{method:'POST'});
     else if(action==='disconnect'){

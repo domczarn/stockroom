@@ -1069,3 +1069,28 @@ button:active:not(:disabled), .action:active, .secondary:active { transform: sca
 .passkey-list { list-style: none; margin: 4px 0 10px; padding: 0; display: grid; gap: 6px; }
 .passkey-list li { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg-2); }
 .passkey-list span { display: grid; gap: 2px; } .passkey-list small { font-size: 12px; color: var(--ink-3); }
+
+/* Plans & billing */
+.billing-box { display: grid; gap: 10px; margin: 6px 0 14px; justify-items: start; }
+.plan-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.plan-badge { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 4px 9px; border-radius: 999px; background: var(--bg-3); color: var(--ink-2); border: 1px solid var(--line-2); }
+.plan-badge.pro { background: linear-gradient(135deg, #8b7cf6, #5b8def); color: #fff; border-color: transparent; }
+.plan-meter { width: 100%; max-width: 420px; height: 8px; border-radius: 999px; background: var(--bg-3); overflow: hidden; }
+.plan-meter span { display: block; height: 100%; width: 0; border-radius: inherit; background: linear-gradient(90deg, #8b7cf6, #5b8def); transition: width .5s ease; }
+.billing-box .settings-action-row { width: 100%; }
+.upgrade-dialog { width: min(440px, calc(100vw - 24px)); padding: 26px 22px 20px; border-radius: 22px; text-align: center; }
+.upgrade-dialog > img { margin: 0 auto 6px; display: block; }
+.upgrade-dialog h2 { margin: 4px 0 6px; font-size: 22px; }
+.upgrade-dialog .close-panel { position: absolute; top: 12px; right: 12px; }
+.upgrade-reason { margin: 0 0 10px; padding: 8px 12px; border-radius: 12px; background: var(--bg-2); color: var(--ink-2); font-size: 13.5px; }
+.upgrade-reason[hidden] { display: none; }
+.upgrade-features { list-style: none; padding: 0; margin: 12px 0 16px; display: grid; gap: 10px; text-align: left; }
+.upgrade-features li { display: grid; gap: 2px; padding-left: 26px; position: relative; }
+.upgrade-features li::before { content: "✓"; position: absolute; left: 0; top: 0; width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 800; color: #fff; background: linear-gradient(135deg, #8b7cf6, #5b8def); }
+.upgrade-features span { font-size: 13px; color: var(--ink-3); }
+.upgrade-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+.upgrade-toggle button { display: grid; gap: 2px; padding: 12px 10px; border-radius: 14px; border: 1px solid var(--line-2); background: var(--bg-2); color: var(--ink); cursor: pointer; transition: border-color .2s, background .2s, transform .15s; }
+.upgrade-toggle button span { font-size: 12px; color: var(--ink-3); }
+.upgrade-toggle button[aria-checked="true"] { border-color: #8b7cf6; background: rgba(139,124,246,.12); }
+.upgrade-toggle button:active { transform: scale(.98); }
+.upgrade-dialog #upgradeGo { width: 100%; }

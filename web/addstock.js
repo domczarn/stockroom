@@ -98,7 +98,7 @@ async function addQuickPhotos(files) {
       if (tall && typeof cropListingPhoto === 'function') {
         const crop = await cropListingPhoto(file);
         quick.photos.push(crop.image);
-        if (!quick.read) { quick.read = true; void readListing(file); }
+        if (!quick.read && account?.plan === 'pro') { quick.read = true; void readListing(file); }
       } else quick.photos.push(await compressPhoto(file));
     }
     error.textContent = files.length > room ? 'Only 4 photos per item. Extra photos were skipped.' : '';

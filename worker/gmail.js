@@ -1,3 +1,4 @@
+import {isPro} from './billing.js';
 import {HttpError,readBody} from './security.js';
 import {notifyAccount} from './push.js';
 
@@ -292,6 +293,8 @@ export async function scheduledGmail(env,context){
   const owner=await env.DB.prepare('SELECT user_id FROM profiles WHERE owner=1 LIMIT 1').first();
   const rows=(await env.DB.prepare("SELECT * FROM gmail_connections WHERE enabled=1 AND state<>'reconnect'").all()).results||[];
   for(const row of rows){
+    const owned=Boolean(owner&&row.owner_id===owner.user_id);
+    if(!owned&&!(await isPro(env,{id:row.owner_id,admin:false})))continue; // auto-updates are a Pro feature
     try{await check(env,{id:row.owner_id,admin:Boolean(owner&&row.owner_id===owner.user_id)},context,row);}
     catch(error){if(error?.status!==409)console.error('Scheduled Gmail check failed',String(error?.message||error).slice(0,160));}
   }
