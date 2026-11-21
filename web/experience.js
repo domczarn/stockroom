@@ -12,7 +12,7 @@ function welcome(){
  const today = dateLabel(todayUK());
  return '<section class="top dashboard-title"><div><h1>'+greeting+', '+esc(name)+'</h1><p>'+esc(today)+'</p></div>'+
    '<div class="dashboard-actions"><button class="secondary" type="button" data-shot-import '+(isReadOnly()?'hidden':'')+'>From screenshots</button>'+
-   '<button class="action" id="add">＋ Add stock</button></div></section>'+
+   '<button class="action" id="add">＋ Add stock</button>'+(isReadOnly()?'':'<button type="button" class="scan-cta" data-scan-open><span class="scan-cta-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2M8 12h8"/></svg></span><span><b>Buy or pass?</b><small>Snap an item while sourcing. Pip tells you what to pay.</small></span><span aria-hidden="true">→</span></button>')+'</div></section>'+
    kpiStrip();
 }
 function guideView() {

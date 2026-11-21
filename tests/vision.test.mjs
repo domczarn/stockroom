@@ -111,3 +111,13 @@ test('Ask Pip digest groups sales by brand and month without inventing data', ()
   assert.deepEqual(d.byMonth.map(m => m.month), ['2026-10', '2026-11']);
   assert.equal(d.oldestStock[0].daysListed, 80);
 });
+
+import {scanVerdict} from '../worker/pipai.js';
+test('buy-or-pass maths: max price leaves at least £5 and 60% headroom', () => {
+  let v = scanVerdict({low: 16, high: 24, ownAvg: null, ownCount: 0, price: 4});
+  assert.deepEqual([v.resale, v.maxBuy, v.verdict, v.profitAtPrice], [20, 8, 'buy', 16]);
+  v = scanVerdict({low: 16, high: 24, ownAvg: 30, ownCount: 3, price: 15});
+  assert.equal(v.resale, 26); assert.equal(v.maxBuy, 10); assert.equal(v.verdict, 'pass');
+  v = scanVerdict({low: 6, high: 8, ownAvg: null, ownCount: 0, price: null});
+  assert.deepEqual([v.maxBuy, v.verdict], [2, 'unknown']);
+});

@@ -71,3 +71,76 @@ document.addEventListener('submit', event => {
   event.preventDefault(); const input = form.elements.q; const q = input.value; input.value = ''; void askPip(q);
 });
 document.addEventListener('click', event => { const b = event.target.closest('[data-ask-pip]'); if (b) void askPip(b.dataset.askPip); });
+
+// ---------- Buy-or-pass scanner ----------
+let scanState = {photo: null, result: null, busy: false};
+function scanSheet() {
+  let d = document.getElementById('scanDialog');
+  if (d) return d;
+  d = document.createElement('dialog'); d.id = 'scanDialog'; d.className = 'utility-dialog scan-dialog';
+  document.body.append(d);
+  return d;
+}
+function scanRender() {
+  const d = scanSheet(), s = scanState, r = s.result;
+  const verdictText = r ? ({buy: 'Buy it', maybe: 'Only if you love it', pass: 'Pass', unknown: 'Pay up to ' + gbp(r.maxBuy)})[r.verdict] : '';
+  d.innerHTML = '<div class="sheet-heading"><div><span class="eyebrow">BUY OR PASS</span><h2>' + (r ? esc(r.name) : 'Snap the item') + '</h2></div><button type="button" class="close-panel" data-close-dialog="scanDialog" aria-label="Close">×</button></div>' +
+    (s.photo ? '<div class="scan-photo"><img src="' + s.photo + '" alt="Item photo">' + (s.busy ? '<div class="scan-sweep"></div>' : '') + '</div>'
+      : '<label class="scan-drop"><input type="file" accept="image/*" capture="environment" id="scanFile" hidden><span class="scan-drop-icon">📷</span><b>Take a photo</b><small>The item, or its label for a sharper answer</small></label>') +
+    '<label class="scan-price">Price in the shop <small>optional</small><input type="number" inputmode="decimal" min="0" step="0.01" id="scanPrice" placeholder="e.g. 4.00" value="' + (s.price ?? '') + '"></label>' +
+    (s.busy ? '<div class="offer-pip thinking"><span class="qa-pip"></span><div><strong>Pip is pricing it…</strong><small>Checking the brand, Vinted prices and your own sales.</small></div></div>' : '') +
+    (r ? '<div class="scan-result ' + r.verdict + '"><div class="scan-verdict"><b>' + esc(verdictText) + '</b>' + (r.price != null ? '<small>' + (r.profitAtPrice >= 0 ? 'About ' + gbp(r.profitAtPrice) + ' profit' : 'You’d lose money') + '</small>' : '') + '</div>' +
+      '<div class="metrics scan-figs"><div class="metric"><span>Likely sells for</span><strong>' + gbp(r.low) + '–' + gbp(r.high).slice(1) + '</strong><small>' + esc(r.confidence) + ' confidence</small></div><div class="metric"><span>Pay up to</span><strong>' + gbp(r.maxBuy) + '</strong><small>To make it worth it</small></div></div>' +
+      '<p class="scan-reason">' + esc(r.reason) + '</p>' +
+      (r.yourHistory ? '<p class="scan-history">You’ve sold <b>' + r.yourHistory.sold + '</b> ' + esc(r.brand) + (r.yourHistory.avgSale != null ? ' at <b>' + gbp(r.yourHistory.avgSale) + '</b> on average' : '') + (r.yourHistory.medianDaysToSell != null ? ', usually in ' + r.yourHistory.medianDaysToSell + ' days' : '') + (r.yourHistory.inStock ? '. ' + r.yourHistory.inStock + ' still in stock.' : '.') + '</p>' : '') +
+      (r.checks.length ? '<ul class="scan-checks">' + r.checks.map(c => '<li>' + esc(c) + '</li>').join('') + '</ul>' : '') + '</div>' : '') +
+    '<p class="footnote" id="scanError" role="alert">' + esc(s.error || '') + '</p>' +
+    (r ? '<div class="scan-actions"><button type="button" class="action" data-scan-bought>I bought it · add to stock</button><button type="button" class="secondary" data-scan-again>Scan another</button></div>'
+      : s.photo && !s.busy ? '<button type="button" class="action scan-go" data-scan-go>Ask Pip</button><button type="button" class="link" data-scan-again>Retake photo</button>' : '');
+}
+async function scanResize(file) {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((ok, fail) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => fail(Error('Couldn’t open that photo.')); i.src = url; });
+    const scale = Math.min(1, 1280 / Math.max(img.naturalWidth, img.naturalHeight)), c = document.createElement('canvas');
+    c.width = Math.round(img.naturalWidth * scale); c.height = Math.round(img.naturalHeight * scale);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    return c.toDataURL('image/jpeg', .85);
+  } finally { URL.revokeObjectURL(url); }
+}
+function openScan() {
+  if (account?.plan !== 'pro') { openUpgrade('Buy or pass is part of Stockroom Pro.'); return; }
+  scanState = {photo: null, result: null, busy: false}; scanRender();
+  const d = scanSheet(); if (!d.open) d.showModal();
+}
+async function runScan() {
+  scanState.busy = true; scanState.error = ''; scanRender();
+  try { scanState.result = await api('/api/pip/scan', {method: 'POST', body: JSON.stringify({image: scanState.photo, price: scanState.price})}); }
+  catch (error) { scanState.error = error.message; }
+  scanState.busy = false; scanRender();
+}
+document.addEventListener('input', event => {
+  if (event.target.id !== 'scanPrice') return;
+  const v = event.target.value.trim(); scanState.price = v === '' || !(Number(v) >= 0) ? null : Number(v);
+});
+document.addEventListener('change', async event => {
+  if (event.target.id !== 'scanFile' || !event.target.files[0]) return;
+  try { scanState.photo = await scanResize(event.target.files[0]); scanRender(); void runScan(); } catch (error) { scanState.error = error.message; scanRender(); }
+});
+document.addEventListener('click', event => {
+  if (event.target.closest('[data-scan-open]')) { openScan(); return; }
+  if (event.target.closest('[data-scan-go]')) { void runScan(); return; }
+  if (event.target.closest('[data-scan-again]')) { scanState = {photo: null, result: null, busy: false}; scanRender(); return; }
+  if (event.target.closest('[data-scan-bought]') && scanState.result) {
+    const r = scanState.result, price = scanState.price;
+    document.getElementById('scanDialog').close();
+    openItem(null);
+    setTimeout(() => {
+      const form = document.getElementById('quickAddForm'); if (!form) return;
+      const set = (name, value) => { const el = form.elements[name]; if (el && value != null && value !== '' && !el.value) el.value = value; };
+      set('name', r.name); set('brand', r.brand); set('garment', r.category); if (price != null) set('cost', price.toFixed(2));
+      set('price', Math.round((r.low + r.high) / 2));
+      form.dispatchEvent(new Event('input', {bubbles: true}));
+    }, 60);
+  }
+});

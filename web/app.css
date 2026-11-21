@@ -2355,3 +2355,32 @@ dialog[open]::backdrop { animation: dsFade .3s var(--ease) both !important; }
 .ask-a.thinking { display: flex; align-items: center; gap: 10px; color: var(--ink-2); border-color: var(--accent-line); background: var(--accent-bg); }
 .ask-a.error { border-color: rgba(255,107,112,.4); }
 .ask-pip-bar.in-sheet { margin: 6px 0 0; }
+
+/* ---------- Buy or pass ---------- */
+.dashboard-actions { flex-wrap: wrap; }
+.scan-cta { flex: 1 0 100%; display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 16px; border: 1px solid var(--accent-line); background: linear-gradient(135deg, rgba(155,140,255,.16), rgba(110,127,240,.06)); color: var(--ink); text-align: left; cursor: pointer; transition: transform var(--t-fast) var(--ease), border-color var(--t); }
+.scan-cta:hover { border-color: var(--accent); } .scan-cta:active { transform: scale(.98); }
+.scan-cta > span:nth-child(2) { flex: 1; display: grid; gap: 2px; } .scan-cta b { font-size: 15px; } .scan-cta small { font-size: 12.5px; color: var(--ink-2); }
+.scan-cta-icon { flex: none; width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; background: var(--brand-gradient); color: #fff; }
+.scan-dialog { width: min(480px, calc(100vw - 16px)); max-height: 92vh; overflow-y: auto; padding: 20px !important; }
+.scan-drop { display: grid !important; justify-items: center; gap: 4px; padding: 34px 16px; margin: 0 0 4px !important; border-radius: 18px; border: 1.5px dashed var(--accent-line); background: var(--accent-bg); cursor: pointer; text-align: center; }
+.scan-drop-icon { font-size: 30px; } .scan-drop b { font-size: 16px; color: var(--ink); } .scan-drop small { color: var(--ink-2); font-weight: 400; }
+.scan-photo { position: relative; border-radius: 18px; overflow: hidden; max-height: 280px; background: var(--bg-2); }
+.scan-photo img { width: 100%; max-height: 280px; object-fit: contain; display: block; }
+.scan-sweep { position: absolute; inset: 0; background: linear-gradient(180deg, transparent 40%, rgba(155,140,255,.35) 50%, transparent 60%); animation: scanSweep 1.6s ease-in-out infinite; }
+@keyframes scanSweep { from { transform: translateY(-60%); } to { transform: translateY(60%); } }
+.scan-price { margin: 12px 0 !important; display: grid !important; gap: 6px; }
+.scan-price input { width: 100% !important; }
+.scan-result { margin-top: 12px; padding: 14px; border-radius: 18px; border: 1px solid var(--line-2); background: var(--bg-2); animation: dsPopIn .35s var(--ease) both; }
+.scan-verdict { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.scan-verdict b { font-size: 24px; letter-spacing: -0.03em; } .scan-verdict small { color: var(--ink-2); }
+.scan-result.buy { border-color: rgba(74,211,138,.45); } .scan-result.buy .scan-verdict b { color: var(--good); }
+.scan-result.maybe { border-color: rgba(245,176,65,.45); } .scan-result.maybe .scan-verdict b { color: var(--warn); }
+.scan-result.pass { border-color: rgba(255,107,112,.45); } .scan-result.pass .scan-verdict b { color: var(--bad); }
+.scan-result.unknown .scan-verdict b { color: var(--accent-ink); }
+.scan-figs { grid-template-columns: 1fr 1fr !important; margin-bottom: 10px !important; }
+.scan-figs .metric strong { font-size: 20px !important; }
+.scan-reason, .scan-history { font-size: 14px !important; color: var(--ink-2) !important; margin: 6px 0 !important; }
+.scan-history b { color: var(--ink); }
+.scan-checks { margin: 8px 0 0; padding-left: 18px; color: var(--ink-2); font-size: 13.5px; } .scan-checks li { margin: 3px 0; }
+.scan-actions { display: grid; gap: 8px; margin-top: 12px; } .scan-go { width: 100%; margin-top: 4px; }
