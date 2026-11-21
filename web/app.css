@@ -2418,3 +2418,65 @@ html body { background: url(/constellation.svg) right top / min(1100px, 140vw) a
 .app-header:not(.scrolled) { background: transparent !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
 .stock-overview > * > strong { font-size: clamp(17px, 5vw, 23px) !important; white-space: nowrap; }
 @media (max-width: 800px) { .sidebar .brand { display: none !important; } }
+
+/* ---------- Pip aura emblems ---------- */
+.aura { position: relative; display: inline-grid; place-items: center; flex: none; border-radius: 50%; color: #fff;
+  background: radial-gradient(circle at 50% 45%, rgba(205,197,255,.95) 0 18%, rgba(155,140,255,.85) 32%, rgba(110,127,240,.35) 58%, rgba(57,135,229,0) 72%); isolation: isolate; }
+.aura::before { content: ''; position: absolute; inset: -14%; border-radius: 50%; border: 1px dashed rgba(155,140,255,.55); animation: pipSpin 18s linear infinite; z-index: -1; }
+.aura::after { content: ''; position: absolute; inset: -26%; border-radius: 50%; z-index: -2; opacity: .9;
+  background:
+    radial-gradient(circle, #cdc5ff 0 1.4px, transparent 2px) 12% 22% / 100% 100% no-repeat,
+    radial-gradient(circle, #cdc5ff 0 1.2px, transparent 1.8px) 86% 18% / 100% 100% no-repeat,
+    radial-gradient(circle, #cdc5ff 0 1.6px, transparent 2.2px) 92% 70% / 100% 100% no-repeat,
+    radial-gradient(circle, #cdc5ff 0 1.2px, transparent 1.8px) 20% 84% / 100% 100% no-repeat,
+    radial-gradient(circle, #cdc5ff 0 1px, transparent 1.6px) 50% 2% / 100% 100% no-repeat,
+    radial-gradient(circle, rgba(155,140,255,.35), rgba(155,140,255,0) 65%);
+  animation: auraPulse 3.2s ease-in-out infinite; }
+.aura svg { filter: drop-shadow(0 1px 2px rgba(40,20,90,.45)); }
+@keyframes auraPulse { 0%, 100% { opacity: .55; transform: scale(.97); } 50% { opacity: 1; transform: scale(1.03); } }
+.aura-sm { width: 30px; height: 30px; } .aura-md { width: 44px; height: 44px; } .aura-lg { width: 78px; height: 78px; }
+.aura-lg svg { width: 32px; height: 32px; }
+.aura-btn { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--line-2); background: var(--bg-1); cursor: pointer; transition: transform var(--t-fast) var(--ease), border-color var(--t); }
+.aura-btn:hover { border-color: var(--accent-line); } .aura-btn:active { transform: scale(.94); }
+.aura-btn[aria-current], .aura-btn.active { border-color: var(--accent); }
+.scan-cta-icon { background: none !important; } .scan-cta-icon.aura { width: 38px; height: 38px; }
+@media (prefers-reduced-motion: reduce) { .aura::before, .aura::after { animation: none; } }
+
+/* ---------- Photo studio section ---------- */
+.studio-hero { display: flex; gap: 20px; align-items: center; overflow: hidden; position: relative; }
+.studio-hero > .aura { margin: 10px 14px 10px 10px; }
+.studio-hero h2 { margin: 0 0 6px !important; }
+.studio-hero p { margin: 0 0 14px !important; color: var(--ink-2) !important; }
+.studio-add { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.studio-upload { cursor: pointer; }
+.studio-add select { flex: 1 1 200px; width: auto; }
+@media (max-width: 640px) { .studio-hero { flex-direction: column; align-items: flex-start; } .studio-add > * { flex: 1 1 100%; } }
+.studio-controls h3 { margin: 0 0 4px !important; }
+.studio-backdrops { display: flex !important; gap: 8px; overflow-x: auto; scrollbar-width: none; padding: 2px 2px 6px; margin: 10px 0 !important; grid-template-columns: none !important; }
+.studio-backdrops::-webkit-scrollbar { display: none; }
+.studio-backdrops button { flex: 0 0 auto; min-width: 74px; }
+.studio-shadows { margin: 2px 0 6px; }
+.sw { display: block; width: 32px; height: 32px; border-radius: 10px; border: 1px solid var(--line-3); background: #fff; }
+.sw-studio { background: linear-gradient(180deg, #e6e6ea, #f4f4f6 58%, #fff); }
+.sw-marble { background: linear-gradient(125deg, transparent 40%, rgba(110,104,98,.45) 42%, transparent 45%), linear-gradient(35deg, transparent 60%, rgba(110,104,98,.3) 61%, transparent 63%), #f3f1ed; }
+.sw-marble-dark { background: linear-gradient(125deg, transparent 40%, rgba(235,230,222,.55) 42%, transparent 45%), linear-gradient(35deg, transparent 60%, rgba(235,230,222,.35) 61%, transparent 63%), #1c1c1f; }
+.sw-linen { background: repeating-linear-gradient(0deg, rgba(120,100,80,.12) 0 1px, transparent 1px 3px), repeating-linear-gradient(90deg, rgba(255,255,255,.35) 0 1px, transparent 1px 3px), #ebe4d9; }
+.sw-lilac { background: radial-gradient(circle at 50% 45%, #f6f3ff, #d9d0ff); }
+.sw-soft { background: #eeeef1; } .sw-dark { background: #1d1d22; } .sw-white { background: #fff; }
+.studio-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); gap: 12px; margin-bottom: 14px; }
+.studio-card { margin: 0; border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--bg-1); overflow: hidden; animation: dsPopIn .35s var(--ease) both; }
+.studio-card-img { position: relative; aspect-ratio: 1; background: var(--bg-2); }
+.studio-card-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.studio-card.queued img, .studio-card.working img { opacity: .4; filter: blur(2px); }
+.studio-card figcaption { display: grid; gap: 8px; padding: 10px 12px 12px; }
+.studio-card figcaption small { color: var(--ink-3); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.studio-err { color: var(--bad) !important; white-space: normal !important; }
+.studio-card-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.studio-card-actions .secondary { min-height: 34px !important; padding: 0 12px !important; font-size: 13px !important; }
+.studio-card-actions .link { margin-left: auto; font-size: 13px !important; color: var(--ink-3) !important; }
+.studio-all { width: 100%; }
+.studio-tip { text-align: center; }
+.studio-card .studio-busy .studio-pip { width: 70px !important; height: 70px !important; }
+.studio-hero > div { min-width: 0; flex: 1; width: 100%; }
+.studio-add .action, .studio-add select { max-width: 100%; }
+@media (max-width: 640px) { .studio-add .action, .studio-add select { width: 100% !important; } }

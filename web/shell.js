@@ -6,6 +6,7 @@ const SECTIONS = [
   {key:'stock', label:'Stock', tabs:[['Stock','Collection'],['Orders','Bulk orders'],['Buying insights','Performance'],['Buying research','Market research']]},
   {key:'money', label:'Money', tabs:[['Activity','Transactions'],['Expenses','Expenses'],['Reports','Reports']]},
   {key:'care', label:'Customer care', tabs:[['Customer care','Customer care']]},
+  {key:'studio', label:'Photo studio', tabs:[['Studio','Photo studio']]},
   {key:'account', label:'Account', tabs:[['Account','Settings'],['Profile','Community'],['Leaderboard','Leaderboard'],['Admin','Admin','admin']]}
 ];
 const sectionOf = name => SECTIONS.find(section => section.tabs.some(([id]) => id === name)) || SECTIONS[0];
@@ -21,6 +22,7 @@ function subnavView(current) {
 
 function markSections(current) {
   const active = sectionOf(current).key;
+  document.querySelectorAll('.aura-btn[data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === current));
   document.querySelectorAll('.sidebar nav [data-tab]').forEach(button => {
     const on = sectionOf(button.dataset.tab).key === active;
     button.classList.toggle('active', on);
