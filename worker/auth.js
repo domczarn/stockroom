@@ -78,9 +78,15 @@ export async function authRoute(request, url, env) {
   const ip = request.headers.get('cf-connecting-ip') || 'local';
 
   if (url.pathname === '/auth/code') {
-    const {email: raw} = await readBody(request, 2000) || {};
+    const {email: raw, turnstile} = await readBody(request, 4000) || {};
     const email = normaliseEmail(raw);
     if (!validEmail(email)) throw new HttpError(400, 'Enter a valid email address.');
+    // Bot check (Cloudflare Turnstile), on when TURNSTILE_SECRET is set.
+    if (env.TURNSTILE_SECRET) {
+      const form = new FormData(); form.append('secret', env.TURNSTILE_SECRET); form.append('response', String(turnstile || '').slice(0, 2048)); if (ip) form.append('remoteip', ip);
+      const check = await (env.TURNSTILE_FETCH || fetch)('https://challenges.cloudflare.com/turnstile/v0/siteverify', {method: 'POST', body: form, signal: AbortSignal.timeout(8000)}).then(r => r.json()).catch(() => null);
+      if (!check?.success) throw new HttpError(403, 'Just checking you’re human. Tick the box, then try again.');
+    }
     await limit(env, 'ip:' + ip, 20); await limit(env, 'code:' + email, 5);
     // Invite-only mode: only people who already have an account or were invited get a code.
     if (email !== ADMIN_EMAIL && (await appSettings(env)).signups_open === '0') {

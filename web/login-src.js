@@ -15,6 +15,21 @@ async function post(path, body) {
 }
 
 let email = '', resendAt = 0;
+// Cloudflare Turnstile bot check: invisible for almost everyone, only asks when something looks automated.
+const turnstileSlot = $('turnstile'), siteKey = turnstileSlot?.dataset.sitekey;
+let turnstileId = null, turnstileToken = '';
+function turnstileReady() {
+  if (!siteKey || !window.turnstile || turnstileId !== null) return;
+  turnstileId = window.turnstile.render(turnstileSlot, {sitekey: siteKey, appearance: 'interaction-only', theme: 'dark',
+    callback: token => { turnstileToken = token; }, 'expired-callback': () => { turnstileToken = ''; }, 'error-callback': () => { turnstileToken = ''; }});
+}
+window.onTurnstileLoad = turnstileReady; turnstileReady();
+async function humanToken() {
+  if (!siteKey) return '';
+  for (let i = 0; i < 40 && !turnstileToken; i++) await new Promise(r => setTimeout(r, 150)); // give the invisible check a moment
+  if (!turnstileToken) throw new Error('Just checking you’re human. Tick the box above, then try again.');
+  return turnstileToken;
+}
 const passkeys = browserSupportsWebAuthn();
 if (passkeys) { $('passkeyButton').hidden = false; $('orDivider').hidden = false; }
 
@@ -37,7 +52,8 @@ $('passkeyButton').onclick = async () => {
 async function sendCode() {
   busy(true); err('');
   try {
-    const data = await post('/auth/code', {email});
+    const data = await post('/auth/code', {email, turnstile: await humanToken()});
+    if (turnstileId !== null) { window.turnstile.reset(turnstileId); turnstileToken = ''; }
     $('sentTo').textContent = email; show('code');
     resendAt = Date.now() + 30000;
     if (data.devCode) { $('code').value = data.devCode; err('Dev mode: code filled in.', true); }

@@ -2,6 +2,7 @@
 import {HttpError, readBody} from './security.js';
 import {ask, jsonFrom, aiAllowance, imageFromDataUrl} from './llm.js';
 import seed from './market-seed.json' with {type: 'json'};
+import {loadWorkspace} from './workspace-store.js';
 
 const money = v => { const n = Number(v); return Number.isFinite(n) && n >= 0 && n < 100000 ? Math.round(n * 100) / 100 : null; };
 const text = (v, max) => typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, max) : '';
@@ -112,8 +113,7 @@ export async function askRoute(request, env, user) {
   const body = await readBody(request, 30000) || {};
   const question = text(body.question, 500);
   if (question.length < 2) throw new HttpError(400, 'Ask Pip a question.');
-  const row = await env.DB.prepare('SELECT payload FROM workspaces WHERE owner_id = ?').bind(user.id).first();
-  const digest = workspaceDigest(row ? JSON.parse(row.payload) : {});
+  const digest = workspaceDigest((await loadWorkspace(env, user.id))?.data || {});
   const history = (Array.isArray(body.history) ? body.history : []).slice(-6).flatMap(turn => [
     {role: 'user', content: text(turn.q, 500)}, {role: 'assistant', content: text(turn.a, 1200)}]).filter(m => m.content);
   await aiAllowance(env, user);
@@ -163,8 +163,7 @@ export async function scanRoute(request, env, user) {
   const image = imageFromDataUrl(body.image, 5_600_000);
   if (!image) throw new HttpError(400, 'Take a photo of the item first.');
   const price = money(body.price);
-  const row = await env.DB.prepare('SELECT payload FROM workspaces WHERE owner_id = ?').bind(user.id).first();
-  const digest = workspaceDigest(row ? JSON.parse(row.payload) : {});
+  const digest = workspaceDigest((await loadWorkspace(env, user.id))?.data || {});
   const market = await env.DB.prepare("SELECT payload FROM market_research WHERE id='vinted-uk'").first().then(r => r ? JSON.parse(r.payload) : seed).catch(() => seed);
   await aiAllowance(env, user);
   const prompt = `${VINTED_RULES}

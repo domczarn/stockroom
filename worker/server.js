@@ -11,14 +11,18 @@ import {offerRoute,askRoute,scanRoute} from './pipai.js';
 import {weeklyRoute,unsubscribePage} from './weekly.js';
 import {authRoute} from './auth.js';
 import {adminRoute,appSettings} from './admin.js';
+import {loadWorkspace,saveWorkspace} from './workspace-store.js';
 import {billingRoute,planFor,requirePro,checkNewItems,recordNewItems,deleteOwnAccount} from './billing.js';
 import {ADMIN_EMAIL,identity,authorize,adminOnly,readBody,validateWorkspace,storePhotos,audit,HttpError,emptyWorkspace,rateLimit,exactDate,paid,tx} from './security.js';
 const json = (value, status = 200) => new Response(JSON.stringify(value), {
   status, headers: {'content-type':'application/json','cache-control':'private, no-store'}
 });
-function loginPage(request){
-  return new Response(request.method==='HEAD'?null:assets['/login.html'],{status:200,headers:{'content-type':'text/html; charset=utf-8','cache-control':'private, no-store','x-content-type-options':'nosniff','referrer-policy':'same-origin',
-    'content-security-policy':"default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'self'; font-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"}});
+function loginPage(request,env={}){
+  const key=/^[0-9A-Za-z_-]{10,80}$/.test(env.TURNSTILE_SITE_KEY||'')?env.TURNSTILE_SITE_KEY:'';
+  const html=key?assets['/login.html'].replace('data-sitekey=""','data-sitekey="'+key+'"').replace('</body>','<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=onTurnstileLoad" async defer></script></body>'):assets['/login.html'];
+  const ts=key?' https://challenges.cloudflare.com':'';
+  return new Response(request.method==='HEAD'?null:html,{status:200,headers:{'content-type':'text/html; charset=utf-8','cache-control':'private, no-store','x-content-type-options':'nosniff','referrer-policy':'same-origin',
+    'content-security-policy':"default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'"+ts+"; frame-src 'self'"+ts+"; connect-src 'self'"+ts+"; font-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"}});
 }
 function welcomePage(request,suspended=false){
   const title=suspended?'Stockroom access paused':'Welcome to Stockroom';
@@ -95,11 +99,11 @@ export default {
       }
       if(url.pathname.startsWith('/auth/'))return await authRoute(request,url,env);
       if(url.pathname==='/email/unsubscribe'&&request.method==='GET')return await unsubscribePage(url,env);
-      if(url.pathname==='/login'&&['GET','HEAD'].includes(request.method))return identity(request)?Response.redirect(url.origin+'/',302):loginPage(request);
+      if(url.pathname==='/login'&&['GET','HEAD'].includes(request.method))return identity(request)?Response.redirect(url.origin+'/',302):loginPage(request,env);
       const rawUser=identity(request);
       const importRoute = ['/api/purchases','/api/sync-status','/api/sale-imports','/api/market-research'].includes(url.pathname) || /^\/api\/photos\//.test(url.pathname);
       if((url.pathname==='/'||url.pathname==='/index.html')&&['GET','HEAD'].includes(request.method)){
-        if(!rawUser)return loginPage(request);
+        if(!rawUser)return loginPage(request,env);
         try{await authorize(request,env);}
         catch(error){if(error instanceof HttpError&&error.status===403)return welcomePage(request,true);throw error;}
       }
@@ -170,9 +174,9 @@ export default {
         const owner=url.searchParams.get('owner')||user.id;
         if(owner!==user.id){adminOnly(user);if(request.method!=='GET')throw new HttpError(403,'Other accounts are read-only.');}
         if(request.method==='GET') {
-          const row=await env.DB.prepare('SELECT * FROM workspaces WHERE owner_id = ?').bind(owner).first();
+          const stored=await loadWorkspace(env,owner);
           if(owner!==user.id)await audit(env,user,owner,'admin_view');
-          return json({data:row?JSON.parse(row.payload):null,revision:row?.revision||null,updatedAt:row?.updated_at||null,owner,readOnly:owner!==user.id});
+          return json({data:stored?.data||null,revision:stored?.revision||null,updatedAt:stored?.updatedAt||null,owner,readOnly:owner!==user.id});
         }
         if(request.method==='PUT') {
           const body=await readBody(request,19000000);
@@ -184,13 +188,10 @@ export default {
           const added=await checkNewItems(env,user,previousItems,checked.items);
           const data=await storePhotos(checked,owner,env);
           if(!user.admin && data.items.some(i=>i.referencePhotos?.length))throw new HttpError(400,'Reference imports belong to the admin account.');
-          const revision=crypto.randomUUID(),updatedAt=new Date().toISOString();
-          const payload=JSON.stringify(data);
-          if(payload.length>1500000)throw new HttpError(413,'Workspace exceeds the record limit.');
-          const result=current
-            ?await env.DB.prepare('UPDATE workspaces SET payload = ?, revision = ?, updated_at = ? WHERE owner_id = ? AND revision = ?').bind(payload,revision,updatedAt,owner,body.revision).run()
-            :await env.DB.prepare('INSERT INTO workspaces (owner_id,payload,revision,updated_at) VALUES (?,?,?,?) ON CONFLICT(owner_id) DO NOTHING').bind(owner,payload,revision,updatedAt).run();
-          if(!result.meta.changes)throw new HttpError(409,'Another device saved first. Your edits are kept here.');
+          const saved=await saveWorkspace(env,owner,data,current?body.revision:null);
+          if(saved.tooBig)throw new HttpError(413,'Your workspace is too big to save. Archive or delete old sold items, then try again.');
+          if(saved.conflict)throw new HttpError(409,'Another device saved first. Your edits are kept here.');
+          const {revision,updatedAt}=saved;
           await recordNewItems(env,owner,added);
           await audit(env,user,owner,'workspace_save');
           return json({data,revision,updatedAt,owner});

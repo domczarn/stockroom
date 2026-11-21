@@ -48,9 +48,9 @@ async function persist(next=db){
   if(cloudSaving)throw Error('A save is in progress. Please try again.');
   if(pendingLocal && next!==pendingLocal)throw Error('An unsaved change is waiting. Open Settings to retry or discard it first.');
   if(cloudConflict)throw Error('Resolve the sync conflict in Settings before saving. Your changes are still here.');
-  // Storage cap is 1.5 MB per workspace on the server (about 1,500 items). Warn early, once per session.
+  // The server stores item text separately, so workspaces can hold thousands of items. Warn only when very large.
   const size=JSON.stringify(next).length;
-  if(size>1125000&&!persist.warned){persist.warned=true;toast('Your workspace is '+Math.round(size/15000)+'% full. Archive old sold items soon.');}
+  if(size>24000000&&!persist.warned){persist.warned=true;toast('Your workspace is getting very large. Archive old sold items soon.');}
   cloudSaving=true;cloudState('Saving…','saving');
   pendingLocal=cloneWorkspace(next);
   await pendingRecord({data:pendingLocal,revision:cloudRevision},true).catch(()=>{});

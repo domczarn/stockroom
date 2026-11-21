@@ -104,7 +104,7 @@ function validateTrades(data, itemIds) {
 
 const photoPattern=/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/;
 export function validateWorkspace(data,owner) {
-  if(!data||!['items','sales','expenses','sources','research'].every(k=>Array.isArray(data[k])&&data[k].length<=2000)) throw new HttpError(400,'Invalid workspace.');
+  if(!data||!['items','sales','expenses','sources','research'].every(k=>Array.isArray(data[k])&&data[k].length<=20000)) throw new HttpError(400,'Invalid workspace.');
   const ids=new Set(),transactions=new Set();
   for(const item of data.items) {
     if(!item||typeof item.id!=='string'||!item.id||item.id.length>100||ids.has(item.id)||typeof item.name!=='string'||!item.name.trim()||!money(item.cost)||item.cost==null||!['In Stock','Sold','Refund pending','Refunded'].includes(item.status)||!['price','sale','refund','targetPrice'].every(k=>money(item[k]))) throw new HttpError(400,'Invalid stock item or duplicate stock ID.');

@@ -75,3 +75,13 @@ test('the owner signs in to their existing workspace even without a members row'
   const row = await env.DB.prepare('SELECT id FROM accounts WHERE email = ?').bind(ADMIN_EMAIL).first();
   assert.equal(row.id, 'owner-access-id');
 });
+
+test('Turnstile bot check guards code requests when switched on', async () => {
+  const env = environment(); env.AUTH_DEV_CODES = 'show'; env.TURNSTILE_SECRET = 'secret'; env.TURNSTILE_SITE_KEY = '0x4AAAAAAAfixture';
+  env.TURNSTILE_FETCH = async (url, init) => new Response(JSON.stringify({success: init.body.get('response') === 'good-token'}));
+  assert.equal((await post(env, '/auth/code', {email: 'bot@example.test', turnstile: 'bad'})).status, 403);
+  assert.equal((await post(env, '/auth/code', {email: 'human@example.test', turnstile: 'good-token'})).status, 200);
+  const page = await (await app.fetch(new Request(origin + '/login'), env)).text();
+  assert.match(page, /data-sitekey="0x4AAAAAAAfixture"/);
+  assert.match(page, /challenges\.cloudflare\.com\/turnstile/);
+});

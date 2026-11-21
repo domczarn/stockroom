@@ -47,3 +47,4 @@ button:disabled { opacity: .55; cursor: default; }
 .brand-lockup b { font-size: 19px; font-weight: 650; letter-spacing: -0.03em; }
 body { background: url(/constellation.svg) right top / min(1100px, 160vw) auto no-repeat, #131316; }
 .brand img.brand-orb { border-radius: 0; box-shadow: none; animation: none; margin: -8px -4px -8px -10px; }
+.turnstile:not(:empty) { margin: 10px 0 4px; display: flex; justify-content: center; }

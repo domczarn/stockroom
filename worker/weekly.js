@@ -1,6 +1,7 @@
 // Weekly Pip report: every Monday morning (UK time) each member gets last week's numbers by email.
 import {HttpError, readBody, ADMIN_EMAIL} from './security.js';
 import {ask} from './llm.js';
+import {loadWorkspace} from './workspace-store.js';
 
 const DAY = 86400000;
 const gbp = n => '£' + (Math.round((Number(n) || 0) * 100) / 100).toFixed(2);
@@ -65,9 +66,9 @@ ${n.stale ? `<p style="color:#b4b4bd;margin:8px 8px 0">${n.stale} listing${n.sta
 }
 
 async function sendReport(env, {ownerId, email, name, origin}) {
-  const row = await env.DB.prepare('SELECT payload FROM workspaces WHERE owner_id = ?').bind(ownerId).first();
-  if (!row) return 'no_workspace';
-  const n = weeklyNumbers(JSON.parse(row.payload));
+  const stored = await loadWorkspace(env, ownerId);
+  if (!stored) return 'no_workspace';
+  const n = weeklyNumbers(stored.data);
   if (!n.inStock && !n.sold && !n.added) return 'empty';
   const take = await pipTake(env, n);
   const unsub = origin + '/email/unsubscribe?u=' + encodeURIComponent(ownerId) + '&t=' + await hmac(env, ownerId);

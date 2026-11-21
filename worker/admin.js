@@ -2,6 +2,7 @@
 // Every route here is owner-only and every change is written to the audit log.
 import {HttpError, readBody, audit, adminOnly, ADMIN_EMAIL} from './security.js';
 import {aiStatus} from './llm.js';
+import {loadWorkspace} from './workspace-store.js';
 
 const DEFAULTS = {signups_open: '1', free_limit: '20', announcement: '', announcement_on: '0', announcement_tone: 'info'};
 const validEmail = email => email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
@@ -92,7 +93,7 @@ async function sendInvite(env, email, origin) {
 // Removes everything Stockroom holds for one person. Their audit history stays for the record.
 export async function deleteMember(env, id, email) {
   const steps = [
-    ['DELETE FROM workspaces WHERE owner_id = ?', id], ['DELETE FROM sessions WHERE account_id = ?', id], ['DELETE FROM passkeys WHERE account_id = ?', id],
+    ['DELETE FROM workspaces WHERE owner_id = ?', id], ['DELETE FROM workspace_parts WHERE owner_id = ?', id], ['DELETE FROM sessions WHERE account_id = ?', id], ['DELETE FROM passkeys WHERE account_id = ?', id],
     ['DELETE FROM accounts WHERE id = ?', id], ['DELETE FROM profiles WHERE user_id = ?', id], ['DELETE FROM gmail_connections WHERE owner_id = ?', id],
     ['DELETE FROM email_updates_done WHERE owner_id = ?', id], ['DELETE FROM item_adds WHERE owner_id = ?', id], ['DELETE FROM notification_reads WHERE owner_id = ?', id],
     ['DELETE FROM push_devices WHERE owner_id = ?', id], ['DELETE FROM admin_notes WHERE owner_id = ?', id],
@@ -135,9 +136,9 @@ export async function adminRoute(request, url, env, user) {
         stripeUrl: row.stripe_customer ? 'https://dashboard.stripe.com/customers/' + encodeURIComponent(row.stripe_customer) : null};
     }
     if (sub === '/export' && method === 'GET') {
-      const w = await env.DB.prepare('SELECT payload FROM workspaces WHERE owner_id = ?').bind(id).first();
+      const stored = await loadWorkspace(env, id);
       await audit(env, user, id, 'admin_export');
-      return {data: w ? JSON.parse(w.payload) : null};
+      return {data: stored?.data || null};
     }
     if (sub === '/action' && method === 'POST') {
       const body = await readBody(request, 30000) || {};

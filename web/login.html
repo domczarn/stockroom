@@ -27,6 +27,7 @@
       <form id="emailForm" novalidate>
         <label for="email">Email</label>
         <input id="email" name="email" type="email" inputmode="email" autocomplete="username webauthn" placeholder="you@example.com" required>
+        <div id="turnstile" class="turnstile" data-sitekey=""></div>
         <button type="submit" class="secondary" id="sendCode">Email me a code</button>
       </form>
       <p class="fine">New here? The same button creates your free account.</p>
