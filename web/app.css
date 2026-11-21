@@ -2187,3 +2187,9 @@ dialog[open]::backdrop { animation: dsFade .3s var(--ease) both !important; }
 .sheet-heading { background: transparent !important; }
 .stock-card h2, .stock-card h3, #view .stock-card h2, #view .stock-card h3 { font-size: 16px !important; line-height: 1.25 !important; letter-spacing: -0.02em !important; }
 .quick-add .qa-x:focus:not(:focus-visible), .close-panel:focus:not(:focus-visible) { outline: none !important; }
+/* Brand lockup: small "Booked & Paid" over the Stockroom wordmark */
+.brand-lockup { display: inline-grid; line-height: 1.05; }
+.brand-lockup small { font-family: var(--mono); font-size: 9.5px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; color: var(--accent-ink); opacity: .85; margin-bottom: 3px; }
+.brand-lockup b { font-size: 20px; font-weight: 650; letter-spacing: -0.035em; color: var(--ink); }
+.sidebar .brand .brand-lockup small { color: var(--accent-ink) !important; letter-spacing: .14em !important; }
+.launch-brand { font-family: var(--mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--accent-ink); margin-top: 6px; }

@@ -87,7 +87,7 @@ export async function authRoute(request, url, env) {
       const response = await (env.RESEND_FETCH || fetch)('https://api.resend.com/emails', {
         method: 'POST', signal: AbortSignal.timeout(10000),
         headers: {authorization: 'Bearer ' + env.RESEND_API_KEY, 'content-type': 'application/json'},
-        body: JSON.stringify({from: 'Stockroom <' + (env.AUTH_EMAIL_FROM || 'login@bookednpaid.com') + '>', to: [email], subject: code + ' is your Stockroom code', text, html}),
+        body: JSON.stringify({from: 'Booked & Paid Stockroom <' + (env.AUTH_EMAIL_FROM || 'login@bookednpaid.com') + '>', to: [email], subject: code + ' is your Stockroom code', text, html}),
       }).catch(() => null);
       if (!response?.ok) {
         console.log(JSON.stringify({auth: 'email_failed', status: response?.status || 0, message: (await response?.text().catch(() => '') || '').slice(0, 200)}));

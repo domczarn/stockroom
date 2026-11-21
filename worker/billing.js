@@ -46,7 +46,7 @@ async function prices(env) {
   const found = await stripe(env, 'GET', '/prices', {active: true, lookup_keys: keys, limit: 10});
   const byKey = Object.fromEntries((found.data || []).map(p => [p.lookup_key, p.id]));
   if (keys.some(k => !byKey[k])) {
-    const product = await stripe(env, 'POST', '/products', {name: 'Stockroom Pro', description: 'Unlimited stock, Gmail auto-updates and Pip AI.'});
+    const product = await stripe(env, 'POST', '/products', {name: 'Booked & Paid Stockroom Pro', description: 'Unlimited stock, Gmail auto-updates and Pip AI.'});
     for (const [interval, p] of Object.entries(PRICES)) if (!byKey[p.lookup]) {
       const price = await stripe(env, 'POST', '/prices', {product: product.id, currency: 'gbp', unit_amount: p.amount, recurring: {interval}, lookup_key: p.lookup, transfer_lookup_key: true});
       byKey[p.lookup] = price.id;
