@@ -1,7 +1,7 @@
 name = "stockroom"
 main = "dist/server/index.js"
 compatibility_date = "2025-11-01"
-workers_dev = true
+workers_dev = false
 
 # Gmail OAuth is pinned to this origin.
 routes = [{ pattern = "stockroom.bookednpaid.com", custom_domain = true }]

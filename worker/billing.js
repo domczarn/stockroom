@@ -34,7 +34,9 @@ async function stripe(env, method, path, data) {
   const result = await response.json().catch(() => ({}));
   if (!response.ok) {
     console.error('Stripe error', path, response.status, String(result?.error?.message || '').slice(0, 160));
-    throw new HttpError(502, 'Stripe didn’t respond properly. Try again in a minute.');
+    const error = new HttpError(502, 'Stripe didn’t respond properly. Try again in a minute.');
+    error.stripeStatus = response.status;
+    throw error;
   }
   return result;
 }
@@ -84,7 +86,11 @@ export async function planFor(env, user) {
       const sub = await stripe(env, 'GET', '/subscriptions/' + encodeURIComponent(row.stripe_subscription));
       await applySubscription(env, row.id, sub);
       if (LIVE.has(sub.status)) return {plan: 'pro', until: new Date(periodEnd(sub) + GRACE_MS).toISOString(), customer: true};
-    } catch { return {plan: 'pro', until: row.plan_until, customer: true}; } // Stripe down: don't lock people out
+    } catch (error) {
+      // Stripe unreachable or erroring: don't lock a paying customer out. But "no such subscription" means it's gone.
+      if (error?.stripeStatus !== 404) return {plan: 'pro', until: row.plan_until, customer: true};
+      await env.DB.prepare('UPDATE accounts SET stripe_subscription = NULL WHERE id = ?').bind(row.id).run();
+    }
   } else if (!row.plan_until) return {plan: 'pro', customer: Boolean(row.stripe_customer)}; // granted by hand
   await env.DB.prepare("UPDATE accounts SET plan = 'free' WHERE id = ?").bind(row.id).run();
   return {plan: 'free', customer: Boolean(row.stripe_customer)};
@@ -162,4 +168,21 @@ export async function billingRoute(request, url, env, user) {
     return planFor(env, user);
   }
   throw new HttpError(404, 'Not found');
+}
+
+// Self-serve account deletion: cancels any subscription, then removes every trace of the account.
+export async function deleteOwnAccount(request, env, user) {
+  if (request.method !== 'POST') throw new HttpError(405, 'Method not allowed.');
+  if (user.admin) throw new HttpError(400, 'The owner account can’t be deleted from here.');
+  const {confirm} = await readBody(request, 1000) || {};
+  if (confirm !== 'DELETE') throw new HttpError(400, 'Type DELETE to confirm.');
+  const row = await env.DB.prepare('SELECT stripe_subscription FROM accounts WHERE id = ?').bind(user.id).first().catch(() => null);
+  if (row?.stripe_subscription && env.STRIPE_SECRET_KEY) {
+    try { await stripe(env, 'DELETE', '/subscriptions/' + encodeURIComponent(row.stripe_subscription)); }
+    catch (error) { if (error?.stripeStatus !== 404) throw new HttpError(502, 'Couldn’t cancel your subscription. Try again, or cancel it in Manage billing first.'); }
+  }
+  const {deleteMember} = await import('./admin.js');
+  await deleteMember(env, user.id, String(user.email).toLowerCase());
+  await env.DB.prepare('INSERT INTO audit_events (id,actor_id,owner_id,action,created_at) VALUES (?,?,?,?,?)').bind(crypto.randomUUID(), user.id, user.email, 'member_deleted_self', new Date().toISOString()).run();
+  return {deleted: true};
 }

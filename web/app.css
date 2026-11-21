@@ -2481,3 +2481,6 @@ html body { background: url(/constellation.svg) right top / min(1100px, 140vw) a
 .studio-add .action, .studio-add select { max-width: 100%; }
 @media (max-width: 640px) { .studio-add .action, .studio-add select { width: 100% !important; } }
 .ai-status { margin: 4px 0 2px !important; font-size: 15px !important; } .ai-status.ok b { color: var(--good); } .ai-status.bad b { color: var(--bad); }
+.legal-page main h2 { font-size: 18px; margin: 26px 0 8px; } .legal-page main p, .legal-page main li { font-size: 15px; line-height: 1.6; color: var(--ink-2); }
+.legal-page main ul { padding-left: 20px; } .legal-page main li { margin: 6px 0; } .legal-page main b { color: var(--ink); }
+.legal-page main h1 { font-size: 30px; margin: 4px 0 2px; }

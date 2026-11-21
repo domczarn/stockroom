@@ -47,7 +47,7 @@ function upgradeSheet() {
     '<button type="button" role="radio" data-interval="year"><strong>£60 a year</strong><span>£5 a month · save £24</span></button>' +
     '<button type="button" role="radio" data-interval="month"><strong>£7 a month</strong><span>Cancel any time</span></button></div>' +
     '<button type="button" class="action" id="upgradeGo">Continue to secure payment</button><p id="upgradeError" role="alert" class="footnote"></p>' +
-    '<p class="footnote">Payments by Stripe. Cancel any time in Settings → Plan & billing.</p>';
+    '<p class="footnote">Payments by Stripe. Cancel any time in Settings → Plan & billing. By subscribing you agree to the <a href="/terms.html" target="_blank">Terms</a>.</p>';
   document.body.append(dialog);
   return dialog;
 }

@@ -11,7 +11,7 @@ import {offerRoute,askRoute,scanRoute} from './pipai.js';
 import {weeklyRoute,unsubscribePage} from './weekly.js';
 import {authRoute} from './auth.js';
 import {adminRoute,appSettings} from './admin.js';
-import {billingRoute,planFor,requirePro,checkNewItems,recordNewItems} from './billing.js';
+import {billingRoute,planFor,requirePro,checkNewItems,recordNewItems,deleteOwnAccount} from './billing.js';
 import {ADMIN_EMAIL,identity,authorize,adminOnly,readBody,validateWorkspace,storePhotos,audit,HttpError,emptyWorkspace,rateLimit,exactDate,paid,tx} from './security.js';
 const json = (value, status = 200) => new Response(JSON.stringify(value), {
   status, headers: {'content-type':'application/json','cache-control':'private, no-store'}
@@ -123,6 +123,7 @@ export default {
         }
         throw new HttpError(405,'Method not allowed.');
       }
+      if(url.pathname==='/api/account/delete'){const r=await deleteOwnAccount(request,env,user);return new Response(JSON.stringify(r),{headers:{'content-type':'application/json','cache-control':'no-store','set-cookie':'sr_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0'}});}
       if(url.pathname==='/api/billing'||url.pathname.startsWith('/api/billing/'))return json(await billingRoute(request,url,env,user));
       if(['/api/gmail/connect','/api/gmail/check'].includes(url.pathname)&&request.method==='POST')await requirePro(env,user,'Gmail auto-updates');
       if(url.pathname==='/api/gmail'||url.pathname.startsWith('/api/gmail/')){
@@ -201,7 +202,7 @@ export default {
         const owner=decodeURIComponent(media[1]);if(owner!==user.id)adminOnly(user);
         const object=await env.BUCKET.get('users/'+owner+'/'+media[2]);
         if(!object)throw new HttpError(404,'Photo unavailable');
-        return new Response(object.body,{headers:{'content-type':object.httpMetadata.contentType,'cache-control':'private, no-store','x-content-type-options':'nosniff','content-security-policy':"default-src 'none'"}});
+        return new Response(object.body,{headers:{'content-type':object.httpMetadata.contentType,'cache-control':'private, max-age=31536000, immutable','x-content-type-options':'nosniff','content-security-policy':"default-src 'none'"}});
       }
       if(url.pathname.startsWith('/api/admin/')&&!['/api/admin/members','/api/admin/audit'].includes(url.pathname))return json(await adminRoute(request,url,env,user));
       if(url.pathname==='/api/admin/members') {
@@ -302,9 +303,11 @@ export default {
       if (!['GET','HEAD'].includes(request.method)) return json({error:'Method not allowed'},405);
       if(url.pathname==='/seed.json' && !rawUser?.admin) return json({error:'Admin access required'},403);
       if (!(url.pathname in assets)) return new Response('Not found',{status:404});
+      const assetTag='"'+(JSON.parse(assets['/version.json']||'{}').version||'v')+'"';
+      if(request.headers.get('if-none-match')===assetTag&&url.pathname!=='/version.json')return new Response(null,{status:304,headers:{etag:assetTag,'cache-control':'private, no-cache'}});
       if(typeof assets[url.pathname] === 'object') { const a=assets[url.pathname];return new Response(request.method==='HEAD'?null:Uint8Array.from(atob(a.base64),c=>c.charCodeAt(0)),{headers:{'content-type':a.type,'cache-control':'private, max-age=3600','x-content-type-options':'nosniff'}});}
       const type = url.pathname.endsWith('.svg')?'image/svg+xml':url.pathname.endsWith('.webmanifest')?'application/manifest+json':url.pathname.endsWith('.js')?'text/javascript':url.pathname.endsWith('.css')?'text/css':url.pathname.endsWith('.json')?'application/json':'text/html';
-      return new Response(request.method === 'HEAD'?null:assets[url.pathname],{headers:{'content-type':type+';charset=utf-8','cache-control':'private, no-cache','x-content-type-options':'nosniff','referrer-policy':'same-origin','x-robots-tag':'noindex, nofollow','content-security-policy':url.pathname==='/receipt-ocr-worker.js' ? "default-src 'none'; script-src 'self' https://cdn.jsdelivr.net 'wasm-unsafe-eval'; connect-src 'self' https://cdn.jsdelivr.net" : "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; base-uri 'self'; frame-ancestors 'self'; form-action 'self'; object-src 'none'"}});
+      return new Response(request.method === 'HEAD'?null:assets[url.pathname],{headers:{'content-type':type+';charset=utf-8','cache-control':'private, no-cache',etag:assetTag,'x-content-type-options':'nosniff','referrer-policy':'same-origin','x-robots-tag':'noindex, nofollow','content-security-policy':url.pathname==='/receipt-ocr-worker.js' ? "default-src 'none'; script-src 'self' https://cdn.jsdelivr.net 'wasm-unsafe-eval'; connect-src 'self' https://cdn.jsdelivr.net" : "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; base-uri 'self'; frame-ancestors 'self'; form-action 'self'; object-src 'none'"}});
     } catch (error) {
       return json({error:error instanceof HttpError?error.message:'Stockroom could not complete this request. Please try again.'},error instanceof HttpError?error.status:500);
     }

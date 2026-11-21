@@ -2,11 +2,12 @@ import {build,transform} from 'esbuild';
 import {resolve} from 'node:path';
 import {readFile,writeFile,mkdir,rm} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
-const files = ['index.html','login.html','login.css','privacy.html','gmail.js','compat.js','app.js','finance-insights.js','shell.js','screenshots.js','revenue.js','pricing.js','tax.js','performance.js','addstock.js','refresh.js','autoupdate.js','customer.js','expenses.js','settings.js','billing.js','admin.js','studio.js','pipai.js','orders.js','labels.css','app.css','resources.js','resources-data.json','seed.json','receipt.js','listing.js','experience.js','manifest.webmanifest','favicon.svg','icon.svg','pip.svg','pip-orb.svg','constellation.svg','social.js','trading.js','bulk.js','stock.js','market.js','notifications.js','stockroom-sw.js'];
+const files = ['index.html','login.html','login.css','privacy.html','terms.html','gmail.js','compat.js','app.js','finance-insights.js','shell.js','screenshots.js','revenue.js','pricing.js','tax.js','performance.js','addstock.js','refresh.js','autoupdate.js','customer.js','expenses.js','settings.js','billing.js','admin.js','studio.js','pipai.js','orders.js','labels.css','app.css','resources.js','resources-data.json','seed.json','receipt.js','listing.js','experience.js','manifest.webmanifest','favicon.svg','icon.svg','pip.svg','pip-orb.svg','constellation.svg','social.js','trading.js','bulk.js','stock.js','market.js','notifications.js','stockroom-sw.js'];
 const assets = {};
 for (const file of files) {
   const source=await readFile('web/'+file,'utf8');
-  assets['/'+file]=file.endsWith('.js')?(await transform(source,{target:'es2019'})).code:source;
+  assets['/'+file]=file.endsWith('.js')?(await transform(source,{target:'es2019',minifyWhitespace:true,minifySyntax:true})).code
+    :file.endsWith('.css')?(await transform(source,{loader:'css',minify:true,target:['safari14','chrome100']})).code:source;
 }
 assets['/dialog-polyfill.js']=await readFile('node_modules/dialog-polyfill/dist/dialog-polyfill.js','utf8');
 assets['/dialog-polyfill.css']=(await readFile('node_modules/dialog-polyfill/dist/dialog-polyfill.css','utf8')).replace(/(^|\n)(dialog|\._dialog_overlay)/g,'$1.dialog-fallback $2');

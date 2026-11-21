@@ -90,7 +90,7 @@ async function sendInvite(env, email, origin) {
 }
 
 // Removes everything Stockroom holds for one person. Their audit history stays for the record.
-async function deleteMember(env, id, email) {
+export async function deleteMember(env, id, email) {
   const steps = [
     ['DELETE FROM workspaces WHERE owner_id = ?', id], ['DELETE FROM sessions WHERE account_id = ?', id], ['DELETE FROM passkeys WHERE account_id = ?', id],
     ['DELETE FROM accounts WHERE id = ?', id], ['DELETE FROM profiles WHERE user_id = ?', id], ['DELETE FROM gmail_connections WHERE owner_id = ?', id],

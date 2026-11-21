@@ -90,3 +90,29 @@ test('an expired paid period is re-checked with Stripe', async () => {
   await env.DB.prepare("UPDATE accounts SET plan_until = '2020-01-01T00:00:00Z' WHERE id = 'member-a'").run();
   assert.equal((await call(env, '/api/billing', 'a')).data.plan, 'free');
 });
+
+test('members can delete their own account; the subscription is cancelled first', async () => {
+  const env = environment();
+  const calls = fakeStripe(env);
+  await call(env, '/api/workspace', 'a', 'PUT', {data: workspace(2), revision: null});
+  await call(env, '/api/billing/confirm', 'a', 'POST', {sessionId: 'cs_test_abcdefghijk'});
+  assert.equal((await call(env, '/api/account/delete', 'a', 'POST', {confirm: 'nope'})).status, 400);
+  const r = await call(env, '/api/account/delete', 'a', 'POST', {confirm: 'DELETE'});
+  assert.equal(r.status, 200); assert.equal(r.data.deleted, true);
+  assert.ok(calls.some(c => c.method === 'DELETE' && c.path === '/v1/subscriptions/sub_123'));
+  assert.equal((await env.DB.prepare("SELECT COUNT(*) AS n FROM workspaces WHERE owner_id = 'member-a'").first()).n, 0);
+  assert.equal((await env.DB.prepare("SELECT COUNT(*) AS n FROM accounts WHERE id = 'member-a'").first()).n, 0);
+  assert.equal((await call(env, '/api/account/delete', 'admin', 'POST', {confirm: 'DELETE'})).status, 400);
+});
+
+test('a subscription Stripe no longer has stops Pro after the paid period', async () => {
+  const env = environment(); fakeStripe(env);
+  await call(env, '/api/billing/confirm', 'a', 'POST', {sessionId: 'cs_test_abcdefghijk'});
+  await env.DB.prepare("UPDATE accounts SET plan_until = '2020-01-01T00:00:00Z' WHERE id = 'member-a'").run();
+  env.STRIPE_FETCH = async () => new Response(JSON.stringify({error: {message: 'No such subscription'}}), {status: 404});
+  assert.equal((await call(env, '/api/billing', 'a')).data.plan, 'free');
+  // A temporary Stripe outage doesn't lock out a paying customer.
+  await env.DB.prepare("UPDATE accounts SET plan = 'pro', stripe_subscription = 'sub_x', plan_until = '2020-01-01T00:00:00Z' WHERE id = 'member-a'").run();
+  env.STRIPE_FETCH = async () => new Response('{}', {status: 500});
+  assert.equal((await call(env, '/api/billing', 'a')).data.plan, 'pro');
+});
