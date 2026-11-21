@@ -32,13 +32,14 @@ function applyProfile(next) {
 
 function updateUnreadBadge() {
   const count = friends.reduce((sum,friend)=>sum+(friend.unread||0),0);
-  for(const id of ['mobileUnread','desktopUnread']){
+  for(const id of ['mobileUnread','desktopUnread','menuUnread']){
     const badge=$(id);
     if(!badge)continue;
     badge.hidden=!count;
     badge.textContent=count>99?'99+':String(count);
     if(count)badge.setAttribute('aria-label',count+' unread messages');
   }
+  if($('menuDot'))$('menuDot').hidden=!count;
   renderNotifications();
 }
 
