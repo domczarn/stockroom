@@ -50,3 +50,17 @@ test('signed-out visitors get the login page; passkey routes need a session', as
   const opts = await (await post(env, '/auth/passkey/login/options', {})).json();
   assert.equal(opts.options.rpId, 'stockroom.bookednpaid.com');
 });
+
+test('sign-in codes are sent through Resend', async () => {
+  const env = environment(); env.RESEND_API_KEY = 're_fixture';
+  let sent;
+  env.RESEND_FETCH = async (url, init) => { sent = {url, init: JSON.parse(init.body), auth: init.headers.authorization}; return new Response('{"id":"x"}', {status: 200}); };
+  const r = await post(env, '/auth/code', {email: 'buyer@example.test'});
+  assert.deepEqual(await r.json(), {sent: true});
+  assert.equal(sent.url, 'https://api.resend.com/emails');
+  assert.equal(sent.auth, 'Bearer re_fixture');
+  assert.deepEqual(sent.init.to, ['buyer@example.test']);
+  assert.match(sent.init.subject, /^\d{6} is your Stockroom code$/);
+  env.RESEND_FETCH = async () => new Response('bad', {status: 422});
+  assert.equal((await post(env, '/auth/code', {email: 'other@example.test'})).status, 502);
+});

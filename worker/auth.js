@@ -82,12 +82,15 @@ export async function authRoute(request, url, env) {
     const code = String(crypto.getRandomValues(new Uint32Array(1))[0] % 1000000).padStart(6, '0');
     await env.DB.prepare('INSERT INTO login_codes (email, code_hash, expires_at, attempts) VALUES (?, ?, ?, 0) ON CONFLICT(email) DO UPDATE SET code_hash = excluded.code_hash, expires_at = excluded.expires_at, attempts = 0')
       .bind(email, await sha(email + ':' + code), Date.now() + CODE_MINUTES * 60000).run();
-    if (env.EMAIL) {
+    if (env.RESEND_API_KEY) {
       const {text, html} = codeEmail(code);
-      try {
-        await env.EMAIL.send({from: {email: env.AUTH_EMAIL_FROM || 'stockroom@bookednpaid.com', name: 'Stockroom'}, to: email, subject: code + ' is your Stockroom code', text, html});
-      } catch (error) {
-        console.log(JSON.stringify({auth: 'email_failed', message: String(error?.message || error).slice(0, 200)}));
+      const response = await (env.RESEND_FETCH || fetch)('https://api.resend.com/emails', {
+        method: 'POST', signal: AbortSignal.timeout(10000),
+        headers: {authorization: 'Bearer ' + env.RESEND_API_KEY, 'content-type': 'application/json'},
+        body: JSON.stringify({from: 'Stockroom <' + (env.AUTH_EMAIL_FROM || 'login@bookednpaid.com') + '>', to: [email], subject: code + ' is your Stockroom code', text, html}),
+      }).catch(() => null);
+      if (!response?.ok) {
+        console.log(JSON.stringify({auth: 'email_failed', status: response?.status || 0, message: (await response?.text().catch(() => '') || '').slice(0, 200)}));
         throw new HttpError(502, 'We couldn’t send the email just now. Try again in a minute.');
       }
       return json({sent: true});
