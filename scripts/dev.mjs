@@ -4,6 +4,21 @@ import {readFile} from 'node:fs/promises';
 import {environment} from '../tests/support.mjs';
 import app from '../dist/server/app.js';
 const env=environment();
+// Optional demo members for previewing the admin console (SEED_MEMBERS=1).
+if(process.env.SEED_MEMBERS){
+ const day=86400000,iso=d=>new Date(Date.now()-d*day).toISOString();
+ const people=[['sam','sam.reseller@example.com',2,14,'pro',null,1],['alex','alex.v@example.com',9,22,'free',null,0],['jo','jo.vintage@example.com',20,3,'free',null,0],['mia','mia@example.com',1,0,'free',null,0],['lee','lee.thrift@example.com',40,48,'pro',iso(-300),0]];
+ for(const [id,email,joined,items,plan,until,paid] of people){
+  env.sql.prepare("INSERT INTO members (email,user_id,name,status,created_at) VALUES (?,?,?,?,?)").run(email,id,id[0].toUpperCase()+id.slice(1),'active',iso(joined));
+  env.sql.prepare("INSERT INTO accounts (id,email,created_at,plan,plan_until,stripe_customer,stripe_subscription) VALUES (?,?,?,?,?,?,?)").run(id,email,iso(joined),plan,until,paid?'cus_demo':null,paid?'sub_demo':null);
+  const its=Array.from({length:items},(_,i)=>({id:id+i,name:'Item '+i,cost:5,price:15,status:i%3?'In Stock':'Sold',sale:i%3?null:18,photos:[],purchasedAt:'2026-11-01'}));
+  env.sql.prepare("INSERT INTO workspaces (owner_id,payload,revision,updated_at) VALUES (?,?,?,?)").run(id,JSON.stringify({items:its,sales:[],expenses:[],research:[],sources:[]}),'r',iso(joined/3));
+  for(let i=0;i<Math.min(items,20);i++)env.sql.prepare("INSERT INTO item_adds (owner_id,item_id,month) VALUES (?,?,?)").run(id,id+i,new Date().toISOString().slice(0,7));
+  env.sql.prepare("INSERT INTO sessions (token_hash,account_id,created_at,expires_at,device) VALUES (?,?,?,?,?)").run('t'+id,id,Date.now()-joined*day/4,Date.now()+day*30,'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0)');
+ }
+ env.sql.prepare("INSERT INTO members (email,name,status,created_at) VALUES ('invited@example.com','invited','active',?)").run(iso(0));
+ env.sql.prepare("UPDATE members SET status='suspended' WHERE email='mia@example.com'").run();
+}
 http.createServer(async(req,res)=>{
  try{
   const url=new URL(req.url,'http://localhost');

@@ -7,6 +7,7 @@ import { socialRoute, ownProfile, findConnection } from './social.js';
 import { pipSvg } from './pip.js';
 import {visionRoute,writeListingRoute} from './vision.js';
 import {authRoute} from './auth.js';
+import {adminRoute,appSettings} from './admin.js';
 import {billingRoute,planFor,requirePro,checkNewItems,recordNewItems} from './billing.js';
 import {ADMIN_EMAIL,identity,authorize,adminOnly,readBody,validateWorkspace,storePhotos,audit,HttpError,emptyWorkspace,rateLimit,exactDate,paid,tx} from './security.js';
 const json = (value, status = 200) => new Response(JSON.stringify(value), {
@@ -154,7 +155,7 @@ export default {
         const result=await socialRoute(request,url,env,user,context);
         if(result)return json(result);
       }
-      if (url.pathname === '/api/me' && request.method === 'GET') return json({user:{id:user.id,email:user.email,role:user.admin?'admin':'member'},profile:await ownProfile(env,user),plan:(await planFor(env,user)).plan,sessionManagedBy:'Stockroom'});
+      if (url.pathname === '/api/me' && request.method === 'GET') return json({user:{id:user.id,email:user.email,role:user.admin?'admin':'member'},profile:await ownProfile(env,user),plan:(await planFor(env,user)).plan,announcement:await (async()=>{const a=await appSettings(env);return a.announcement_on==='1'&&a.announcement?{text:a.announcement,tone:a.announcement_tone}:null;})(),sessionManagedBy:'Stockroom'});
       if (url.pathname === '/api/workspace') {
         const owner=url.searchParams.get('owner')||user.id;
         if(owner!==user.id){adminOnly(user);if(request.method!=='GET')throw new HttpError(403,'Other accounts are read-only.');}
@@ -193,6 +194,7 @@ export default {
         if(!object)throw new HttpError(404,'Photo unavailable');
         return new Response(object.body,{headers:{'content-type':object.httpMetadata.contentType,'cache-control':'private, no-store','x-content-type-options':'nosniff','content-security-policy':"default-src 'none'"}});
       }
+      if(url.pathname.startsWith('/api/admin/')&&!['/api/admin/members','/api/admin/audit'].includes(url.pathname))return json(await adminRoute(request,url,env,user));
       if(url.pathname==='/api/admin/members') {
         adminOnly(user);
         if(request.method==='GET') {

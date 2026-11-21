@@ -2,6 +2,7 @@
 // Sessions are random tokens in an HttpOnly cookie; only their SHA-256 hash is stored.
 import {generateRegistrationOptions, verifyRegistrationResponse, generateAuthenticationOptions, verifyAuthenticationResponse} from '@simplewebauthn/server';
 import {HttpError, readBody, ADMIN_EMAIL} from './security.js';
+import {appSettings} from './admin.js';
 
 const COOKIE = 'sr_session';
 const SESSION_DAYS = 60, CODE_MINUTES = 10, MAX_ATTEMPTS = 5;
@@ -81,6 +82,11 @@ export async function authRoute(request, url, env) {
     const email = normaliseEmail(raw);
     if (!validEmail(email)) throw new HttpError(400, 'Enter a valid email address.');
     await limit(env, 'ip:' + ip, 20); await limit(env, 'code:' + email, 5);
+    // Invite-only mode: only people who already have an account or were invited get a code.
+    if (email !== ADMIN_EMAIL && (await appSettings(env)).signups_open === '0') {
+      const known = await env.DB.prepare('SELECT 1 FROM accounts WHERE email = ? UNION SELECT 1 FROM members WHERE email = ?').bind(email, email).first();
+      if (!known) throw new HttpError(403, 'Stockroom is invite-only right now. Ask for an invite at info@bookednpaid.com.');
+    }
     const code = String(crypto.getRandomValues(new Uint32Array(1))[0] % 1000000).padStart(6, '0');
     await env.DB.prepare('INSERT INTO login_codes (email, code_hash, expires_at, attempts) VALUES (?, ?, ?, 0) ON CONFLICT(email) DO UPDATE SET code_hash = excluded.code_hash, expires_at = excluded.expires_at, attempts = 0')
       .bind(email, await sha(email + ':' + code), Date.now() + CODE_MINUTES * 60000).run();

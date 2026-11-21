@@ -2,6 +2,7 @@
 // Free: 20 new stock items a month. Pro (£7/month or £60/year): unlimited items, Gmail auto-updates and Pip AI.
 // No webhook needed: the plan is confirmed when checkout returns, and re-checked with Stripe when the paid period ends.
 import {HttpError, readBody} from './security.js';
+import {freeLimit} from './admin.js';
 
 export const FREE_ITEMS_PER_MONTH = 20;
 const PRICES = {
@@ -101,9 +102,9 @@ export async function checkNewItems(env, user, previousItems, nextItems) {
   const before = new Set((previousItems || []).map(item => item.id));
   const added = (nextItems || []).map(item => item.id).filter(id => !before.has(id));
   if (!added.length || await isPro(env, user)) return added;
-  const used = await itemsThisMonth(env, user.id);
-  if (used + added.length > FREE_ITEMS_PER_MONTH)
-    throw new HttpError(402, 'You’ve added ' + used + ' of ' + FREE_ITEMS_PER_MONTH + ' free items this month. Go Pro for unlimited stock.');
+  const used = await itemsThisMonth(env, user.id), cap = await freeLimit(env);
+  if (used + added.length > cap)
+    throw new HttpError(402, 'You’ve added ' + used + ' of ' + cap + ' free items this month. Go Pro for unlimited stock.');
   return added;
 }
 export async function recordNewItems(env, ownerId, added) {
@@ -115,7 +116,7 @@ export async function billingRoute(request, url, env, user) {
   const origin = url.origin;
   if (url.pathname === '/api/billing' && request.method === 'GET') {
     const plan = await planFor(env, user);
-    return {...plan, used: await itemsThisMonth(env, user.id), limit: FREE_ITEMS_PER_MONTH, prices: {month: PRICES.month.label, year: PRICES.year.label}, ready: Boolean(env.STRIPE_SECRET_KEY)};
+    return {...plan, used: await itemsThisMonth(env, user.id), limit: await freeLimit(env), prices: {month: PRICES.month.label, year: PRICES.year.label}, ready: Boolean(env.STRIPE_SECRET_KEY)};
   }
   if (request.method !== 'POST') throw new HttpError(405, 'Method not allowed.');
   const body = await readBody(request, 4000) || {};

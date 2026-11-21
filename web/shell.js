@@ -6,7 +6,7 @@ const SECTIONS = [
   {key:'stock', label:'Stock', tabs:[['Stock','Collection'],['Orders','Bulk orders'],['Buying insights','Performance'],['Buying research','Market research']]},
   {key:'money', label:'Money', tabs:[['Activity','Transactions'],['Expenses','Expenses'],['Reports','Reports']]},
   {key:'care', label:'Customer care', tabs:[['Customer care','Customer care']]},
-  {key:'account', label:'Account', tabs:[['Account','Settings'],['Profile','Community'],['Leaderboard','Leaderboard'],['Admin','Members','admin']]}
+  {key:'account', label:'Account', tabs:[['Account','Settings'],['Profile','Community'],['Leaderboard','Leaderboard'],['Admin','Admin','admin']]}
 ];
 const sectionOf = name => SECTIONS.find(section => section.tabs.some(([id]) => id === name)) || SECTIONS[0];
 
