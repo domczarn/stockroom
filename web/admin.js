@@ -117,9 +117,17 @@ function admActivity() {
     '<section class="panel adm-list">' + (rows.length ? rows.map(e => '<div class="adm-event"><span class="adm-dot ' + (/suspend|delete/.test(e.action) ? 'bad' : /pro|invite|joined|reactiv/.test(e.action) ? 'good' : '') + '"></span><span class="adm-who"><b>' + esc(actionLabel(e.action)) + '</b><small>' + esc(e.target || '') + (e.actor && e.actor !== e.target ? ' · by ' + esc(e.actor) : '') + '</small></span><time>' + esc(ago(e.at)) + '</time></div>').join('') : '<p class="footnote">No activity matches.</p>') + '</section>';
 }
 
+let adminAi = null;
+async function admLoadAi() { adminAi = {checking: true}; if (tab === 'Admin') render(); try { adminAi = await api('/api/admin/ai-status'); } catch (error) { adminAi = {ok: false, reason: error.message}; } if (tab === 'Admin') render(); }
+function admAiCard() {
+  const a = adminAi;
+  const body = !a ? '<p>Check whether Pip is using Claude or the free model.</p>' : a.checking ? '<p>Checking with Anthropic…</p>'
+    : '<p class="ai-status ' + (a.ok ? 'ok' : 'bad') + '"><b>' + (a.ok ? '✓ Claude connected' : '✕ Not using Claude') + '</b>' + (a.model ? ' · ' + esc(a.model) : '') + '</p><p class="footnote">' + esc(a.reason) + '</p>';
+  return '<section class="panel"><h2>Pip’s AI</h2>' + body + '<button type="button" class="secondary" data-adm-ai>' + (a ? 'Check again' : 'Check connection') + '</button></section>';
+}
 function admSettings() {
   const s = adminData.settings;
-  return '<section class="panel"><h2>Sign-ups</h2>' +
+  return admAiCard() + '<section class="panel"><h2>Sign-ups</h2>' +
     '<label class="adm-switch"><input type="checkbox" id="admSignups"' + (s.signups_open === '1' ? ' checked' : '') + '><span></span><div><b>Anyone can sign up</b><small>Turn off for invite-only. Existing members can always sign in.</small></div></label></section>' +
     '<section class="panel"><h2>Free plan</h2><label>New items per month on Free<input type="number" id="admFreeLimit" min="0" max="10000" step="1" inputmode="numeric" value="' + esc(s.free_limit) + '"></label><p class="footnote">Pro is always unlimited. Changes apply immediately.</p></section>' +
     '<section class="panel"><h2>Announcement banner</h2><p>Shows at the top of the app for every member. Good for updates, new features or downtime.</p>' +
@@ -207,6 +215,7 @@ document.addEventListener('click', async event => {
   const tabBtn = t.closest('[data-adm-tab]');
   if (tabBtn) { adminTab = tabBtn.dataset.admTab; render(); return; }
   if (t.closest('[data-adm-reload]')) { await loadAdmin(); render(); return; }
+  if (t.closest('[data-adm-ai]')) { await admLoadAi(); return; }
   const filter = t.closest('[data-adm-filter]');
   if (filter) { adminFilter = filter.dataset.admFilter; render(); return; }
   const open = t.closest('[data-adm-open]');

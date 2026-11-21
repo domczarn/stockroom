@@ -78,3 +78,23 @@ export function jsonFrom(text, message = 'Pip wrote something unusable. Try agai
   try { return JSON.parse(match[0]); } catch {}
   try { return JSON.parse(repairJson(match[0])); } catch { throw new HttpError(502, message); }
 }
+
+// Admin check: is Pip really talking to Claude? Makes a tiny request and reports the exact reason if not.
+export async function aiStatus(env) {
+  const model = env.ANTHROPIC_MODEL || 'claude-haiku-5-5';
+  if (!env.ANTHROPIC_API_KEY) return {provider: env.AI ? 'cloudflare' : 'none', model: null, ok: false, reason: 'No ANTHROPIC_API_KEY secret is set on the stockroom Worker, so Pip uses the free Cloudflare model.'};
+  const response = await (env.ANTHROPIC_FETCH || fetch)('https://api.anthropic.com/v1/messages', {
+    method: 'POST', signal: AbortSignal.timeout(20000),
+    headers: {'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json'},
+    body: JSON.stringify({model, max_tokens: 5, messages: [{role: 'user', content: 'Say OK'}]}),
+  }).catch(error => ({ok: false, status: 0, text: async () => String(error?.message || error)}));
+  if (response.ok) return {provider: 'claude', model, ok: true, reason: 'Claude is connected and answering.'};
+  let detail = '';
+  try { const body = JSON.parse(await response.text()); detail = body?.error?.message || ''; } catch {}
+  const reason = response.status === 401 ? 'Anthropic rejected the key. Re-copy it into the ANTHROPIC_API_KEY secret.'
+    : response.status === 400 && /credit/i.test(detail) ? 'Your Anthropic account has no credit. Add credit under Billing.'
+    : response.status === 404 ? 'The model "' + model + '" wasn’t found on your account.'
+    : response.status === 429 ? 'Anthropic is rate limiting this key right now.'
+    : 'Anthropic returned an error' + (response.status ? ' (' + response.status + ')' : '') + '.';
+  return {provider: env.AI ? 'cloudflare' : 'none', model, ok: false, reason: reason + (detail ? ' Details: ' + detail.slice(0, 200) : '') + ' Pip is using the free Cloudflare model until this is fixed.'};
+}

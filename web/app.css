@@ -2480,3 +2480,4 @@ html body { background: url(/constellation.svg) right top / min(1100px, 140vw) a
 .studio-hero > div { min-width: 0; flex: 1; width: 100%; }
 .studio-add .action, .studio-add select { max-width: 100%; }
 @media (max-width: 640px) { .studio-add .action, .studio-add select { width: 100% !important; } }
+.ai-status { margin: 4px 0 2px !important; font-size: 15px !important; } .ai-status.ok b { color: var(--good); } .ai-status.bad b { color: var(--bad); }

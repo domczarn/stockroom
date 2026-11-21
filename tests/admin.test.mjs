@@ -105,3 +105,13 @@ test('weekly report sends once per person on Monday morning and respects unsubsc
   assert.equal((await call(env, '/api/pip/weekly', 'a')).data.weekly, false);
   assert.equal((await app.fetch(new Request('https://test.local/email/unsubscribe?u=member-a&t=forged'), env)).status, 400);
 });
+
+test('AI status explains why Claude is or is not in use', async () => {
+  const env = await seeded();
+  assert.match((await call(env, '/api/admin/ai-status', 'admin')).data.reason, /No ANTHROPIC_API_KEY/);
+  env.ANTHROPIC_API_KEY = 'k'; env.ANTHROPIC_FETCH = async () => new Response(JSON.stringify({error: {message: 'Your credit balance is too low'}}), {status: 400});
+  assert.match((await call(env, '/api/admin/ai-status', 'admin')).data.reason, /no credit/);
+  env.ANTHROPIC_FETCH = async () => new Response('{}', {status: 200});
+  assert.equal((await call(env, '/api/admin/ai-status', 'admin')).data.ok, true);
+  assert.equal((await call(env, '/api/admin/ai-status', 'a')).status, 403);
+});

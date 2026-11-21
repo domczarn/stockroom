@@ -1,6 +1,7 @@
 // Admin console API: overview stats, member management, invites, activity and app-wide settings.
 // Every route here is owner-only and every change is written to the audit log.
 import {HttpError, readBody, audit, adminOnly, ADMIN_EMAIL} from './security.js';
+import {aiStatus} from './llm.js';
 
 const DEFAULTS = {signups_open: '1', free_limit: '20', announcement: '', announcement_on: '0', announcement_tone: 'info'};
 const validEmail = email => email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
@@ -114,6 +115,7 @@ export async function adminRoute(request, url, env, user) {
   const method = request.method;
 
   if (path === '/overview' && method === 'GET') return overview(env);
+  if (path === '/ai-status' && method === 'GET') return aiStatus(env);
 
   if (path === '/people' && method === 'GET') {
     const rows = (await env.DB.prepare(MEMBER_SQL + ' ORDER BY m.created_at DESC LIMIT 2000').bind(Date.now(), month()).all()).results.map(shape);
