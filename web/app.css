@@ -2315,3 +2315,20 @@ dialog[open]::backdrop { animation: dsFade .3s var(--ease) both !important; }
 .studio-dialog > .action { width: 100%; }
 .preview-photo button.studio-btn { position: absolute !important; top: auto !important; right: auto !important; left: 4px !important; bottom: 4px !important; width: auto !important; height: auto !important; min-width: 0 !important; min-height: 0 !important; padding: 3px 7px !important; border-radius: 999px !important; font-size: 10.5px !important; line-height: 1.2 !important; color: #fff !important; background: rgba(20,18,30,.78) !important; display: inline-flex !important; white-space: nowrap; }
 .preview-photo button:not(.studio-btn) { color: #111 !important; font-size: 16px !important; line-height: 1 !important; display: grid !important; place-items: center !important; padding: 0 !important; }
+
+/* ---------- Offer helper ---------- */
+.pip-offer-btn { width: 100%; margin-top: 8px; }
+.offer-pip { margin-top: 12px; padding: 14px; border-radius: 16px; border: 1px solid var(--line-2); background: var(--bg-2); animation: dsPopIn .35s var(--ease) both; }
+.offer-pip[hidden] { display: none; }
+.offer-pip.thinking { display: flex; gap: 12px; align-items: center; border-color: var(--accent-line); background: var(--accent-bg); }
+.offer-pip.thinking div { display: grid; gap: 2px; } .offer-pip.thinking small { color: var(--ink-2); font-size: 12.5px; }
+.offer-verdict { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.offer-verdict b { font-size: 20px; letter-spacing: -0.02em; }
+.offer-verdict small { color: var(--ink-2); font-size: 13px; }
+.offer-pip.accept { border-color: rgba(74,211,138,.4); } .offer-pip.accept .offer-verdict b { color: var(--good); }
+.offer-pip.counter { border-color: var(--accent-line); } .offer-pip.counter .offer-verdict b { color: var(--accent-ink); }
+.offer-pip.decline { border-color: rgba(255,107,112,.4); } .offer-pip.decline .offer-verdict b { color: var(--bad); }
+.offer-pip > p { margin: 8px 0 0 !important; font-size: 14px !important; color: var(--ink-2) !important; }
+.offer-reply { margin-top: 12px; padding: 12px; border-radius: 12px; background: var(--bg-1); border: 1px solid var(--line); }
+.offer-reply p { margin: 6px 0 10px !important; color: var(--ink) !important; font-size: 14.5px !important; }
+.weekly-box { display: grid; gap: 10px; justify-items: start; padding-bottom: 14px; margin-bottom: 4px; border-bottom: 1px solid var(--line); }

@@ -78,7 +78,7 @@ function stockMore(item) {
   const workflow=stockWorkflow(item);
   const order=item.status==='Sold'&&lastTrade(db,item.id);
   const extras=(item.status==='In Stock'?
-    (workflow==='listed'?'':tradeButton('sale','Record sale',item.id))+tradeButton('offer','Offer check',item.id):
+    (workflow==='listed'?'':tradeButton('sale','Record sale',item.id))+tradeButton('offer','Got an offer?',item.id):
     order&&tradeStatus(order)==='Sold'?tradeButton('order','View order',item.id):'')+tradeButton('label','Label',item.id);
   return '<details class="stock-more"><summary aria-label="More actions for '+esc(item.name)+'">⋯</summary><div>'+
     '<button class="secondary" type="button" data-edit="'+id+'">Edit item</button>'+

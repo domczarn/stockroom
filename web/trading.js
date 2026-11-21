@@ -207,8 +207,10 @@ function tradeEditor(action,itemId='',receipt=null) {
       '<label>Reason<input name="reason" required maxlength="500" placeholder="Why was the sale refunded?"></label>'+moneyInput('postage','Return postage (£)',0)+
       '<label class="social-toggle"><input type="checkbox" name="restock"> Return the item to stock for inspection</label>';
   } else if(action==='offer') {
-    title='Check an offer';
-    content='<p>Purchase cost '+gbp(item.cost)+' · Linked expenses '+gbp(total(db.expenses.filter(row=>row[6]===item.id),row=>row[1]))+'</p>'+moneyInput('amount','Offer (£)',item.price??0)+moneyInput('extra','Additional costs (£)',0)+moneyInput('goal','Target profit (£)',15)+'<div id="offerResult" class="profit-preview" aria-live="polite"></div>';
+    title='Got an offer?';
+    content='<p>Purchase cost '+gbp(item.cost)+' · Linked expenses '+gbp(total(db.expenses.filter(row=>row[6]===item.id),row=>row[1]))+'</p>'+moneyInput('amount','Offer (£)',item.price??0)+moneyInput('extra','Additional costs (£)',0)+moneyInput('goal','Target profit (£)',15)+'<div id="offerResult" class="profit-preview" aria-live="polite"></div>'+
+      '<label>Buyer’s message <small>optional</small><textarea name="buyerMessage" rows="2" maxlength="800" placeholder="Paste what the buyer said, e.g. “Would you take £10?”"></textarea></label>'+
+      '<button type="button" class="action pip-offer-btn" data-pip-offer><span class="pw-spark" aria-hidden="true"></span>Ask Pip what to do</button><div id="offerPip" class="offer-pip" aria-live="polite" hidden></div>';
   } else if(['bundleBuy','bundleSell'].includes(action)) {
     title=action==='bundleBuy'?'Allocate bundle purchase':'Record bundle sale';
     const eligible=db.items.filter(i=>!i.deletedAt&&i.status==='In Stock'&&(action==='bundleSell'||!lastTrade(db,i.id)));

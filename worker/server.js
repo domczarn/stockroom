@@ -7,6 +7,8 @@ import { socialRoute, ownProfile, findConnection } from './social.js';
 import { pipSvg } from './pip.js';
 import {visionRoute,writeListingRoute} from './vision.js';
 import {studioRoute} from './studio.js';
+import {offerRoute} from './pipai.js';
+import {weeklyRoute,unsubscribePage} from './weekly.js';
 import {authRoute} from './auth.js';
 import {adminRoute,appSettings} from './admin.js';
 import {billingRoute,planFor,requirePro,checkNewItems,recordNewItems} from './billing.js';
@@ -92,6 +94,7 @@ export default {
         if (request.headers.get('sec-fetch-site') === 'cross-site') throw new HttpError(403,'Cross-site write blocked');
       }
       if(url.pathname.startsWith('/auth/'))return await authRoute(request,url,env);
+      if(url.pathname==='/email/unsubscribe'&&request.method==='GET')return await unsubscribePage(url,env);
       if(url.pathname==='/login'&&['GET','HEAD'].includes(request.method))return identity(request)?Response.redirect(url.origin+'/',302):loginPage(request);
       const rawUser=identity(request);
       const importRoute = ['/api/purchases','/api/sync-status','/api/sale-imports','/api/market-research'].includes(url.pathname) || /^\/api\/photos\//.test(url.pathname);
@@ -126,8 +129,10 @@ export default {
         const result=await gmailRoute(request,url,env,user,context);
         return result instanceof Response?result:json(result);
       }
-      if((url.pathname.startsWith('/api/vision/')||url.pathname.startsWith('/api/pip/'))&&request.method==='POST')await requirePro(env,user,'Pip AI');
+      if((url.pathname.startsWith('/api/vision/')||(url.pathname.startsWith('/api/pip/')&&!url.pathname.startsWith('/api/pip/weekly')))&&request.method==='POST')await requirePro(env,user,'Pip AI');
       if(url.pathname==='/api/pip/studio')return json(await studioRoute(request,env,user));
+      if(url.pathname==='/api/pip/offer')return json(await offerRoute(request,env,user));
+      if(url.pathname.startsWith('/api/pip/weekly'))return json(await weeklyRoute(request,url,env,user));
       if(url.pathname==='/api/vision/listing')return json(await visionRoute(request,env,user));
       if(url.pathname==='/api/vision/write-listing')return json(await writeListingRoute(request,env,user));
       if(url.pathname==='/api/market-research')return json(await marketResearchRoute(request,env,user));

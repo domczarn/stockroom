@@ -75,3 +75,26 @@ test('photo studio asks Cloudflare Images for a foreground cutout', async () => 
   assert.deepEqual(calls, [{segment: 'foreground'}, {format: 'image/png'}]);
   await assert.rejects(studioRoute(req({image: png}), {}, {id: 'u1'}), /isn’t switched on/);
 });
+
+import {offerRoute} from '../worker/pipai.js';
+const jreq = body => new Request('https://x/api/pip/offer', {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify(body)});
+test('offer helper never counters below cost and accepts full-price offers', async () => {
+  const claude = reply => ({ANTHROPIC_API_KEY: 'k', ANTHROPIC_FETCH: async () => new Response(JSON.stringify({content: [{type: 'text', text: JSON.stringify(reply)}]}), {status: 200})});
+  let r = await offerRoute(jreq({offer: 8, cost: 6, asking: 15, goal: 5}), claude({verdict: 'counter', counter: 5, reason: 'x', reply: 'Could do £12?'}), {id: 'u'});
+  assert.equal(r.verdict, 'counter'); assert.ok(r.counter >= 8.5 && r.counter <= 15, String(r.counter));
+  r = await offerRoute(jreq({offer: 15, cost: 6, asking: 15}), claude({verdict: 'decline', reason: 'x', reply: 'Deal!'}), {id: 'u'});
+  assert.equal(r.verdict, 'accept');
+  r = await offerRoute(jreq({offer: 4, cost: 6, asking: 15}), claude({verdict: 'accept', reason: 'x', reply: 'No thanks'}), {id: 'u'});
+  assert.equal(r.verdict, 'decline');
+});
+
+import {weeklyNumbers, scheduledWeekly} from '../worker/weekly.js';
+test('weekly report numbers cover the last 7 days', () => {
+  const now = Date.parse('2026-11-23T09:00:00Z');
+  const n = weeklyNumbers({items: [
+    {id: 'a', name: 'Nike', status: 'Sold', sale: 20, cost: 5, soldAt: '2026-11-20', purchasedAt: '2026-11-01'},
+    {id: 'b', name: 'Adidas', status: 'Sold', sale: 10, cost: 4, soldAt: '2026-11-10', purchasedAt: '2026-11-01'},
+    {id: 'c', name: 'Old', status: 'In Stock', cost: 3, listedAt: '2026-09-01', purchasedAt: '2026-11-18'}]}, now);
+  assert.deepEqual([n.sold, n.revenue, n.profit, n.prevRevenue, n.added, n.inStock, n.stale], [1, 20, 15, 10, 1, 1, 1]);
+  assert.equal(n.best.item.name, 'Nike');
+});

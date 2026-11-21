@@ -90,3 +90,18 @@ test('invites, invite-only mode, free limit and announcements', async () => {
   assert.equal((await call(env, '/api/workspace', 'b', 'PUT', {data: ws(3), revision: null})).status, 402);
   assert.equal((await call(env, '/api/billing', 'b')).data.limit, 2);
 });
+
+import {scheduledWeekly} from '../worker/weekly.js';
+test('weekly report sends once per person on Monday morning and respects unsubscribe', async () => {
+  const env = await seeded(); env.RESEND_API_KEY = 're_fixture';
+  const sent = []; env.RESEND_FETCH = async (url, init) => { sent.push(JSON.parse(init.body)); return new Response('{}', {status: 200}); };
+  const monday = new Date('2026-11-23T09:30:00Z'), sunday = new Date('2026-11-22T09:30:00Z');
+  await scheduledWeekly(env, sunday); assert.equal(sent.length, 0);
+  await scheduledWeekly(env, monday); await scheduledWeekly(env, monday);
+  assert.equal(sent.length, 1); assert.deepEqual(sent[0].to, ['a@example.com']);
+  const link = sent[0].text.match(/https?:\/\/\S+\/email\/unsubscribe\S+/)[0];
+  const page = await app.fetch(new Request(link.replace(/^https?:\/\/[^/]+/, 'https://test.local')), env);
+  assert.equal(page.status, 200);
+  assert.equal((await call(env, '/api/pip/weekly', 'a')).data.weekly, false);
+  assert.equal((await app.fetch(new Request('https://test.local/email/unsubscribe?u=member-a&t=forged'), env)).status, 400);
+});

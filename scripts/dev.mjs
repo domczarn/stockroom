@@ -4,6 +4,12 @@ import {readFile} from 'node:fs/promises';
 import {environment} from '../tests/support.mjs';
 import app from '../dist/server/app.js';
 const env=environment();
+// Preview stand-in for Claude: canned answers so AI screens can be checked without a key.
+env.ANTHROPIC_API_KEY='dev-preview';env.ANTHROPIC_FETCH=async(url,init)=>{const p=JSON.parse(init.body).messages.at(-1).content.at(-1).text;
+ const reply=/buyer's offer/.test(p)?{verdict:'counter',counter:13,reason:'Their £10 leaves you £3.35. Countering at £13 still sells fast and makes £6.35.',reply:'Hi! Thanks for the offer. I could do £13, it’s in great condition. Happy to post tomorrow if that works?'}
+  :/QUESTION:/.test(p)?{answer:'October was your best month: **£64.50** in sales from 4 items. Ralph Lauren made the most profit at **£21.40**.',suggestions:['Which brands sell fastest?','What should I reprice?']}
+  :/sourcing/.test(p)?{name:'Ralph Lauren quarter zip',brand:'Ralph Lauren',category:'Quarter Zip',condition:'Very good',low:16,high:24,confidence:'medium',reason:'Ralph Lauren knits sell well and yours have averaged £21.'}:{};
+ return new Response(JSON.stringify({content:[{type:'text',text:JSON.stringify(reply)}]}),{status:200});};
 // Preview stand-in for Cloudflare Images: hands the photo back unchanged.
 env.IMAGES={input:stream=>({transform(){return this;},async output(){return {response:()=>new Response(stream)};}})};
 // Optional demo members for previewing the admin console (SEED_MEMBERS=1).
