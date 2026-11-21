@@ -103,6 +103,8 @@ function pipBrainView() {
     '<div class="pip-brain-visual">' + pipBrainArt() + '<img class="pip-brain-face" src="/pip.svg" alt="" width="96" height="90"></div>' +
     '<div class="pip-brain-copy"><span class="pip-brain-eyebrow"><span class="pip-live"></span>Pip · live analysis</span>' +
     '<h2 id="pipBrainTitle">Pip’s brain</h2><p class="pip-brain-summary">' + esc(brain.summary) + '</p>' +
+    '<form class="ask-pip-bar" data-ask-pip-form><span class="ask-pip-spark" aria-hidden="true">✦</span><input name="q" autocomplete="off" maxlength="500" placeholder="Ask Pip about your numbers…" aria-label="Ask Pip a question"><button type="submit" aria-label="Ask">↑</button></form>' +
+    '<div class="ask-pip-starters">' + ['What made me most money this month?', 'Which brands should I buy more of?', 'What should I reprice?'].map(q => '<button type="button" data-ask-pip="' + esc(q) + '">' + esc(q) + '</button>').join('') + '</div>' +
     (brain.signals.length ? '<ul class="pip-signals">' + brain.signals.map(signal =>
       '<li><button type="button" class="pip-signal" data-tone="' + signal.tone + '" data-tab="' + esc(signal.tab) + '"><span class="pip-signal-tag">' + tone[signal.tone] + '</span>' +
       '<strong>' + esc(signal.title) + '</strong><small>' + esc(signal.detail) + '</small><span class="pip-signal-go" aria-hidden="true">→</span></button></li>').join('') + '</ul>'

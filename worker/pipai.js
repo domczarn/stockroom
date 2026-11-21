@@ -56,3 +56,67 @@ Reply with ONLY JSON: {"verdict": "accept" | "counter" | "decline", "counter": n
   }
   return {verdict, counter, profit: Math.round(profit * 100) / 100, counterProfit: counter != null ? Math.round((counter - cost) * 100) / 100 : null, reason, reply};
 }
+
+// ---------- Shared: a compact, factual digest of someone's workspace ----------
+export function workspaceDigest(data, now = Date.now()) {
+  const trades = new Map((data.trades || []).map(t => [t.itemId, t]));
+  const day = 86400000, round = n => Math.round(n * 100) / 100;
+  const days = (a, b) => { const x = Date.parse(a), y = Date.parse(b); return Number.isFinite(x) && Number.isFinite(y) && y >= x ? Math.round((y - x) / day) : null; };
+  const pieces = (data.items || []).filter(i => !i.deletedAt).map(item => {
+    const trade = trades.get(item.id);
+    const sold = item.status === 'Sold';
+    const revenue = sold ? Number(trade?.amount ?? item.sale) : null;
+    const soldAt = sold ? (trade?.soldAt || item.soldAt || null) : null;
+    return {name: item.name, brand: item.brand || 'Unbranded', type: item.garment || 'Other', size: item.size || '', status: item.status,
+      cost: Number(item.cost) || 0, asking: Number.isFinite(item.price) ? item.price : null, revenue: Number.isFinite(revenue) ? revenue : null,
+      profit: Number.isFinite(revenue) ? round(revenue - (Number(item.cost) || 0)) : null, boughtAt: item.purchasedAt || null, listedAt: item.listedAt || null, soldAt,
+      daysToSell: sold ? days(item.purchasedAt, soldAt) : null, daysListed: !sold && item.listedAt ? days(item.listedAt, new Date(now).toISOString()) : null};
+  });
+  const sold = pieces.filter(p => p.revenue != null);
+  const group = key => Object.values(pieces.reduce((acc, p) => {
+    const g = acc[p[key]] ||= {name: p[key], bought: 0, sold: 0, revenue: 0, profit: 0, inStock: 0, daysToSell: []};
+    g.bought++; if (p.status === 'In Stock') g.inStock++;
+    if (p.revenue != null) { g.sold++; g.revenue += p.revenue; g.profit += p.profit; if (p.daysToSell != null) g.daysToSell.push(p.daysToSell); }
+    return acc;
+  }, {})).map(g => ({...g, revenue: round(g.revenue), profit: round(g.profit), medianDaysToSell: g.daysToSell.length ? g.daysToSell.sort((a, b) => a - b)[Math.floor(g.daysToSell.length / 2)] : null, daysToSell: undefined}))
+    .sort((a, b) => b.revenue - a.revenue);
+  const months = Object.values(sold.reduce((acc, p) => {
+    const m = (p.soldAt || '').slice(0, 7) || 'undated';
+    const g = acc[m] ||= {month: m, sold: 0, revenue: 0, profit: 0};
+    g.sold++; g.revenue = round(g.revenue + p.revenue); g.profit = round(g.profit + p.profit); return acc;
+  }, {})).sort((a, b) => a.month.localeCompare(b.month)).slice(-12);
+  const expenses = (data.expenses || []).reduce((s, r) => s + (Number(r[1]) || 0), 0);
+  return {
+    today: new Date(now).toISOString().slice(0, 10),
+    totals: {items: pieces.length, sold: sold.length, inStock: pieces.filter(p => p.status === 'In Stock').length, revenue: round(sold.reduce((s, p) => s + p.revenue, 0)),
+      itemProfit: round(sold.reduce((s, p) => s + p.profit, 0)), businessExpenses: round(expenses), stockAtCost: round(pieces.filter(p => p.status === 'In Stock').reduce((s, p) => s + p.cost, 0))},
+    byMonth: months, byBrand: group('brand').slice(0, 25), byType: group('type').slice(0, 15),
+    recentSales: sold.sort((a, b) => (b.soldAt || '').localeCompare(a.soldAt || '')).slice(0, 25).map(({name, brand, revenue, profit, soldAt, daysToSell}) => ({name, brand, revenue, profit, soldAt, daysToSell})),
+    oldestStock: pieces.filter(p => p.status === 'In Stock').sort((a, b) => (a.boughtAt || '').localeCompare(b.boughtAt || '')).slice(0, 25).map(({name, brand, cost, asking, boughtAt, daysListed}) => ({name, brand, cost, asking, boughtAt, daysListed})),
+  };
+}
+
+// ---------- Ask Pip ----------
+export async function askRoute(request, env, user) {
+  if (request.method !== 'POST') throw new HttpError(405, 'Method not allowed.');
+  const body = await readBody(request, 30000) || {};
+  const question = text(body.question, 500);
+  if (question.length < 2) throw new HttpError(400, 'Ask Pip a question.');
+  const row = await env.DB.prepare('SELECT payload FROM workspaces WHERE owner_id = ?').bind(user.id).first();
+  const digest = workspaceDigest(row ? JSON.parse(row.payload) : {});
+  const history = (Array.isArray(body.history) ? body.history : []).slice(-6).flatMap(turn => [
+    {role: 'user', content: text(turn.q, 500)}, {role: 'assistant', content: text(turn.a, 1200)}]).filter(m => m.content);
+  await aiAllowance(env, user);
+  const system = `${VINTED_RULES}
+You are Pip, the assistant inside Booked & Paid Stockroom, a resale stock and profit tracker. Answer the seller's questions about THEIR OWN business using only the data below.
+- Be specific: quote £ figures, counts and item names from the data. Round money to 2 decimals.
+- If the data can't answer it, say what's missing in one sentence. Never invent numbers.
+- Keep answers short: at most 90 words. Use **bold** for key figures and "- " for lists of up to 5 lines.
+- "Profit" means item profit (sale minus what they paid) unless they ask about business expenses.
+DATA (JSON): ${JSON.stringify(digest)}`;
+  const raw = await ask(env, {system, history, prompt: `QUESTION: ${question}\nReply with ONLY JSON: {"answer": string, "suggestions": [two short follow-up questions they might ask next]}`, maxTokens: 500, temperature: .2});
+  let data;
+  try { data = jsonFrom(raw); } catch { data = {answer: raw.slice(0, 900), suggestions: []}; }
+  return {answer: String(data.answer || '').trim().slice(0, 1500) || 'I couldn’t work that out. Try asking another way.',
+    suggestions: (Array.isArray(data.suggestions) ? data.suggestions : []).map(s => text(s, 80)).filter(Boolean).slice(0, 3)};
+}

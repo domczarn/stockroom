@@ -98,3 +98,16 @@ test('weekly report numbers cover the last 7 days', () => {
   assert.deepEqual([n.sold, n.revenue, n.profit, n.prevRevenue, n.added, n.inStock, n.stale], [1, 20, 15, 10, 1, 1, 1]);
   assert.equal(n.best.item.name, 'Nike');
 });
+
+import {workspaceDigest} from '../worker/pipai.js';
+test('Ask Pip digest groups sales by brand and month without inventing data', () => {
+  const d = workspaceDigest({items: [
+    {id: 'a', name: 'RL zip', brand: 'Ralph Lauren', garment: 'Quarter Zip', status: 'Sold', sale: 25, cost: 8, purchasedAt: '2026-10-01', soldAt: '2026-10-06'},
+    {id: 'b', name: 'RL polo', brand: 'Ralph Lauren', status: 'Sold', sale: 15, cost: 5, purchasedAt: '2026-10-02', soldAt: '2026-11-02'},
+    {id: 'c', name: 'Nike tee', brand: 'Nike', status: 'In Stock', cost: 3, price: 12, purchasedAt: '2026-09-01', listedAt: '2026-09-02'}],
+    expenses: [['Bags', 9, 0, 0, '2026-10-01']]}, Date.parse('2026-11-21'));
+  assert.deepEqual(d.totals, {items: 3, sold: 2, inStock: 1, revenue: 40, itemProfit: 27, businessExpenses: 9, stockAtCost: 3});
+  assert.equal(d.byBrand[0].name, 'Ralph Lauren'); assert.equal(d.byBrand[0].profit, 27); assert.equal(d.byBrand[0].medianDaysToSell, 31);
+  assert.deepEqual(d.byMonth.map(m => m.month), ['2026-10', '2026-11']);
+  assert.equal(d.oldestStock[0].daysListed, 80);
+});

@@ -32,3 +32,42 @@ document.addEventListener('click', async event => {
   } catch (error) { box.className = 'offer-pip'; box.innerHTML = '<p>' + esc(error.message) + '</p>'; }
   finally { button.disabled = false; }
 });
+
+// ---------- Ask Pip: chat about your own numbers ----------
+let askPipLog = [], askPipBusy = false;
+const askPipFormat = s => esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').split('\n').map(line => /^\s*[-•]\s+/.test(line) ? '<li>' + line.replace(/^\s*[-•]\s+/, '') + '</li>' : line ? '<p>' + line + '</p>' : '').join('').replace(/(<li>.*?<\/li>)+/g, m => '<ul>' + m + '</ul>');
+function askPipSheet() {
+  let d = document.getElementById('askPipDialog');
+  if (d) return d;
+  d = document.createElement('dialog'); d.id = 'askPipDialog'; d.className = 'utility-dialog ask-pip-dialog';
+  d.innerHTML = '<div class="sheet-heading"><div class="ask-pip-head"><img src="/pip.svg" alt="" width="40" height="38"><div><span class="eyebrow">ASK PIP</span><h2>Your numbers, answered</h2></div></div><button type="button" class="close-panel" data-close-dialog="askPipDialog" aria-label="Close">×</button></div>' +
+    '<div class="ask-pip-log" id="askPipLog" aria-live="polite"></div>' +
+    '<form class="ask-pip-bar in-sheet" data-ask-pip-form><input name="q" autocomplete="off" maxlength="500" placeholder="Ask a follow-up…" aria-label="Ask Pip"><button type="submit" aria-label="Ask">↑</button></form>';
+  document.body.append(d);
+  return d;
+}
+function askPipRender() {
+  const log = document.getElementById('askPipLog'); if (!log) return;
+  log.innerHTML = askPipLog.map((t, i) => '<div class="ask-q">' + esc(t.q) + '</div>' +
+    (t.a == null ? '<div class="ask-a thinking"><span class="qa-pip"></span><span>Pip is looking through your numbers…</span></div>'
+      : '<div class="ask-a' + (t.error ? ' error' : '') + '">' + askPipFormat(t.a) + '</div>' +
+        (i === askPipLog.length - 1 && t.suggestions?.length ? '<div class="ask-pip-starters">' + t.suggestions.map(q => '<button type="button" data-ask-pip="' + esc(q) + '">' + esc(q) + '</button>').join('') + '</div>' : ''))).join('');
+  log.scrollTop = log.scrollHeight;
+}
+async function askPip(question) {
+  question = String(question || '').trim(); if (!question || askPipBusy) return;
+  if (account?.plan !== 'pro') { openUpgrade('Ask Pip is part of Stockroom Pro.'); return; }
+  const d = askPipSheet(); if (!d.open) d.showModal();
+  askPipBusy = true;
+  const history = askPipLog.filter(t => t.a && !t.error).slice(-6).map(t => ({q: t.q, a: t.a}));
+  const turn = {q: question, a: null}; askPipLog.push(turn); askPipRender();
+  try { const r = await api('/api/pip/ask', {method: 'POST', body: JSON.stringify({question, history})}); turn.a = r.answer; turn.suggestions = r.suggestions; }
+  catch (error) { turn.a = error.message; turn.error = true; }
+  askPipBusy = false; askPipRender();
+  d.querySelector('[data-ask-pip-form] input')?.focus();
+}
+document.addEventListener('submit', event => {
+  const form = event.target.closest('[data-ask-pip-form]'); if (!form) return;
+  event.preventDefault(); const input = form.elements.q; const q = input.value; input.value = ''; void askPip(q);
+});
+document.addEventListener('click', event => { const b = event.target.closest('[data-ask-pip]'); if (b) void askPip(b.dataset.askPip); });

@@ -7,7 +7,7 @@ import { socialRoute, ownProfile, findConnection } from './social.js';
 import { pipSvg } from './pip.js';
 import {visionRoute,writeListingRoute} from './vision.js';
 import {studioRoute} from './studio.js';
-import {offerRoute} from './pipai.js';
+import {offerRoute,askRoute} from './pipai.js';
 import {weeklyRoute,unsubscribePage} from './weekly.js';
 import {authRoute} from './auth.js';
 import {adminRoute,appSettings} from './admin.js';
@@ -132,6 +132,7 @@ export default {
       if((url.pathname.startsWith('/api/vision/')||(url.pathname.startsWith('/api/pip/')&&!url.pathname.startsWith('/api/pip/weekly')))&&request.method==='POST')await requirePro(env,user,'Pip AI');
       if(url.pathname==='/api/pip/studio')return json(await studioRoute(request,env,user));
       if(url.pathname==='/api/pip/offer')return json(await offerRoute(request,env,user));
+      if(url.pathname==='/api/pip/ask')return json(await askRoute(request,env,user));
       if(url.pathname.startsWith('/api/pip/weekly'))return json(await weeklyRoute(request,url,env,user));
       if(url.pathname==='/api/vision/listing')return json(await visionRoute(request,env,user));
       if(url.pathname==='/api/vision/write-listing')return json(await writeListingRoute(request,env,user));

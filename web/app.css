@@ -2048,16 +2048,16 @@ a { color: var(--accent-ink) !important; text-decoration: none; }
 .close-panel { width: 36px !important; height: 36px !important; min-width: 36px !important; min-height: 36px !important; border-radius: 50% !important; background: var(--bg-2) !important; border: 1px solid var(--line-2) !important; color: var(--ink-2) !important; font-size: 20px !important; display: grid !important; place-items: center !important; padding: 0 !important; }
 .close-panel:hover { background: var(--bg-3) !important; color: var(--ink) !important; }
 /* ---------- Inputs ---------- */
-input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]):not([type=color]):not(.quick-add *), select:not(.quick-add *), textarea:not(.quick-add *) {
+input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]):not([type=color]):not(.quick-add *):not(.ask-pip-bar *), select:not(.quick-add *):not(.ask-pip-bar *), textarea:not(.quick-add *):not(.ask-pip-bar *) {
   min-height: var(--h) !important; border-radius: 12px !important; background: var(--bg-2) !important; border: 1px solid var(--line-2) !important;
   color: var(--ink) !important; font-size: 15px !important; padding: 0 14px !important; box-shadow: none !important;
   transition: border-color var(--t) var(--ease), box-shadow var(--t) var(--ease), background var(--t) var(--ease) !important;
 }
-textarea:not(.quick-add *) { padding: 12px 14px !important; line-height: 1.5 !important; }
-select:not(.quick-add *) { appearance: none; -webkit-appearance: none; padding-right: 38px !important; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5 6 7.5 9 4.5' fill='none' stroke='%2385858f' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important; background-repeat: no-repeat !important; background-position: right 14px center !important; }
+textarea:not(.quick-add *):not(.ask-pip-bar *) { padding: 12px 14px !important; line-height: 1.5 !important; }
+select:not(.quick-add *):not(.ask-pip-bar *) { appearance: none; -webkit-appearance: none; padding-right: 38px !important; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5 6 7.5 9 4.5' fill='none' stroke='%2385858f' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important; background-repeat: no-repeat !important; background-position: right 14px center !important; }
 input::placeholder, textarea::placeholder { color: var(--ink-3) !important; opacity: 1; }
-input:not([type=checkbox]):not([type=radio]):not([type=range]):not(.quick-add *):hover, select:not(.quick-add *):hover, textarea:not(.quick-add *):hover { border-color: var(--line-3) !important; }
-input:not([type=checkbox]):not([type=radio]):not([type=range]):not(.quick-add *):focus, select:not(.quick-add *):focus, textarea:not(.quick-add *):focus { outline: none !important; border-color: var(--accent) !important; box-shadow: 0 0 0 3px var(--accent-bg) !important; background: var(--bg-1) !important; }
+input:not([type=checkbox]):not([type=radio]):not([type=range]):not(.quick-add *):not(.ask-pip-bar *):hover, select:not(.quick-add *):not(.ask-pip-bar *):hover, textarea:not(.quick-add *):not(.ask-pip-bar *):hover { border-color: var(--line-3) !important; }
+input:not([type=checkbox]):not([type=radio]):not([type=range]):not(.quick-add *):not(.ask-pip-bar *):focus, select:not(.quick-add *):not(.ask-pip-bar *):focus, textarea:not(.quick-add *):not(.ask-pip-bar *):focus { outline: none !important; border-color: var(--accent) !important; box-shadow: 0 0 0 3px var(--accent-bg) !important; background: var(--bg-1) !important; }
 input[type=checkbox], input[type=radio] { accent-color: var(--accent); width: 18px; height: 18px; }
 @media (max-width: 800px) { input:not([type=checkbox]):not([type=radio]):not([type=range]), select, textarea { font-size: 16px !important; } }
 /* no iOS zoom */
@@ -2332,3 +2332,26 @@ dialog[open]::backdrop { animation: dsFade .3s var(--ease) both !important; }
 .offer-reply { margin-top: 12px; padding: 12px; border-radius: 12px; background: var(--bg-1); border: 1px solid var(--line); }
 .offer-reply p { margin: 6px 0 10px !important; color: var(--ink) !important; font-size: 14.5px !important; }
 .weekly-box { display: grid; gap: 10px; justify-items: start; padding-bottom: 14px; margin-bottom: 4px; border-bottom: 1px solid var(--line); }
+
+/* ---------- Ask Pip ---------- */
+.ask-pip-bar { display: flex; align-items: center; gap: 8px; margin: 14px 0 8px; padding: 5px 5px 5px 14px; border-radius: 999px; background: var(--bg-2); border: 1px solid var(--accent-line); box-shadow: 0 0 0 4px rgba(155,140,255,.06); transition: box-shadow var(--t) var(--ease), border-color var(--t); }
+.ask-pip-bar:focus-within { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-bg); }
+.ask-pip-spark { color: var(--accent-ink); font-size: 14px; }
+.ask-pip-bar input { flex: 1; min-width: 0; min-height: 38px !important; border: 0 !important; background: transparent !important; box-shadow: none !important; padding: 0 !important; color: var(--ink) !important; }
+.ask-pip-bar button { flex: none; width: 36px; height: 36px; border-radius: 50%; border: 0; background: var(--ink); color: #111; font-size: 17px; font-weight: 700; cursor: pointer; transition: transform var(--t-fast) var(--ease); }
+.ask-pip-bar button:active { transform: scale(.92); }
+.ask-pip-starters { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0 10px; }
+.ask-pip-starters button { border: 1px solid var(--line-2); background: var(--bg-2); color: var(--ink-2); border-radius: 999px; padding: 6px 11px; font-size: 12.5px; cursor: pointer; transition: border-color var(--t), color var(--t), background var(--t); }
+.ask-pip-starters button:hover { border-color: var(--accent-line); color: var(--ink); background: var(--accent-bg); }
+.ask-pip-dialog { width: min(560px, calc(100vw - 16px)); height: min(720px, 88vh); padding: 18px !important; display: flex; flex-direction: column; }
+.ask-pip-dialog[open] { display: flex; }
+.ask-pip-head { display: flex; align-items: center; gap: 12px; } .ask-pip-head h2 { margin: 2px 0 0 !important; font-size: 19px !important; }
+.ask-pip-log { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 4px 2px 10px; }
+.ask-q { align-self: flex-end; max-width: 85%; padding: 10px 14px; border-radius: 18px 18px 4px 18px; background: var(--ink); color: #111; font-size: 14.5px; animation: dsPopIn .3s var(--ease) both; }
+.ask-a { align-self: flex-start; max-width: 92%; padding: 12px 14px; border-radius: 18px 18px 18px 4px; background: var(--bg-2); border: 1px solid var(--line-2); font-size: 14.5px; line-height: 1.5; animation: dsPopIn .35s var(--ease) both; }
+.ask-a p { margin: 0 0 6px !important; color: var(--ink) !important; font-size: 14.5px !important; } .ask-a p:last-child { margin: 0 !important; }
+.ask-a ul { margin: 4px 0 6px; padding-left: 18px; } .ask-a li { margin: 2px 0; }
+.ask-a b { color: var(--accent-ink); }
+.ask-a.thinking { display: flex; align-items: center; gap: 10px; color: var(--ink-2); border-color: var(--accent-line); background: var(--accent-bg); }
+.ask-a.error { border-color: rgba(255,107,112,.4); }
+.ask-pip-bar.in-sheet { margin: 6px 0 0; }
