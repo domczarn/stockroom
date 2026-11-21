@@ -18,16 +18,24 @@ let email = '', resendAt = 0;
 // Cloudflare Turnstile bot check: invisible for almost everyone, only asks when something looks automated.
 const turnstileSlot = $('turnstile'), siteKey = turnstileSlot?.dataset.sitekey;
 let turnstileId = null, turnstileToken = '';
+let turnstileFailed = false;
 function turnstileReady() {
-  if (!siteKey || !window.turnstile || turnstileId !== null) return;
-  turnstileId = window.turnstile.render(turnstileSlot, {sitekey: siteKey, appearance: 'interaction-only', theme: 'dark',
-    callback: token => { turnstileToken = token; }, 'expired-callback': () => { turnstileToken = ''; }, 'error-callback': () => { turnstileToken = ''; }});
+  if (!siteKey || turnstileId !== null) return;
+  if (typeof window.turnstile?.render !== 'function') return void setTimeout(turnstileReady, 200); // script still loading
+  try {
+    turnstileId = window.turnstile.render(turnstileSlot, {sitekey: siteKey, appearance: 'interaction-only', theme: 'dark', retry: 'auto',
+      callback: token => { turnstileToken = token; turnstileFailed = false; }, 'expired-callback': () => { turnstileToken = ''; },
+      'error-callback': () => { turnstileToken = ''; turnstileFailed = true; }});
+  } catch { turnstileFailed = true; }
 }
 window.onTurnstileLoad = turnstileReady; turnstileReady();
 async function humanToken() {
   if (!siteKey) return '';
-  for (let i = 0; i < 40 && !turnstileToken; i++) await new Promise(r => setTimeout(r, 150)); // give the invisible check a moment
-  if (!turnstileToken) throw new Error('Just checking you’re human. Tick the box above, then try again.');
+  for (let i = 0; i < 60 && !turnstileToken; i++) await new Promise(r => setTimeout(r, 150)); // give the invisible check a moment
+  if (!turnstileToken) {
+    if (turnstileId !== null) try { window.turnstile.reset(turnstileId); } catch {}
+    throw new Error(turnstileFailed ? 'The human check didn’t load. Refresh the page, or turn off any ad or tracker blocker for this site, then try again.' : 'Just checking you’re human. If a box appears above, tick it, then try again.');
+  }
   return turnstileToken;
 }
 const passkeys = browserSupportsWebAuthn();
