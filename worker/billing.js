@@ -126,6 +126,13 @@ export async function billingRoute(request, url, env, user) {
   }
   if (request.method !== 'POST') throw new HttpError(405, 'Method not allowed.');
   const body = await readBody(request, 4000) || {};
+  if (url.pathname === '/api/billing/setup') {
+    if (!user.admin) throw new HttpError(403, 'Owner only.');
+    priceCache = null;
+    const ids = await prices(env);
+    const price = await stripe(env, 'GET', '/prices/' + ids.month, {});
+    return {ok: true, live: price.livemode, product: price.product, prices: ids};
+  }
   if (url.pathname === '/api/billing/checkout') {
     if (user.admin) throw new HttpError(400, 'The owner account already has everything.');
     const interval = body.interval === 'year' ? 'year' : 'month';
