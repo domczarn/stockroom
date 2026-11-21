@@ -69,6 +69,15 @@ test('suspending blocks access; delete needs the exact email', async () => {
   assert.ok(events.includes('admin_deleted_member') && events.includes('member_suspended'));
 });
 
+test('invite emails go to the person and BCC the owner', async () => {
+  const env = await seeded(); env.RESEND_API_KEY = 're_fixture';
+  let sent; env.RESEND_FETCH = async (url, init) => { sent = JSON.parse(init.body); return new Response('{}', {status: 200}); };
+  const r = await call(env, '/api/admin/invite', 'admin', 'POST', {emails: 'friend@example.com', send: true});
+  assert.equal(r.data.results[0].sent, true);
+  assert.deepEqual(sent.to, ['friend@example.com']);
+  assert.deepEqual(sent.bcc, [users.admin[1]]);
+});
+
 test('invites, invite-only mode, free limit and announcements', async () => {
   const env = await seeded(); env.AUTH_DEV_CODES = 'show';
   const inv = await call(env, '/api/admin/invite', 'admin', 'POST', {emails: 'new@example.com, bad', send: false});

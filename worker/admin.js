@@ -83,7 +83,7 @@ async function sendInvite(env, email, origin) {
   const response = await (env.RESEND_FETCH || fetch)('https://api.resend.com/emails', {
     method: 'POST', signal: AbortSignal.timeout(10000),
     headers: {authorization: 'Bearer ' + env.RESEND_API_KEY, 'content-type': 'application/json'},
-    body: JSON.stringify({from: 'Booked & Paid Stockroom <' + (env.AUTH_EMAIL_FROM || 'login@bookednpaid.com') + '>', to: [email], subject: 'You’re invited to Booked & Paid Stockroom', text, html}),
+    body: JSON.stringify({from: 'Booked & Paid Stockroom <' + (env.AUTH_EMAIL_FROM || 'login@bookednpaid.com') + '>', to: [email], bcc: [ADMIN_EMAIL], subject: 'You’re invited to Booked & Paid Stockroom', text, html}),
   }).catch(() => null);
   return Boolean(response?.ok);
 }
