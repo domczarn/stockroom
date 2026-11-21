@@ -31,3 +31,7 @@ bucket_name = "stockroom-photos"
 
 [ai]
 binding = "AI"
+
+# Sign-in codes are emailed with Cloudflare Email Service (domain must be onboarded under Email Sending).
+[[send_email]]
+name = "EMAIL"

@@ -6,10 +6,15 @@ import {notifyOwner,pushRoute} from './push.js';
 import { socialRoute, ownProfile, findConnection } from './social.js';
 import { pipSvg } from './pip.js';
 import {visionRoute,writeListingRoute} from './vision.js';
+import {authRoute} from './auth.js';
 import {ADMIN_EMAIL,identity,authorize,adminOnly,readBody,validateWorkspace,storePhotos,audit,HttpError,emptyWorkspace,rateLimit,exactDate,paid,tx} from './security.js';
 const json = (value, status = 200) => new Response(JSON.stringify(value), {
   status, headers: {'content-type':'application/json','cache-control':'private, no-store'}
 });
+function loginPage(request){
+  return new Response(request.method==='HEAD'?null:assets['/login.html'],{status:200,headers:{'content-type':'text/html; charset=utf-8','cache-control':'private, no-store','x-content-type-options':'nosniff','referrer-policy':'same-origin',
+    'content-security-policy':"default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'self'; font-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"}});
+}
 function welcomePage(request,suspended=false){
   const title=suspended?'Stockroom access paused':'Welcome to Stockroom';
   const copy=suspended?'This account cannot access Stockroom. Contact your administrator to restore access.':
@@ -23,7 +28,7 @@ function welcomePage(request,suspended=false){
   if (item && item.length<=100 && /^[a-f0-9]{16}$/.test(scope||'')) {
     returnTo = '/?'+new URLSearchParams({i:item,s:scope});
   }
-  const action=suspended?'<a href="/cdn-cgi/access/logout" target="_top">Sign out</a>':
+  const action=suspended?'<a href="/login" target="_top">Use a different email</a>':
     '<a href="'+returnTo.replace(/&/g,'&amp;')+'" target="_top">Sign in</a>';
   return new Response(request.method==='HEAD'?null:'<!doctype html><html lang="en-GB"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+title+'</title><link rel="icon" href="/favicon.svg"><link rel="stylesheet" href="/style.css"><body class="stockroom-welcome"><main><img src="/pip.svg" width="108" height="102" alt=""><h1>'+title+'</h1><p>'+copy+'</p>'+action+'</main></body></html>',{
     status:suspended?403:200,headers:{'content-type':'text/html; charset=utf-8','cache-control':'private, no-store','x-robots-tag':'noindex, nofollow','x-content-type-options':'nosniff','content-security-policy':"default-src 'self'; style-src 'self'; frame-ancestors 'self'; base-uri 'none'; object-src 'none'"}
@@ -83,10 +88,12 @@ export default {
         if (request.headers.get('origin') && request.headers.get('origin') !== url.origin) throw new HttpError(403,'Invalid origin');
         if (request.headers.get('sec-fetch-site') === 'cross-site') throw new HttpError(403,'Cross-site write blocked');
       }
+      if(url.pathname.startsWith('/auth/'))return await authRoute(request,url,env);
+      if(url.pathname==='/login'&&['GET','HEAD'].includes(request.method))return identity(request)?Response.redirect(url.origin+'/',302):loginPage(request);
       const rawUser=identity(request);
       const importRoute = ['/api/purchases','/api/sync-status','/api/sale-imports','/api/market-research'].includes(url.pathname) || /^\/api\/photos\//.test(url.pathname);
       if((url.pathname==='/'||url.pathname==='/index.html')&&['GET','HEAD'].includes(request.method)){
-        if(!rawUser)return welcomePage(request);
+        if(!rawUser)return loginPage(request);
         try{await authorize(request,env);}
         catch(error){if(error instanceof HttpError&&error.status===403)return welcomePage(request,true);throw error;}
       }

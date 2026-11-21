@@ -35,6 +35,7 @@ function cloudState(message,kind=''){const el=$('cloudStatus');el.textContent=me
 async function api(path,options={}){
   const response=await fetch(path,{...options,cache:'no-store',credentials:'same-origin',headers:{...(options.body?{'content-type':'application/json'}:{}),...options.headers}});
   if(response.status===403&&account?.role==='member'&&path==='/api/workspace')location.reload();
+  if(response.status===401&&path.startsWith('/api/')&&!location.pathname.startsWith('/login')){location.href='/login?next='+encodeURIComponent(location.pathname+location.search);throw Error('Signing you in again…');}
   if(!response.ok){let message='Request failed. Try again.';try{message=(await response.json()).error||message;}catch{} const error=Error(message);error.status=response.status;throw error;}return response.json();
 }
 function isReadOnly(){return workspaceOwner!==account?.id;}

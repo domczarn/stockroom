@@ -2,7 +2,7 @@ import {build,transform} from 'esbuild';
 import {resolve} from 'node:path';
 import {readFile,writeFile,mkdir,rm} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
-const files = ['index.html','privacy.html','gmail.js','compat.js','app.js','finance-insights.js','shell.js','screenshots.js','revenue.js','pricing.js','tax.js','performance.js','addstock.js','refresh.js','autoupdate.js','customer.js','expenses.js','settings.js','orders.js','workspace.css','labels.css','theme.css','resources.js','resources-data.json','style.css','seed.json','receipt.js','listing.js','experience.js','manifest.webmanifest','favicon.svg','pip.svg','social.js','trading.js','bulk.js','stock.js','market.js','notifications.js','stockroom-sw.js'];
+const files = ['index.html','login.html','login.css','privacy.html','gmail.js','compat.js','app.js','finance-insights.js','shell.js','screenshots.js','revenue.js','pricing.js','tax.js','performance.js','addstock.js','refresh.js','autoupdate.js','customer.js','expenses.js','settings.js','orders.js','workspace.css','labels.css','theme.css','resources.js','resources-data.json','style.css','seed.json','receipt.js','listing.js','experience.js','manifest.webmanifest','favicon.svg','pip.svg','social.js','trading.js','bulk.js','stock.js','market.js','notifications.js','stockroom-sw.js'];
 const assets = {};
 for (const file of files) {
   const source=await readFile('web/'+file,'utf8');
@@ -15,6 +15,10 @@ const qr = await build({
   bundle:true,platform:'browser',format:'iife',minify:true,write:false
 });
 assets['/stock-qr.js']=qr.outputFiles[0].text;
+const login = await build({entryPoints:['web/login-src.js'],bundle:true,platform:'browser',format:'iife',minify:true,target:'es2019',write:false});
+assets['/login.js']=login.outputFiles[0].text;
+const passkeyKit = await build({stdin:{contents:"import {startRegistration,browserSupportsWebAuthn} from '@simplewebauthn/browser'; window.stockroomPasskeys = {startRegistration, browserSupportsWebAuthn};",resolveDir:resolve('.')},bundle:true,platform:'browser',format:'iife',minify:true,target:'es2019',write:false});
+assets['/passkeys.js']=passkeyKit.outputFiles[0].text;
 assets['/receipt-ocr.js']=await readFile('node_modules/tesseract.js/dist/tesseract.esm.min.js','utf8');
 assets['/receipt-ocr-worker.js']=await readFile('node_modules/tesseract.js/dist/worker.min.js','utf8');
 assets['/barcode.js']=await readFile('node_modules/jsbarcode/dist/barcodes/JsBarcode.code128.min.js','utf8');

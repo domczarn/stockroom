@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#131316">
+<meta name="robots" content="noindex">
+<title>Sign in · Stockroom</title>
+<link rel="icon" href="/pip-icon.png">
+<link rel="stylesheet" href="/login.css">
+<script src="/login.js" defer></script>
+</head>
+<body>
+<main class="auth">
+  <div class="glow" aria-hidden="true"></div>
+  <section class="card" aria-live="polite">
+    <header class="brand"><img src="/pip-icon.png" alt="" width="44" height="44"><span>Stockroom</span></header>
+
+    <div class="step" data-step="email">
+      <h1>Sign in to Stockroom</h1>
+      <p class="lead">Your resale stock, sales and profit in one place.</p>
+      <button type="button" class="primary passkey" id="passkeyButton" hidden>
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="4"/><path d="M2.5 20c.8-3.4 3.4-5.5 6.5-5.5 1.3 0 2.4.3 3.4.9"/><circle cx="17.5" cy="15.5" r="2.5"/><path d="M17.5 18v3.5M17.5 20h1.5"/></svg>
+        Sign in with passkey
+      </button>
+      <div class="or" id="orDivider" hidden><span>or use your email</span></div>
+      <form id="emailForm" novalidate>
+        <label for="email">Email</label>
+        <input id="email" name="email" type="email" inputmode="email" autocomplete="username webauthn" placeholder="you@example.com" required>
+        <button type="submit" class="secondary" id="sendCode">Email me a code</button>
+      </form>
+      <p class="fine">New here? The same button creates your free account.</p>
+    </div>
+
+    <div class="step" data-step="code" hidden>
+      <h1>Check your email</h1>
+      <p class="lead">We sent a 6-digit code to <strong id="sentTo"></strong>.</p>
+      <form id="codeForm" novalidate>
+        <label for="code">Code</label>
+        <input id="code" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]*" maxlength="6" placeholder="000000" required>
+        <button type="submit" class="primary" id="verifyCode">Sign in</button>
+      </form>
+      <div class="row"><button type="button" class="link" id="resend">Send a new code</button><button type="button" class="link" id="changeEmail">Use a different email</button></div>
+    </div>
+
+    <div class="step" data-step="passkey" hidden>
+      <div class="faceid" aria-hidden="true"><svg viewBox="0 0 64 64" width="64" height="64" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M8 20V14a6 6 0 0 1 6-6h6M44 8h6a6 6 0 0 1 6 6v6M56 44v6a6 6 0 0 1-6 6h-6M20 56h-6a6 6 0 0 1-6-6v-6"/><path d="M24 24v4M40 24v4M32 26v10h-3M25 44c4 3.5 10 3.5 14 0"/></svg></div>
+      <h1>Sign in faster next time</h1>
+      <p class="lead">Add a passkey and sign in with Face ID, Touch ID or your fingerprint. No codes, no passwords.</p>
+      <button type="button" class="primary" id="addPasskey">Add a passkey</button>
+      <button type="button" class="link center" id="skipPasskey">Not now</button>
+    </div>
+
+    <p class="error" id="error" role="alert"></p>
+  </section>
+  <footer class="legal"><a href="/privacy.html">Privacy</a><span>·</span><span>Booked &amp; Paid Ltd</span></footer>
+</main>
+</body>
+</html>

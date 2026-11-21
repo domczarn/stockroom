@@ -39,11 +39,14 @@ export async function verifyAccessJwt(token,env,now=Date.now()){
   }catch{return null;}
 }
 
+import {sessionIdentity} from './auth.js';
+
 export async function withIdentity(request,env){
   const headers=new Headers(request.headers);
   headers.delete('oai-authenticated-user-id');
   headers.delete('oai-authenticated-user-email');
-  const user=await verifyAccessJwt(request.headers.get('cf-access-jwt-assertion'),env);
+  // Cloudflare Access first (while it's switched on), then Stockroom's own sign-in session.
+  const user=await verifyAccessJwt(request.headers.get('cf-access-jwt-assertion'),env)||await sessionIdentity(request,env);
   if(user){headers.set('oai-authenticated-user-id',user.id);headers.set('oai-authenticated-user-email',user.email);}
   return new Request(request,{headers});
 }
