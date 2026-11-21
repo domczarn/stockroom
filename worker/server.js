@@ -22,7 +22,7 @@ function loginPage(request,env={}){
   const key=/^[0-9A-Za-z_-]{10,80}$/.test(env.TURNSTILE_SITE_KEY||'')?env.TURNSTILE_SITE_KEY:'';
   const html=key?assets['/login.html'].replace('data-sitekey=""','data-sitekey="'+key+'"').replace('</body>','<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=onTurnstileLoad" async defer></script></body>'):assets['/login.html'];
   const ts=key?' https://challenges.cloudflare.com':'';
-  return new Response(request.method==='HEAD'?null:html,{status:200,headers:{'content-type':'text/html; charset=utf-8','cache-control':'private, no-store','x-content-type-options':'nosniff','referrer-policy':'same-origin',
+  return new Response(request.method==='HEAD'?null:html,{status:200,headers:{'content-type':'text/html; charset=utf-8','cache-control':'private, no-store','x-content-type-options':'nosniff','referrer-policy':key?'strict-origin':'same-origin',
     'content-security-policy':"default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'"+ts+"; frame-src 'self'"+ts+"; connect-src 'self'"+ts+"; font-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"}});
 }
 function welcomePage(request,suspended=false){
