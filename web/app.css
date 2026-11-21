@@ -1350,7 +1350,7 @@ nav.subnav {
   .shot-footer { padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px)); } .shot-footer button { flex: 1; }
 }
 /* Desktop: sidebar already reaches Profile; the floating pill covered table actions. */
-.profile-dock { display: none !important; }
+
 #quickEntryHint { color: var(--ink-2) !important; }
 @media (max-width: 800px) {
   #view td:has(> button.link) { display: flex !important; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
@@ -2195,7 +2195,7 @@ dialog[open]::backdrop { animation: dsFade .3s var(--ease) both !important; }
 .launch-brand { font-family: var(--mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--accent-ink); margin-top: 6px; }
 
 /* ---------- App menu: only what isn't already a tab ---------- */
-#navProfile, .profile-dock { display: none !important; }
+
 .nav-short { display: none; }
 @media (max-width: 800px) { .sidebar nav .nav-full { display: none; } .sidebar nav .nav-short { display: inline; } }
 .account-dropdown { min-width: 248px; padding: 6px !important; border-radius: 16px !important; }
@@ -2212,7 +2212,6 @@ dialog[open]::backdrop { animation: dsFade .3s var(--ease) both !important; }
 .menu-dot[hidden] { display: none; }
 .menu-signout { display: flex !important; align-items: center; width: 100%; min-height: 44px !important; padding: 0 12px !important; border: 0 !important; border-top: 1px solid var(--line) !important; border-radius: 0 0 10px 10px !important; background: transparent !important; color: var(--bad) !important; font-size: 14.5px !important; font-weight: 500 !important; cursor: pointer; }
 .menu-signout:hover { background: rgba(255,107,112,.08) !important; }
-.sidebar nav button#navProfile, html body .sidebar nav #navProfile { display: none !important; }
 .account-dropdown .menu-links.organised-menu { gap: 2px !important; row-gap: 2px !important; }
 .sidebar nav button .nav-short, .sidebar nav button .nav-full { font-size: inherit !important; line-height: inherit !important; width: auto !important; color: inherit !important; }
 .menu-profile { border-bottom: 1px solid var(--line) !important; padding: 12px 10px 14px !important; }
