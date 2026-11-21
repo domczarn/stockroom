@@ -3,6 +3,7 @@
 // Replaces revenueChart() from finance-insights.js (same signature, so dashboard() is unchanged).
 
 const RC_RANGES = [['1W', 7], ['1M', 30], ['3M', 91], ['6M', 182], ['1Y', 365], ['All', 0]];
+const RC_ICON_CAL = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>';
 const RC_METRICS = {
   revenue: {label: 'Revenue', color: '#3987e5', kind: 'money', additive: true},
   profit: {label: 'Net profit', color: '#d95926', kind: 'money', additive: true},
@@ -13,7 +14,7 @@ const RC_METRICS = {
 const RC_GRAINS = {day: 'Daily', week: 'Weekly', month: 'Monthly'};
 const rc = {range: '1M', metric: 'revenue', grain: '', compare: true, running: false, selected: -1};
 try { Object.assign(rc, JSON.parse(localStorage.getItem('stockroom-chart') || '{}'), {selected: -1}); } catch {}
-const rcSave = () => { try { localStorage.setItem('stockroom-chart', JSON.stringify({range: rc.range, metric: rc.metric, grain: rc.grain, compare: rc.compare, running: rc.running})); } catch {} };
+const rcSave = () => { try { localStorage.setItem('stockroom-chart', JSON.stringify({range: rc.range, metric: rc.metric, grain: rc.grain, compare: rc.compare, running: rc.running, from: rc.from, to: rc.to})); } catch {} };
 
 const rcDay = 86400000;
 const rcT = date => Date.parse(date + 'T00:00:00Z');
@@ -32,20 +33,19 @@ function rcStats(rows) {
   };
 }
 
+const rcFirstDate = (rows, today) => rows.map(row => row.date).filter(Boolean).sort()[0] || today;
 function rcWindow(rows, today) {
+  const custom = rc.range === 'Custom' && rc.from && rc.to;
   const span = RC_RANGES.find(([key]) => key === rc.range)?.[1];
-  const end = rcT(today);
-  let start;
-  if (span) start = end - (span - 1) * rcDay;
-  else {
-    const first = rows.map(row => row.date).filter(Boolean).sort()[0] || today;
-    start = Math.min(rcT(first), end - 6 * rcDay);
-  }
+  let end = rcT(today), start;
+  if (custom) { start = rcT(rc.from < rc.to ? rc.from : rc.to); end = Math.min(end, rcT(rc.from < rc.to ? rc.to : rc.from)); if (start > end) start = end; }
+  else if (span) start = end - (span - 1) * rcDay;
+  else start = Math.min(rcT(rcFirstDate(rows, today)), end - 6 * rcDay);
   const days = Math.round((end - start) / rcDay) + 1;
-  const auto = days <= 31 ? 'day' : days <= 200 ? 'week' : 'month';
+  const auto = days <= 45 ? 'day' : days <= 200 ? 'week' : 'month';
   let grain = rc.grain || auto;
   if (grain === 'day' && days > 400) grain = 'week';
-  return {start, end, days, grain, auto, comparable: Boolean(span)};
+  return {start, end, days, grain, auto, custom: Boolean(custom), comparable: Boolean(span) || Boolean(custom)};
 }
 
 function rcBuckets(start, end, grain) {
@@ -137,7 +137,7 @@ const rcSegments = pts => { const segs = []; let cur = []; pts.forEach(p => { if
 
 function rcSvg(model, width) {
   const {buckets, series, prevSeries, meta, win} = model;
-  const H = width < 600 ? 220 : 260, padL = 2, padR = 2, padT = 22, padB = 28;
+  const H = width < 600 ? 250 : 300, padL = 4, padR = 4, padT = 28, padB = 30;
   const plotW = Math.max(120, width - padL - padR), plotH = H - padT - padB;
   const showPrev = rc.compare && prevSeries.length;
   const values = [...series, ...(showPrev ? prevSeries : [])].filter(v => v !== null && Number.isFinite(v));
@@ -149,35 +149,57 @@ function rcSvg(model, width) {
   const cx = i => n === 1 ? padL + plotW / 2 : padL + plotW * i / (n - 1);
   const cur = series.map((v, i) => v === null ? null : [cx(i), y(v)]);
   const prev = showPrev ? prevSeries.map((v, i) => v === null ? null : [cx(i), y(v)]) : [];
-  const id = 'rcg' + rc.metric;
-  let svg = '<svg class="rc-svg" width="' + width + '" height="' + H + '" viewBox="0 0 ' + width + ' ' + H + '" role="img" aria-label="' + esc(meta.label + ' line chart') + '"' +
-    ' data-cur="' + esc(JSON.stringify(cur.map(p => p && [+p[0].toFixed(1), +p[1].toFixed(1)]))) + '" data-prev="' + esc(JSON.stringify(prev.map(p => p && [+p[0].toFixed(1), +p[1].toFixed(1)]))) + '">' +
-    '<defs><linearGradient id="' + id + '" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="' + meta.color + '" stop-opacity=".28"/><stop offset="1" stop-color="' + meta.color + '" stop-opacity="0"/></linearGradient></defs>';
-  // Stripe keeps the frame almost empty: a faint top line, the zero line, two value labels.
-  svg += '<line class="rc-grid" x1="' + padL + '" x2="' + (width - padR) + '" y1="' + y(top).toFixed(1) + '" y2="' + y(top).toFixed(1) + '"/>' +
-    '<text class="rc-ytick" x="' + padL + '" y="' + (y(top) - 7).toFixed(1) + '">' + esc(rcTick(top, meta.kind)) + '</text>';
-  if (bottom < 0) svg += '<line class="rc-grid" x1="' + padL + '" x2="' + (width - padR) + '" y1="' + y(bottom).toFixed(1) + '" y2="' + y(bottom).toFixed(1) + '"/>' +
-    '<text class="rc-ytick" x="' + padL + '" y="' + (y(bottom) - 7).toFixed(1) + '">' + esc(rcTick(bottom, meta.kind)) + '</text>';
-  svg += '<line class="rc-zero" x1="' + padL + '" x2="' + (width - padR) + '" y1="' + y(0).toFixed(1) + '" y2="' + y(0).toFixed(1) + '"/>' +
-    (bottom < 0 ? '<text class="rc-ytick" x="' + padL + '" y="' + (y(0) - 7).toFixed(1) + '">' + esc(rcTick(0, meta.kind)) + '</text>' : '');
+  const id = 'rcg' + rc.metric, glow = 'rcglow' + rc.metric;
+  const r1 = p => p && [+p[0].toFixed(1), +p[1].toFixed(1)];
+  let svg = '<svg class="rc-svg" width="' + width + '" height="' + H + '" viewBox="0 0 ' + width + ' ' + H + '" role="img" aria-label="' + esc(meta.label + ' line chart. Drag or hover to see each ' + ({day: 'day', week: 'week', month: 'month'})[win.grain]) + '"' +
+    ' data-cur="' + esc(JSON.stringify(cur.map(r1))) + '" data-prev="' + esc(JSON.stringify(prev.map(r1))) + '" data-pl="' + padL + '" data-pw="' + plotW + '" data-n="' + n + '" data-top="' + padT + '" data-bottom="' + (padT + plotH) + '">' +
+    '<defs><linearGradient id="' + id + '" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="' + meta.color + '" stop-opacity=".34"/><stop offset=".55" stop-color="' + meta.color + '" stop-opacity=".08"/><stop offset="1" stop-color="' + meta.color + '" stop-opacity="0"/></linearGradient>' +
+    '<linearGradient id="rcx" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="currentColor" stop-opacity="0"/><stop offset=".25" stop-color="currentColor" stop-opacity=".55"/><stop offset="1" stop-color="currentColor" stop-opacity=".1"/></linearGradient>' +
+    '<filter id="' + glow + '" x="-5%" y="-30%" width="110%" height="160%"><feGaussianBlur stdDeviation="5" result="b"/><feColorMatrix in="b" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .55 0" result="a"/><feFlood flood-color="' + meta.color + '"/><feComposite in2="a" operator="in"/><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>';
+  // Quiet frame: three faint guides with values tucked on the right.
+  const guides = []; for (let v = bottom; v <= top + unit / 2; v += unit) guides.push(v);
+  svg += guides.map(v => '<line class="' + (Math.abs(v) < 1e-9 ? 'rc-zero' : 'rc-grid') + '" x1="' + padL + '" x2="' + (width - padR) + '" y1="' + y(v).toFixed(1) + '" y2="' + y(v).toFixed(1) + '"/>' +
+    (Math.abs(v) < 1e-9 && bottom === 0 ? '' : '<text class="rc-ytick" x="' + (width - padR) + '" y="' + (y(v) - 6).toFixed(1) + '" text-anchor="end">' + esc(rcTick(v, meta.kind)) + '</text>')).join('');
   if (showPrev) svg += rcSegments(prev).map(sg => '<path class="rc-prev" pathLength="1" d="' + rcCurve(sg) + '"/>').join('');
+  const base = y(Math.max(bottom, 0)).toFixed(1);
   const segs = rcSegments(cur);
-  svg += segs.map(sg => sg.length > 1 ? '<path class="rc-area" fill="url(#' + id + ')" d="' + rcCurve(sg) + 'L' + sg[sg.length - 1][0].toFixed(1) + ',' + y(Math.max(bottom, 0)).toFixed(1) + 'L' + sg[0][0].toFixed(1) + ',' + y(Math.max(bottom, 0)).toFixed(1) + 'Z"/>' : '').join('');
-  svg += segs.map(sg => sg.length > 1 ? '<path class="rc-line" stroke="' + meta.color + '" pathLength="1" d="' + rcCurve(sg) + '"/>' : '<circle class="rc-solo" fill="' + meta.color + '" cx="' + sg[0][0].toFixed(1) + '" cy="' + sg[0][1].toFixed(1) + '" r="3.5"/>').join('');
-  // live end point
+  svg += segs.map(sg => sg.length > 1 ? '<path class="rc-area" fill="url(#' + id + ')" d="' + rcCurve(sg) + 'L' + sg[sg.length - 1][0].toFixed(1) + ',' + base + 'L' + sg[0][0].toFixed(1) + ',' + base + 'Z"/>' : '').join('');
+  svg += segs.map(sg => sg.length > 1 ? '<path class="rc-line" stroke="' + meta.color + '" filter="url(#' + glow + ')" pathLength="1" d="' + rcCurve(sg) + '"/>' : '<circle class="rc-solo" fill="' + meta.color + '" cx="' + sg[0][0].toFixed(1) + '" cy="' + sg[0][1].toFixed(1) + '" r="4"/>').join('');
   const last = [...cur].reverse().find(Boolean);
-  if (last && rc.range !== 'All') svg += '<circle class="rc-now-halo" fill="' + meta.color + '" cx="' + last[0].toFixed(1) + '" cy="' + last[1].toFixed(1) + '" r="8"/><circle class="rc-now" fill="' + meta.color + '" cx="' + last[0].toFixed(1) + '" cy="' + last[1].toFixed(1) + '" r="3.5"/>';
-  // crosshair (moved on hover)
-  svg += '<g class="rc-cross" visibility="hidden"><line class="rc-cross-line" y1="' + padT + '" y2="' + (padT + plotH) + '"/>' +
-    (showPrev ? '<circle class="rc-cross-prev" r="4"/>' : '') + '<circle class="rc-cross-dot" r="5" fill="' + meta.color + '"/></g>';
-  // x labels: start, end (and middle when there is room), like Stripe
+  if (last && !win.custom && rc.range !== 'All') svg += '<circle class="rc-now-halo" fill="' + meta.color + '" cx="' + last[0].toFixed(1) + '" cy="' + last[1].toFixed(1) + '" r="9"/><circle class="rc-now" fill="' + meta.color + '" cx="' + last[0].toFixed(1) + '" cy="' + last[1].toFixed(1) + '" r="4"/>';
+  // Crosshair, moved by scrubbing.
+  svg += '<g class="rc-cross" visibility="hidden"><line class="rc-cross-line" stroke="url(#rcx)" y1="' + (padT - 10) + '" y2="' + (padT + plotH) + '"/>' +
+    (showPrev ? '<circle class="rc-cross-prev" r="4"/>' : '') + '<circle class="rc-cross-ring" r="11" fill="' + meta.color + '"/><circle class="rc-cross-dot" r="5" fill="' + meta.color + '"/></g>';
+  // X labels: evenly spaced, never crowded.
   const label = b => win.grain === 'week' ? rcDayFmt.format(rcT(b.from)) : rcLabel(b, win.grain);
-  const xs = n > 1 ? (plotW > 520 ? [0, Math.floor((n - 1) / 2), n - 1] : [0, n - 1]) : [0];
-  svg += [...new Set(xs)].map(i => '<text class="rc-xtick" x="' + cx(i).toFixed(1) + '" y="' + (H - 8) + '" text-anchor="' + (n === 1 ? 'middle' : i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle') + '">' + esc(label(buckets[i])) + '</text>').join('');
-  // hit targets: one column per point
-  const half = n > 1 ? plotW / (n - 1) / 2 : plotW / 2;
-  svg += buckets.map((b, i) => '<rect class="rc-hit" data-i="' + i + '" x="' + Math.max(0, cx(i) - half).toFixed(1) + '" y="0" width="' + (Math.min(width, cx(i) + half) - Math.max(0, cx(i) - half)).toFixed(1) + '" height="' + H + '"/>').join('');
+  const slots = Math.max(2, Math.min(n, Math.floor(plotW / 92)));
+  const xs = n > 1 ? [...new Set(Array.from({length: slots}, (_, k) => Math.round(k * (n - 1) / (slots - 1))))] : [0];
+  svg += xs.map(i => '<text class="rc-xtick" x="' + cx(i).toFixed(1) + '" y="' + (H - 9) + '" text-anchor="' + (n === 1 ? 'middle' : i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle') + '">' + esc(label(buckets[i])) + '</text>').join('');
+  svg += '<rect class="rc-scrub" x="0" y="0" width="' + width + '" height="' + H + '"/>';
   return svg + '</svg>';
+}
+
+// Timeline strip under the chart: the whole history, with a window you can drag, stretch or tap to move.
+function rcNavigator(rows, today, width, win) {
+  const t0 = Math.min(rcT(rcFirstDate(rows, today)), rcT(today) - 89 * rcDay), t1 = rcT(today);
+  const days = Math.round((t1 - t0) / rcDay) + 1;
+  const daily = new Array(days).fill(0);
+  for (const row of rows) if (row.date && row.kind === 'Sale') { const i = Math.round((rcT(row.date) - t0) / rcDay); if (i >= 0 && i < days) daily[i] += row.revenue || 0; }
+  const per = Math.max(1, Math.ceil(days / 160)), pts = [];
+  for (let i = 0; i < days; i += per) pts.push(daily.slice(i, i + per).reduce((a, b) => a + b, 0));
+  const H = 54, max = Math.max(1, ...pts), x = t => (t - t0) / (t1 - t0 || 1) * width;
+  const line = pts.map((v, i) => [pts.length === 1 ? 0 : i / (pts.length - 1) * width, H - 6 - (H - 14) * v / max]);
+  const d = rcCurve(line);
+  const wx0 = Math.max(0, x(win.start)), wx1 = Math.min(width, x(win.end));
+  return '<div class="rc-nav" data-t0="' + t0 + '" data-t1="' + t1 + '" data-w="' + width + '">' +
+    '<svg width="' + width + '" height="' + H + '" viewBox="0 0 ' + width + ' ' + H + '" aria-hidden="true">' +
+      '<path class="rc-nav-area" d="' + d + 'L' + width + ',' + H + 'L0,' + H + 'Z"/><path class="rc-nav-line" d="' + d + '"/>' +
+      '<rect class="rc-nav-dim" x="0" y="0" width="' + wx0.toFixed(1) + '" height="' + H + '"/>' +
+      '<rect class="rc-nav-dim" x="' + wx1.toFixed(1) + '" y="0" width="' + Math.max(0, width - wx1).toFixed(1) + '" height="' + H + '"/>' +
+      '<rect class="rc-nav-win" x="' + wx0.toFixed(1) + '" y="1" width="' + Math.max(6, wx1 - wx0).toFixed(1) + '" height="' + (H - 2) + '" rx="6"/>' +
+      '<rect class="rc-nav-handle" data-h="l" x="' + (wx0 - 3).toFixed(1) + '" y="' + (H / 2 - 11) + '" width="6" height="22" rx="3"/>' +
+      '<rect class="rc-nav-handle" data-h="r" x="' + (wx1 - 3).toFixed(1) + '" y="' + (H / 2 - 11) + '" width="6" height="22" rx="3"/>' +
+    '</svg><div class="rc-nav-labels"><span>' + esc(rcLongFmt.format(t0)) + '</span><span>Drag to scroll · stretch the edges to zoom</span><span>Today</span></div></div>';
 }
 
 function rcTooltip(model, i) {
@@ -241,18 +263,27 @@ revenueChart = function revenueStudio(rows, today) {
   const {meta, total, prevTotal, win} = model;
   const host = document.getElementById('financeChart');
   const width = Math.round(host?.querySelector('.rc-plot')?.clientWidth || host?.clientWidth || Math.min(window.innerWidth - 64, 1100)) || 640;
-  const rangeText = rc.range === 'All' ? 'All time · since ' + rcLongFmt.format(win.start) : 'Last ' + win.days + ' days';
+  const span = rcLongFmt.format(win.start) + ' – ' + rcLongFmt.format(win.end);
+  const rangeText = win.custom ? span + ' · ' + win.days + ' days' : rc.range === 'All' ? 'All time · since ' + rcLongFmt.format(win.start) : 'Last ' + win.days + ' days';
   const tabs = Object.entries(RC_METRICS).map(([key, m]) => {
     const v = total[key];
     return '<button type="button" class="rc-metric" data-rc-metric="' + key + '" aria-pressed="' + (rc.metric === key) + '">' +
       '<span><i class="rc-key ' + (key === 'profit' || key === 'margin' ? 'pro' : 'rev') + '"></i>' + m.label + '</span><strong>' + rcValue(v, m.kind) + '</strong>' +
       (prevTotal ? rcDelta(v, prevTotal[key], m.kind) : '') + '</button>';
   }).join('');
-  return '<section class="revenue-studio" aria-label="Revenue chart">' +
-    '<header class="rc-head"><div><p class="rc-eyebrow">' + esc(rangeText) + '</p>' +
-      '<h2 class="rc-hero">' + rcValue(total[rc.metric], meta.kind) + '</h2>' +
-      '<p class="rc-hero-sub">' + esc(meta.label) + (prevTotal ? ' ' + rcDelta(total[rc.metric], prevTotal[rc.metric], meta.kind) + ' <span class="rc-vs">vs previous ' + win.days + ' days</span>' : '') + '</p></div>' +
-      '<div class="rc-ranges" role="group" aria-label="Time range">' + RC_RANGES.map(([key]) => '<button type="button" data-rc-range="' + key + '" aria-pressed="' + (rc.range === key) + '">' + (key === 'All' ? 'All time' : key) + '</button>').join('') + '</div>' +
+  const customLabel = win.custom ? rcDayFmt.format(win.start) + ' – ' + rcDayFmt.format(win.end) : 'Custom';
+  const sub = '<span class="rc-hero-label">' + esc(meta.label) + '</span>' + (prevTotal ? ' ' + rcDelta(total[rc.metric], prevTotal[rc.metric], meta.kind) + ' <span class="rc-vs">vs previous ' + win.days + ' days</span>' : '');
+  return '<section class="revenue-studio" aria-label="Revenue chart" data-accent="' + rc.metric + '">' +
+    '<header class="rc-head"><div class="rc-hero-wrap"><p class="rc-eyebrow" data-base="' + esc(rangeText) + '">' + esc(rangeText) + '</p>' +
+      '<h2 class="rc-hero" data-base="' + esc(rcValue(total[rc.metric], meta.kind)) + '">' + rcValue(total[rc.metric], meta.kind) + '</h2>' +
+      '<p class="rc-hero-sub">' + sub + '</p></div>' +
+      '<div class="rc-range-wrap"><div class="rc-ranges" role="group" aria-label="Time range">' + RC_RANGES.map(([key]) => '<button type="button" data-rc-range="' + key + '" aria-pressed="' + (rc.range === key) + '">' + (key === 'All' ? 'All time' : key) + '</button>').join('') +
+        '<button type="button" class="rc-custom-btn" data-rc-custom aria-expanded="false" aria-pressed="' + win.custom + '">' + RC_ICON_CAL + '<span>' + esc(customLabel) + '</span></button></div>' +
+        '<div class="rc-pop" hidden><div class="rc-pop-presets">' +
+          [['month', 'This month'], ['lastmonth', 'Last month'], ['ytd', 'Year to date'], ['tax', 'This tax year'], ['lasttax', 'Last tax year']].map(([k, l]) => '<button type="button" data-rc-preset="' + k + '">' + l + '</button>').join('') +
+        '</div><div class="rc-pop-dates"><label>From<input type="date" data-rc-from value="' + rcD(win.start) + '" min="' + rcFirstDate(rows, today) + '" max="' + today + '"></label>' +
+          '<label>To<input type="date" data-rc-to value="' + rcD(win.end) + '" min="' + rcFirstDate(rows, today) + '" max="' + today + '"></label></div>' +
+          '<div class="rc-pop-foot"><button type="button" class="secondary" data-rc-pop-close>Cancel</button><button type="button" class="action" data-rc-apply>Apply</button></div></div></div>' +
     '</header>' +
     '<div class="rc-metrics" role="group" aria-label="Chart metric">' + tabs + '</div>' +
     '<div class="rc-toolbar"><div class="rc-grains" role="group" aria-label="Group by">' +
@@ -261,8 +292,8 @@ revenueChart = function revenueStudio(rows, today) {
         (win.comparable ? '<button type="button" class="rc-toggle" data-rc-compare aria-pressed="' + rc.compare + '"><i class="rc-key prev"></i>Previous period</button>' : '') +
         (meta.additive ? '<button type="button" class="rc-toggle" data-rc-running aria-pressed="' + rc.running + '">Running total</button>' : '') +
       '</div></div>' +
-    '<div class="rc-plot">' + rcSvg(model, width) + '<div class="rc-tip" role="status" hidden></div></div>' +
-    '<p class="rc-hint">Tap or hover a ' + {day: 'day', week: 'week', month: 'month'}[win.grain] + ' for the breakdown.</p>' +
+    '<div class="rc-plot">' + rcSvg(model, width) + '<div class="rc-tip" role="status" hidden></div><div class="rc-flag" hidden></div></div>' +
+    rcNavigator(rows, today, width, win) +
     rcInsights(model) + rcDetail(model) +
     rcUndated(rows) +
     (total.missing ? '<p class="finance-note">Provisional · ' + total.missing + ' sale cost' + (total.missing === 1 ? '' : 's') + ' missing, so profit may be overstated.</p>' : '') +
@@ -289,42 +320,114 @@ function rcRefresh(animate = true) {
   const studio = host.querySelector('.revenue-studio');
   if (animate && studio) studio.classList.add('rc-draw');
   const plot = host.querySelector('.rc-plot');
-  if (plot && rc.selected >= 0) rcCross(rc.selected, plot);
+  if (plot && rc.selected >= 0) { rcCross(rc.selected, plot); rcLive(rc.selected); }
+}
+// While dragging the timeline, swap everything except the timeline itself so the drag keeps going.
+function rcRefreshLive() {
+  const host = document.getElementById('financeChart'), studio = host?.querySelector('.revenue-studio');
+  if (!studio) return;
+  const today = todayUK(), rows = accountingRows(db);
+  const tmp = document.createElement('div');
+  tmp.innerHTML = revenueChart(rows, today);
+  const fresh = tmp.firstElementChild;
+  [...studio.children].forEach((child, i) => { if (!child.classList.contains('rc-nav') && fresh.children[i]) child.replaceWith(fresh.children[i].cloneNode(true)); });
+  rcLastModel = rcModel(rows, today);
 }
 
 function rcCross(i, plot) {
   const svg = plot.querySelector('.rc-svg'), cross = svg?.querySelector('.rc-cross');
-  if (!cross) return;
-  if (i < 0) { cross.setAttribute('visibility', 'hidden'); return; }
+  if (!cross) return 0;
+  if (i < 0) { cross.setAttribute('visibility', 'hidden'); plot.querySelector('.rc-flag').hidden = true; plot.classList.remove('scrubbing'); return 0; }
   const cur = JSON.parse(svg.dataset.cur || '[]'), prev = JSON.parse(svg.dataset.prev || '[]');
-  const hit = svg.querySelector('.rc-hit[data-i="' + i + '"]');
-  const x = cur[i]?.[0] ?? (Number(hit.getAttribute('x')) + Number(hit.getAttribute('width')) / 2);
-  cross.querySelector('.rc-cross-line').setAttribute('x1', x); cross.querySelector('.rc-cross-line').setAttribute('x2', x);
-  const dot = cross.querySelector('.rc-cross-dot');
-  if (cur[i]) { dot.setAttribute('cx', cur[i][0]); dot.setAttribute('cy', cur[i][1]); dot.setAttribute('visibility', 'visible'); } else dot.setAttribute('visibility', 'hidden');
+  const n = Number(svg.dataset.n), pl = Number(svg.dataset.pl), pw = Number(svg.dataset.pw);
+  const x = cur[i]?.[0] ?? (n === 1 ? pl + pw / 2 : pl + pw * i / (n - 1));
+  const lineEl = cross.querySelector('.rc-cross-line'); lineEl.setAttribute('x1', x); lineEl.setAttribute('x2', x);
+  for (const sel of ['.rc-cross-dot', '.rc-cross-ring']) {
+    const dot = cross.querySelector(sel);
+    if (cur[i]) { dot.setAttribute('cx', cur[i][0]); dot.setAttribute('cy', cur[i][1]); dot.setAttribute('visibility', 'visible'); } else dot.setAttribute('visibility', 'hidden');
+  }
   const pd = cross.querySelector('.rc-cross-prev');
   if (pd) { if (prev[i]) { pd.setAttribute('cx', prev[i][0]); pd.setAttribute('cy', prev[i][1]); pd.setAttribute('visibility', 'visible'); } else pd.setAttribute('visibility', 'hidden'); }
   cross.setAttribute('visibility', 'visible');
+  plot.classList.add('scrubbing');
+  // Date flag riding along the top of the crosshair.
+  const flag = plot.querySelector('.rc-flag'), model = rcLastModel;
+  if (model?.buckets[i]) {
+    flag.innerHTML = esc(rcLabel(model.buckets[i], model.win.grain, true)) + ' <b>' + esc(rcValue(model.series[i], model.meta.kind)) + '</b>';
+    flag.hidden = false;
+    const w = flag.offsetWidth;
+    flag.style.left = Math.max(0, Math.min(plot.clientWidth - w, x - w / 2)) + 'px';
+  }
   return x;
 }
+
+// The big number follows your finger / cursor.
+function rcLive(i) {
+  const studio = document.querySelector('.revenue-studio'), model = rcLastModel;
+  if (!studio || !model) return;
+  const hero = studio.querySelector('.rc-hero'), eyebrow = studio.querySelector('.rc-eyebrow'), sub = studio.querySelector('.rc-hero-sub');
+  if (!sub.dataset.base) sub.dataset.base = sub.innerHTML;
+  if (i < 0 || !model.buckets[i]) {
+    hero.textContent = hero.dataset.base; eyebrow.textContent = eyebrow.dataset.base; sub.innerHTML = sub.dataset.base;
+    studio.classList.remove('live'); return;
+  }
+  const b = model.buckets[i], v = model.series[i], p = model.prevSeries[i];
+  hero.textContent = rcValue(v, model.meta.kind);
+  eyebrow.textContent = rcLabel(b, model.win.grain, true) + (model.running ? ' · running total' : '');
+  sub.innerHTML = '<span class="rc-hero-label">' + esc(model.meta.label) + '</span>' + (rc.compare && model.prevSeries.length ? ' ' + rcDelta(v, p, model.meta.kind) + ' <span class="rc-vs">vs ' + rcValue(p, model.meta.kind) + ' before</span>' : '') +
+    ' <span class="rc-vs">· ' + b.stats.sold + ' sold</span>';
+  studio.classList.add('live');
+}
+
 function rcShowTip(i, plot) {
   const tip = plot.querySelector('.rc-tip');
   if (!rcLastModel) rcLastModel = rcModel(accountingRows(db), todayUK());
-  if (i < 0 || !rcLastModel.buckets[i]) { tip.hidden = true; rcCross(-1, plot); return; }
+  if (i < 0 || !rcLastModel.buckets[i]) { tip.hidden = true; rcCross(-1, plot); rcLive(-1); return; }
   const x = rcCross(i, plot);
-  if (window.matchMedia('(hover: none)').matches) return;
+  rcLive(i);
+  if (window.matchMedia('(hover: none)').matches) { tip.hidden = true; return; }
   tip.innerHTML = rcTooltip(rcLastModel, i);
   tip.hidden = false;
-  const w = tip.offsetWidth, max = plot.clientWidth - w - 4;
-  tip.style.left = Math.max(4, Math.min(max, x + 16 + w > plot.clientWidth ? x - w - 16 : x + 16)) + 'px';
+  const w = tip.offsetWidth;
+  tip.style.left = Math.max(4, Math.min(plot.clientWidth - w - 4, x + 18 + w > plot.clientWidth ? x - w - 18 : x + 18)) + 'px';
 }
 function rcHideTip(plot) {
   plot.querySelector('.rc-tip').hidden = true;
-  if (rc.selected >= 0) rcCross(rc.selected, plot); else rcCross(-1, plot);
+  if (rc.selected >= 0) { rcCross(rc.selected, plot); rcLive(rc.selected); } else { rcCross(-1, plot); rcLive(-1); }
+}
+function rcIndexAt(svg, clientX) {
+  const r = svg.getBoundingClientRect(), n = Number(svg.dataset.n), pl = Number(svg.dataset.pl), pw = Number(svg.dataset.pw);
+  if (n <= 1) return 0;
+  return Math.max(0, Math.min(n - 1, Math.round((clientX - r.left - pl) / pw * (n - 1))));
+}
+
+// ---- presets ----
+function rcPreset(key, today) {
+  const t = new Date(rcT(today)), y = t.getUTCFullYear(), m = t.getUTCMonth();
+  const d = (yy, mm, dd) => rcD(Date.UTC(yy, mm, dd));
+  const taxStartYear = (t.getUTCMonth() > 3 || (t.getUTCMonth() === 3 && t.getUTCDate() >= 6)) ? y : y - 1;
+  return {
+    month: [d(y, m, 1), today], lastmonth: [d(y, m - 1, 1), d(y, m, 0)], ytd: [d(y, 0, 1), today],
+    tax: [d(taxStartYear, 3, 6), today], lasttax: [d(taxStartYear - 1, 3, 6), d(taxStartYear, 3, 5)]
+  }[key];
+}
+function rcSetCustom(from, to) {
+  rc.range = 'Custom'; rc.from = from < to ? from : to; rc.to = from < to ? to : from; rc.grain = ''; rc.selected = -1; rcSave();
 }
 
 document.addEventListener('click', event => {
   const t = event.target;
+  const pop = document.querySelector('.revenue-studio .rc-pop');
+  if (t.closest('[data-rc-custom]')) { const open = pop.hidden; pop.hidden = !open; t.closest('[data-rc-custom]').setAttribute('aria-expanded', String(open)); return; }
+  if (pop && !pop.hidden && !t.closest('.rc-pop')) pop.hidden = true;
+  if (t.closest('[data-rc-pop-close]')) { pop.hidden = true; return; }
+  const preset = t.closest('[data-rc-preset]');
+  if (preset) { const [f, to] = rcPreset(preset.dataset.rcPreset, todayUK()); rcSetCustom(f, to); rcRefresh(); return; }
+  if (t.closest('[data-rc-apply]')) {
+    const f = pop.querySelector('[data-rc-from]').value, to = pop.querySelector('[data-rc-to]').value;
+    if (!f || !to) { toast('Pick both dates.'); return; }
+    rcSetCustom(f, to); rcRefresh(); return;
+  }
   const range = t.closest('[data-rc-range]');
   if (range) { rc.range = range.dataset.rcRange; rc.grain = ''; rc.selected = -1; rcSave(); rcRefresh(); return; }
   const metric = t.closest('[data-rc-metric]');
@@ -344,30 +447,105 @@ document.addEventListener('click', event => {
     return;
   }
   if (t.closest('[data-rc-all]')) { rc.all = !rc.all; rcRefresh(false); return; }
-  if (t.closest('[data-rc-clear]')) { rc.selected = -1; rcRefresh(false); return; }
-  const hit = t.closest('.rc-hit');
-  if (hit) {
-    const i = Number(hit.dataset.i);
-    rc.selected = rc.selected === i ? -1 : i;
-    rcRefresh(false);
-    if (rc.selected >= 0) {
-      const plot = document.querySelector('.revenue-studio .rc-plot');
-      rcShowTip(i, plot);
-      if (window.matchMedia('(max-width: 800px)').matches) document.querySelector('.rc-detail')?.scrollIntoView({behavior: 'smooth', block: 'nearest'});
-    }
-  }
+  if (t.closest('[data-rc-clear]')) { rc.selected = -1; rcRefresh(false); }
+});
+
+// ---- scrubbing: hover with a mouse, drag with a finger (vertical swipes still scroll the page) ----
+let rcScrub = null;
+document.addEventListener('pointerdown', event => {
+  const svg = event.target.closest?.('.revenue-studio .rc-svg');
+  if (!svg || event.button > 0) return;
+  rcScrub = {id: event.pointerId, x: event.clientX, y: event.clientY, moved: false, i: rcIndexAt(svg, event.clientX), svg};
+  if (event.pointerType !== 'mouse') rcShowTip(rcScrub.i, svg.closest('.rc-plot'));
 });
 document.addEventListener('pointermove', event => {
+  if (rcScrub && event.pointerId === rcScrub.id) {
+    if (Math.abs(event.clientX - rcScrub.x) > 6) rcScrub.moved = true;
+    const plot = rcScrub.svg.closest('.rc-plot');
+    if (!plot.isConnected) { rcScrub = null; return; }
+    const i = rcIndexAt(rcScrub.svg, event.clientX);
+    if (i !== rcScrub.i || event.pointerType !== 'mouse') { rcScrub.i = i; rcShowTip(i, plot); }
+    return;
+  }
   if (event.pointerType !== 'mouse') return;
-  const plot = event.target.closest?.('.revenue-studio .rc-plot');
-  if (!plot) { const p = document.querySelector('.revenue-studio .rc-plot'); if (p && (!p.querySelector('.rc-tip').hidden || p.querySelector('.rc-cross[visibility=visible]'))) rcHideTip(p); return; }
-  const hit = event.target.closest('.rc-hit');
-  if (hit) rcShowTip(Number(hit.dataset.i), plot);
+  const svg = event.target.closest?.('.revenue-studio .rc-svg');
+  if (svg) { rcShowTip(rcIndexAt(svg, event.clientX), svg.closest('.rc-plot')); return; }
+  const p = document.querySelector('.revenue-studio .rc-plot.scrubbing');
+  if (p) rcHideTip(p);
 });
+const rcEndScrub = event => {
+  if (!rcScrub || event.pointerId !== rcScrub.id) return;
+  const {moved, i, svg} = rcScrub; rcScrub = null;
+  const plot = svg.closest('.rc-plot');
+  if (!moved && event.type === 'pointerup') {
+    rc.selected = rc.selected === i ? -1 : i;
+    const host = document.getElementById('financeChart'), studio = host?.querySelector('.revenue-studio');
+    const tmp = document.createElement('div'); tmp.innerHTML = revenueChart(accountingRows(db), todayUK());
+    studio.querySelector('.rc-detail').replaceWith(tmp.querySelector('.rc-detail'));
+    if (rc.selected >= 0) { rcShowTip(i, plot); if (window.matchMedia('(max-width: 800px)').matches) studio.querySelector('.rc-detail')?.scrollIntoView({behavior: 'smooth', block: 'nearest'}); }
+    else rcHideTip(plot);
+    return;
+  }
+  if (event.pointerType !== 'mouse') rcHideTip(plot);
+};
+document.addEventListener('pointerup', rcEndScrub);
+document.addEventListener('pointercancel', rcEndScrub);
+
+// ---- timeline strip: drag the window to scroll, edges to zoom, tap to jump ----
+let rcNavDrag = null, rcNavFrame = 0;
+document.addEventListener('pointerdown', event => {
+  const nav = event.target.closest?.('.revenue-studio .rc-nav');
+  if (!nav) return;
+  const svg = nav.querySelector('svg'), r = svg.getBoundingClientRect();
+  const t0 = Number(nav.dataset.t0), t1 = Number(nav.dataset.t1), W = r.width;
+  const win = rcWindow(accountingRows(db), todayUK());
+  const toX = t => (t - t0) / (t1 - t0 || 1) * W, x = event.clientX - r.left;
+  const xl = toX(win.start), xr = toX(win.end);
+  const mode = Math.abs(x - xl) < 14 ? 'l' : Math.abs(x - xr) < 14 ? 'r' : x > xl && x < xr ? 'move' : 'jump';
+  rcNavDrag = {id: event.pointerId, mode, x0: x, start: win.start, end: win.end, t0, t1, W, left: r.left};
+  try { nav.setPointerCapture(event.pointerId); } catch {}
+  nav.classList.add('dragging');
+  if (mode === 'jump') { const len = win.end - win.start; rcNavDrag.mode = 'move'; rcNavDrag.start = Math.round((t0 + x / W * (t1 - t0) - len / 2) / rcDay) * rcDay; rcNavDrag.end = rcNavDrag.start + len; rcNavDrag.x0 = x; rcNavApply(rcNavDrag.start, rcNavDrag.end); }
+  event.preventDefault();
+});
+function rcNavApply(start, end) {
+  const d = rcNavDrag; if (!d) return;
+  const len = Math.max(6 * rcDay, end - start);
+  if (start < d.t0) { start = d.t0; if (d.mode === 'move') end = start + len; }
+  if (end > d.t1) { end = d.t1; if (d.mode === 'move') start = Math.max(d.t0, end - len); }
+  if (end - start < 6 * rcDay) { if (d.mode === 'l') start = end - 6 * rcDay; else end = Math.min(d.t1, start + 6 * rcDay); }
+  rc.range = 'Custom'; rc.from = rcD(start); rc.to = rcD(end); rc.grain = ''; rc.selected = -1;
+  const nav = document.querySelector('.revenue-studio .rc-nav'), svg = nav.querySelector('svg');
+  const x0 = (start - d.t0) / (d.t1 - d.t0) * d.W, x1 = (end - d.t0) / (d.t1 - d.t0) * d.W;
+  const [dimL, dimR] = svg.querySelectorAll('.rc-nav-dim'), winEl = svg.querySelector('.rc-nav-win'), [hl, hr] = svg.querySelectorAll('.rc-nav-handle');
+  dimL.setAttribute('width', x0); dimR.setAttribute('x', x1); dimR.setAttribute('width', Math.max(0, d.W - x1));
+  winEl.setAttribute('x', x0); winEl.setAttribute('width', Math.max(6, x1 - x0)); hl.setAttribute('x', x0 - 3); hr.setAttribute('x', x1 - 3);
+  cancelAnimationFrame(rcNavFrame); rcNavFrame = requestAnimationFrame(rcRefreshLive);
+}
+document.addEventListener('pointermove', event => {
+  const d = rcNavDrag; if (!d || event.pointerId !== d.id) return;
+  const dt = Math.round(((event.clientX - d.left) - d.x0) / d.W * (d.t1 - d.t0) / rcDay) * rcDay;
+  if (d.mode === 'move') rcNavApply(d.start + dt, d.end + dt);
+  else if (d.mode === 'l') rcNavApply(Math.min(d.start + dt, d.end - 6 * rcDay), d.end);
+  else rcNavApply(d.start, Math.max(d.end + dt, d.start + 6 * rcDay));
+});
+const rcNavEnd = event => {
+  if (!rcNavDrag || event.pointerId !== rcNavDrag.id) return;
+  rcNavDrag = null; cancelAnimationFrame(rcNavFrame); rcSave(); rcRefresh(false);
+};
+document.addEventListener('pointerup', rcNavEnd);
+document.addEventListener('pointercancel', rcNavEnd);
+
+// Redraw only when the chart's width really changes (iOS fires resize for keyboards and date wheels).
 let rcResize = 0;
 window.addEventListener('resize', () => {
   clearTimeout(rcResize);
-  rcResize = setTimeout(() => { if (document.querySelector('.revenue-studio')) rcRefresh(false); }, 150);
+  rcResize = setTimeout(() => {
+    const plot = document.querySelector('.revenue-studio .rc-plot'), svg = plot?.querySelector('.rc-svg');
+    if (!plot || !svg || Math.abs(plot.clientWidth - Number(svg.getAttribute('width'))) < 2) return;
+    if (document.querySelector('.revenue-studio .rc-pop:not([hidden])') || rcScrub || rcNavDrag) return;
+    rcRefresh(false);
+  }, 150);
 });
 // First paint happens before the container has a width; redraw once at the real size.
 new MutationObserver(() => {
