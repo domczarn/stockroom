@@ -64,3 +64,14 @@ test('sign-in codes are sent through Resend', async () => {
   env.RESEND_FETCH = async () => new Response('bad', {status: 422});
   assert.equal((await post(env, '/auth/code', {email: 'other@example.test'})).status, 502);
 });
+
+test('the owner signs in to their existing workspace even without a members row', async () => {
+  const env = environment(); env.AUTH_DEV_CODES = 'show';
+  const {ADMIN_EMAIL} = await import('../worker/security.js');
+  await env.DB.prepare("INSERT INTO profiles (user_id, owner, avatar_seed) VALUES ('owner-access-id', 1, 'seed-a')").run();
+  await env.DB.prepare("INSERT INTO workspaces (owner_id, payload, revision, updated_at) VALUES ('owner-access-id', '{}', 'r1', '2026-01-01')").run();
+  const sent = await (await post(env, '/auth/code', {email: ADMIN_EMAIL})).json();
+  assert.equal((await post(env, '/auth/verify', {email: ADMIN_EMAIL, code: sent.devCode})).status, 200);
+  const row = await env.DB.prepare('SELECT id FROM accounts WHERE email = ?').bind(ADMIN_EMAIL).first();
+  assert.equal(row.id, 'owner-access-id');
+});

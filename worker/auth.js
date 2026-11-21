@@ -1,7 +1,7 @@
 // Stockroom's own sign-in: 6-digit email codes and passkeys (Face ID / Touch ID / fingerprint).
 // Sessions are random tokens in an HttpOnly cookie; only their SHA-256 hash is stored.
 import {generateRegistrationOptions, verifyRegistrationResponse, generateAuthenticationOptions, verifyAuthenticationResponse} from '@simplewebauthn/server';
-import {HttpError, readBody} from './security.js';
+import {HttpError, readBody, ADMIN_EMAIL} from './security.js';
 
 const COOKIE = 'sr_session';
 const SESSION_DAYS = 60, CODE_MINUTES = 10, MAX_ATTEMPTS = 5;
@@ -35,7 +35,9 @@ async function accountFor(env, email) {
   let account = await env.DB.prepare('SELECT * FROM accounts WHERE email = ?').bind(email).first();
   if (account) return account;
   const member = await env.DB.prepare('SELECT user_id FROM members WHERE email = ? AND user_id IS NOT NULL').bind(email).first().catch(() => null);
-  const id = member?.user_id || crypto.randomUUID();
+  // The owner never had a members row under Cloudflare Access: reuse the owner's existing id so their workspace carries over.
+  const owner = !member && email === ADMIN_EMAIL ? await env.DB.prepare('SELECT p.user_id FROM profiles p JOIN workspaces w ON w.owner_id = p.user_id WHERE p.owner = 1 ORDER BY w.updated_at DESC LIMIT 1').first().catch(() => null) : null;
+  const id = member?.user_id || owner?.user_id || crypto.randomUUID();
   await env.DB.prepare('INSERT OR IGNORE INTO accounts (id, email, created_at) VALUES (?, ?, ?)').bind(id, email, new Date().toISOString()).run();
   return env.DB.prepare('SELECT * FROM accounts WHERE email = ?').bind(email).first();
 }
