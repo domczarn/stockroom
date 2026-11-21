@@ -47,7 +47,7 @@ assert.equal((await call('/api/workspace?owner=member-a','admin')).status,200);
 assert.ok((await call('/api/admin/audit','admin')).data.events.length>0);
 for(let i=0;i<61;i++)await call('/api/admin/members','b','POST',{email:'nobody@example.com'});
 assert.equal((await call('/api/workspace','b','PUT',{data:empty(),revision:null})).status,429);
-assert.equal((await call('/icon.png','admin')).response.headers.get('content-type'),'image/png');
+assert.equal((await call('/pip-icon.png','admin')).response.headers.get('content-type'),'image/png');
 console.log('Passed: account isolation, admin authorization, identity binding, suspension, protected photos, validation, CSRF, concurrent-save conflicts and write limits.');
 
 for(const path of ['/api/purchases','/api/sale-imports','/api/sync-status','/api/market-research']){

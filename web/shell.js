@@ -315,3 +315,50 @@ document.addEventListener('scroll', event => {
 
 // Register the service worker for everyone (offline copy), not only when notifications are switched on.
 if ('serviceWorker' in navigator) addEventListener('load', () => { navigator.serviceWorker.register('/stockroom-sw.js').catch(() => {}); });
+
+// ---------- Large title: the header shows the page name once its big heading scrolls away ----------
+(() => {
+  const header = document.querySelector('.app-header');
+  if (!header) return;
+  let frame = 0;
+  const update = () => {
+    frame = 0;
+    const h1 = document.querySelector('#view h1');
+    header.classList.toggle('has-title', Boolean(h1));
+    const edge = header.getBoundingClientRect().bottom;
+    header.classList.toggle('scrolled', h1 ? h1.getBoundingClientRect().bottom < edge + 4 : window.scrollY > 8);
+  };
+  const queue = () => { if (!frame) frame = requestAnimationFrame(update); };
+  window.addEventListener('scroll', queue, {passive: true});
+  window.addEventListener('resize', queue, {passive: true});
+  const view = document.getElementById('view');
+  if (view) new MutationObserver(queue).observe(view, {childList: true});
+  queue();
+})();
+
+// ---------- Figures count up when a screen opens ----------
+(() => {
+  const view = document.getElementById('view');
+  if (!view || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const pattern = /^([−-]?)(£?)([\d,]+)(\.\d+)?(%?)$/;
+  const run = () => {
+    if (!view.classList.contains('view-arriving')) return;
+    view.querySelectorAll('.metric strong, .kpi-value, .pf-card strong').forEach(el => {
+      if (el.children.length || el.dataset.counted) return;
+      const text = el.textContent.trim(), m = text.match(pattern);
+      if (!m) return;
+      const target = Number(m[3].replace(/,/g, '') + (m[4] || ''));
+      if (!Number.isFinite(target) || target === 0) return;
+      el.dataset.counted = '1';
+      const decimals = m[4] ? m[4].length - 1 : 0, start = performance.now(), duration = 700;
+      const fmt = v => m[1] + m[2] + v.toLocaleString('en-GB', {minimumFractionDigits: decimals, maximumFractionDigits: decimals}) + m[5];
+      const step = now => {
+        const t = Math.min(1, (now - start) / duration), eased = 1 - Math.pow(1 - t, 3);
+        el.textContent = t < 1 ? fmt(target * eased) : text;
+        if (t < 1) requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    });
+  };
+  new MutationObserver(run).observe(view, {attributes: true, attributeFilter: ['class']});
+})();
