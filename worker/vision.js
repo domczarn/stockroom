@@ -1,4 +1,5 @@
 import {readBody,HttpError} from './security.js';
+import {ask, imageFromDataUrl, aiAllowance} from './llm.js';
 
 // Reads a Vinted listing screenshot with Workers AI and returns the fields for Add stock.
 const MODEL = '@cf/meta/llama-3.2-11b-vision-instruct';
@@ -35,32 +36,24 @@ function parse(text) {
   };
 }
 
-async function run(env, image, prompt = PROMPT, max_tokens = 400, temperature = 0.1) {
-  const input = {messages: [{role: 'user', content: prompt}], ...(image ? {image} : {}), max_tokens, temperature};
-  try { return await env.AI.run(MODEL, input); }
-  catch (error) {
-    // First use on an account needs Meta's licence accepted once.
-    if (!/agree|licen[cs]e/i.test(String(error?.message || error))) throw error;
-    await env.AI.run(MODEL, {prompt: 'agree'});
-    return env.AI.run(MODEL, input);
-  }
+async function run(env, image, prompt = PROMPT, maxTokens = 400, temperature = 0.1) {
+  return ask(env, {prompt, image, maxTokens, temperature});
 }
 
 export async function visionRoute(request, env, user) {
   if (request.method !== 'POST') throw new HttpError(405, 'Method not allowed.');
   if (!user) throw new HttpError(401, 'Sign in first.');
-  if (!env.AI) throw new HttpError(503, 'Screenshot reading is not set up yet.');
   const {image} = await readBody(request, 3_000_000) || {};
-  const match = typeof image === 'string' && image.match(/^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$/);
-  if (!match || match[2].length > 2_800_000) throw new HttpError(400, 'Send one screenshot as an image.');
-  const bytes = Uint8Array.from(atob(match[2]), c => c.charCodeAt(0));
+  const bytes = imageFromDataUrl(image);
+  if (!bytes) throw new HttpError(400, 'Send one screenshot as an image.');
+  await aiAllowance(env, user);
   let result;
-  try { result = await run(env, [...bytes]); }
+  try { result = await run(env, bytes); }
   catch (error) {
     console.log(JSON.stringify({vision: 'error', message: String(error?.message || error).slice(0, 300)}));
     throw new HttpError(502, 'Screenshot reading is busy. Try again in a moment.');
   }
-  return {listing: parse(result?.response ?? result)};
+  return {listing: parse(result)};
 }
 
 // ---------- Write a Vinted listing from the item's details (+ cover photo) ----------
@@ -84,7 +77,6 @@ const field = (v, max) => typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().
 export async function writeListingRoute(request, env, user) {
   if (request.method !== 'POST') throw new HttpError(405, 'Method not allowed.');
   if (!user) throw new HttpError(401, 'Sign in first.');
-  if (!env.AI) throw new HttpError(503, 'Listing writing is not set up yet.');
   const body = await readBody(request, 3_000_000) || {};
   const item = body.item && typeof body.item === 'object' ? body.item : {};
   const details = {
@@ -93,9 +85,8 @@ export async function writeListingRoute(request, env, user) {
     'Material': field(item.material, 120), 'Measurements': field(item.measurements, 200), 'Seller notes': field(item.notes, 300)
   };
   if (!details.Name && !details.Brand) throw new HttpError(400, 'Add a name or brand first.');
-  let image = null;
-  const match = typeof body.image === 'string' && body.image.match(/^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$/);
-  if (match && match[2].length <= 2_800_000) image = [...Uint8Array.from(atob(match[2]), c => c.charCodeAt(0))];
+  const image = imageFromDataUrl(body.image);
+  await aiAllowance(env, user);
   let result;
   try { result = await run(env, image, LISTING_PROMPT({details, photo: !!image}), 700, 0.5); }
   catch (error) {

@@ -4,6 +4,8 @@ import {readFile} from 'node:fs/promises';
 import {environment} from '../tests/support.mjs';
 import app from '../dist/server/app.js';
 const env=environment();
+// Preview stand-in for Cloudflare Images: hands the photo back unchanged.
+env.IMAGES={input:stream=>({transform(){return this;},async output(){return {response:()=>new Response(stream)};}})};
 // Optional demo members for previewing the admin console (SEED_MEMBERS=1).
 if(process.env.SEED_MEMBERS){
  const day=86400000,iso=d=>new Date(Date.now()-d*day).toISOString();

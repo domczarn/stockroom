@@ -6,6 +6,7 @@ import {notifyOwner,pushRoute} from './push.js';
 import { socialRoute, ownProfile, findConnection } from './social.js';
 import { pipSvg } from './pip.js';
 import {visionRoute,writeListingRoute} from './vision.js';
+import {studioRoute} from './studio.js';
 import {authRoute} from './auth.js';
 import {adminRoute,appSettings} from './admin.js';
 import {billingRoute,planFor,requirePro,checkNewItems,recordNewItems} from './billing.js';
@@ -125,7 +126,8 @@ export default {
         const result=await gmailRoute(request,url,env,user,context);
         return result instanceof Response?result:json(result);
       }
-      if(url.pathname.startsWith('/api/vision/')&&request.method==='POST')await requirePro(env,user,'Pip AI');
+      if((url.pathname.startsWith('/api/vision/')||url.pathname.startsWith('/api/pip/'))&&request.method==='POST')await requirePro(env,user,'Pip AI');
+      if(url.pathname==='/api/pip/studio')return json(await studioRoute(request,env,user));
       if(url.pathname==='/api/vision/listing')return json(await visionRoute(request,env,user));
       if(url.pathname==='/api/vision/write-listing')return json(await writeListingRoute(request,env,user));
       if(url.pathname==='/api/market-research')return json(await marketResearchRoute(request,env,user));

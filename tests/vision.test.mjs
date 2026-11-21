@@ -51,3 +51,27 @@ test('email updates memory is shared across devices', async () => {
   const {ids} = await (await call('GET')).json();
   assert.deepEqual(ids, ['1a1f3f2b43d8b59e']);
 });
+
+test('uses Claude when an Anthropic key is set', async () => {
+  let sent;
+  const env = {ANTHROPIC_API_KEY: 'sk-ant-fixture', ANTHROPIC_FETCH: async (url, init) => {
+    sent = {url, headers: init.headers, body: JSON.parse(init.body)};
+    return new Response(JSON.stringify({content: [{type: 'text', text: '{"title":"Nike Tech Fleece","brand":"Nike","price":20}'}]}), {status: 200});
+  }};
+  const {listing} = await visionRoute(req({image: png}), env, {id: 'u1'});
+  assert.equal(listing.title, 'Nike Tech Fleece');
+  assert.equal(sent.url, 'https://api.anthropic.com/v1/messages');
+  assert.equal(sent.headers['x-api-key'], 'sk-ant-fixture');
+  assert.equal(sent.body.messages[0].content[0].type, 'image');
+  assert.match(sent.body.model, /^claude-/);
+});
+
+import {studioRoute} from '../worker/studio.js';
+test('photo studio asks Cloudflare Images for a foreground cutout', async () => {
+  const calls = [];
+  const IMAGES = {input: () => ({transform(t) { calls.push(t); return this; }, async output(o) { calls.push(o); return {response: () => new Response(new Uint8Array([137, 80, 78, 71]))}; }})};
+  const {cutout} = await studioRoute(req({image: png}), {IMAGES}, {id: 'u1'});
+  assert.match(cutout, /^data:image\/png;base64,/);
+  assert.deepEqual(calls, [{segment: 'foreground'}, {format: 'image/png'}]);
+  await assert.rejects(studioRoute(req({image: png}), {}, {id: 'u1'}), /isn’t switched on/);
+});

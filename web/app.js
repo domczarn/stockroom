@@ -457,7 +457,7 @@ function labelViewCells(container) {
 const form=$('form');function actual(){const s=form.status.value,show=['Sold','Refunded'].includes(s);$('actualLabel').hidden=!show;$('actualLabel').style.display=show?'grid':'none';form.actual.required=show;$('refundDateLabel').hidden=s!=='Refunded';$('actualLabel').firstElementChild.textContent=s==='Sold'?'Actual sale price (£)':'Refund received (£)'}
 function renderPhotos() {
   $('photoPreview').innerHTML = draftPhotos.map((photo, index) =>
-    '<div class="preview-photo"><img src="' + photoUrl(photo) + '" alt="Stock photo ' + (index + 1) + '"><button type="button" data-remove-photo="' + index + '" aria-label="Remove photo ' + (index + 1) + '">×</button></div>'
+    '<div class="preview-photo"><img src="' + photoUrl(photo) + '" alt="Stock photo ' + (index + 1) + '"><button type="button" data-remove-photo="' + index + '" aria-label="Remove photo ' + (index + 1) + '">×</button><button type="button" class="studio-btn" data-studio-photo="' + index + '" aria-label="Clean up photo ' + (index + 1) + ' in Photo studio">✨ Studio</button></div>'
   ).join('');
 }
 function previewProfit() {
