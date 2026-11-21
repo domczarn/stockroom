@@ -139,7 +139,7 @@ function reportsView() {
   return '<div class="tools"><label>Period <select id="reportMonth"><option value="">All time</option>'+options(months,reportMonth)+'</select></label>'+
     tradeButton('csv','Export period CSV')+'</div><div class="metrics">'+metric('Sales revenue',gbp(summary.revenue),'After recorded sale refunds','featured')+
     metric('Net profit',gbp(summary.profit),summary.missing?summary.missing+' sale costs missing · provisional':'After costs, expenses and returns')+
-    metric('Net expenses',gbp(summary.expense),'Includes return adjustments')+metric('Awaiting payout',gbp(pending),'Across all recorded orders')+'</div>'+moneyDetail()+(typeof taxCard==='function'?taxCard():'')+'<h2 class="report-table-title">Transactions</h2>'+
+    metric('Net expenses',gbp(summary.expense),'Includes return adjustments')+metric('Awaiting payout',gbp(pending),'Across all recorded orders')+'</div>'+moneyDetail()+(typeof reportingCard==='function'?reportingCard():'')+(typeof taxCard==='function'?taxCard():'')+'<h2 class="report-table-title">Transactions</h2>'+
     '<p class="footnote">'+all.filter(row=>!row.date).length+' undated entries are included in All time.</p>'+
     table(['Transaction','Date','Revenue','Cost','Expenses','Profit'],sorted.map(row=>'<tr><td><b>'+esc(row.name)+'</b><br>'+row.kind+'</td><td>'+esc(row.date?dateLabel(row.date):'Undated')+'</td><td>'+gbp(row.revenue)+'</td><td>'+gbp(row.cost)+'</td><td>'+gbp(row.expense)+'</td><td>'+gbp(row.cost===null?null:row.revenue-row.cost-row.expense)+'</td></tr>').join('')||'<tr><td colspan="6">No entries in this period.</td></tr>');
 }

@@ -2486,3 +2486,58 @@ html body { background: url(/constellation.svg) right top / min(1100px, 140vw) a
 .legal-page main h1 { font-size: 30px; margin: 4px 0 2px; }
 .beta-tag { display: inline-block; vertical-align: middle; margin-left: 6px; padding: 2px 8px; border-radius: 999px; font: 600 11px var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--accent-ink); background: var(--accent-bg); border: 1px solid var(--accent-line); }
 .err-count { color: var(--bad); font-size: 18px; } .adm-errors summary { cursor: pointer; color: var(--accent-ink); margin: 6px 0; } .adm-errors .mini-stat span small { display: block; color: var(--ink-3); font-size: 12px; }
+/* Growth features: repricing coach, sourcing, HMRC tracker, ship-by, measure, cross-listing */
+.coach-metrics{margin-bottom:22px}
+.coach-group{margin:26px 0}
+.coach-group>header{display:flex;justify-content:space-between;align-items:flex-end;gap:14px;flex-wrap:wrap;margin-bottom:12px}
+.coach-group>header h2{display:flex;align-items:center;gap:10px;margin:0}
+.coach-group>header p{margin:4px 0 0;font-size:12px;max-width:560px}
+.coach-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.coach-item{padding:16px;border:1px solid var(--line);border-radius:var(--r);background:var(--bg-2,transparent);overflow:visible}
+.coach-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.coach-head .link{text-align:left;padding:0;color:var(--ink);font-size:13px;line-height:1.4}
+.coach-age{flex-shrink:0;font-size:11px;font-family:var(--mono);color:var(--muted);border:1px solid var(--line);border-radius:var(--pill);padding:3px 9px}
+.coach-clear .coach-age{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 40%,transparent)}
+.coach-drop .coach-age{color:var(--orange,#d95926)}
+.coach-prices{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;margin:10px 0 6px}
+.coach-new{color:var(--accent-ink,var(--accent))}
+.coach-why,.coach-tip{font-size:12px;margin:4px 0;line-height:1.55}
+.coach-tip{color:var(--muted)}
+.coach-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.coach-actions button{min-height:var(--h-sm,36px);font-size:12px;padding:0 14px}
+.coach-unlisted{margin-bottom:18px}
+.sourcing-bar{display:flex;justify-content:flex-end;margin-bottom:16px}
+.sourcing-empty p{max-width:620px}
+.run-dialog{width:min(560px,95vw);padding:26px;border-radius:var(--r-xl,24px)}
+.run-dialog form>label,.run-grid label{display:grid;gap:6px;margin:12px 0}
+.run-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 12px}
+.run-items{border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;margin:14px 0;max-height:260px;overflow:auto}
+.run-items legend{font-size:12px;color:var(--muted);padding:0 6px}
+.run-item{display:flex;gap:10px;align-items:flex-start;padding:8px 2px;border-top:1px solid var(--line);font-size:13px}
+.run-item:first-of-type{border-top:0}
+.run-item small{display:block;color:var(--muted);font-size:11px}
+.run-actions{display:flex;gap:10px;flex-wrap:wrap}
+.run-actions .action{flex:1}
+.hmrc-card{margin:20px 0}
+.hmrc-row{display:grid;grid-template-columns:minmax(120px,1fr) 1fr 1fr;gap:14px;align-items:center;padding:12px 0;border-top:1px solid var(--line)}
+.hmrc-name{display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.hmrc-meter small{display:block;font-size:11px;color:var(--muted);margin-bottom:6px;font-variant-numeric:tabular-nums}
+.hmrc-meter .track{display:block;height:7px}
+.hmrc-over{display:block;height:100%;border-radius:6px;background:var(--orange,#d95926)}
+.daily-row.ship-urgent small{color:var(--bad);font-weight:600}
+.daily-row.ship-soon small{color:var(--orange,#d95926)}
+.pg-community{margin-top:8px}
+.pg-net{width:18px;height:18px;flex-shrink:0;border-radius:50%;background:radial-gradient(circle at 50% 50%,var(--accent) 0 2px,transparent 3px),conic-gradient(from 0deg,var(--accent-line,#9b8cff60),transparent 40%,var(--accent-line,#9b8cff60) 70%,transparent);opacity:.9}
+.measure-tool{display:flex;flex-direction:column;gap:6px;margin:-4px 0 12px}
+.measure-btn{display:inline-flex;align-items:center;justify-content:center;align-self:flex-start;min-height:var(--h-sm,36px);padding:0 14px;font-size:12px;cursor:pointer}
+.measure-btn.is-busy{opacity:.6;pointer-events:none}
+.measure-tool small{font-size:11px;color:var(--muted)}
+.crosslist{margin-top:16px}
+.crosslist h3{font-size:14px;margin:16px 0 6px}
+.crosslist-block{border:1px solid var(--line);border-radius:var(--r-sm,10px);padding:10px 12px;margin:8px 0}
+.crosslist-head{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12px}
+.crosslist-head button{min-height:30px;font-size:11px;padding:0 12px}
+.crosslist pre{white-space:pre-wrap;font:inherit;font-size:12.5px;line-height:1.55;margin:8px 0 0;color:var(--ink)}
+@media(max-width:800px){.hmrc-row{grid-template-columns:1fr}.run-grid{grid-template-columns:1fr 1fr}.coach-grid{grid-template-columns:1fr}.sourcing-bar .action{width:100%}}
+.panel .daily-row strong{color:var(--ink)}.panel .daily-row small{color:var(--muted)}.panel .daily-row{color:var(--ink)}
+.hmrc-meter .track{background:var(--line)!important}.hmrc-meter .track>span.green{background:var(--accent)}

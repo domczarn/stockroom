@@ -147,6 +147,15 @@ export function validateWorkspace(data,owner) {
     }
     for(const item of data.items)if(item.bulkOrderId&&!seen.has(item.bulkOrderId))throw new HttpError(400,'Stock batch could not be found.');
   }
+  if(data.sourcingRuns!==undefined){
+    const seen=new Set(),num=(v,max)=>v==null||(typeof v==='number'&&Number.isFinite(v)&&v>=0&&v<=max);
+    if(!Array.isArray(data.sourcingRuns)||data.sourcingRuns.length>5000)throw new HttpError(400,'Invalid sourcing trips.');
+    for(const r of data.sourcingRuns){
+      if(!r||typeof r.id!=='string'||!r.id||r.id.length>100||seen.has(r.id)||typeof r.place!=='string'||!r.place.trim()||!string(r.place,150)||!exactDate(r.date)||!['Charity shop','Car boot','Kilo sale','Wholesale','Online','Market','Other'].includes(r.kind)||!num(r.spend,1000000)||!num(r.miles,10000)||!num(r.minutes,10000)||!string(r.notes,2000))throw new HttpError(400,'Invalid sourcing trip details.');
+      seen.add(r.id);
+    }
+    for(const item of data.items)if(item.sourcingRunId&&!seen.has(item.sourcingRunId))throw new HttpError(400,'Sourcing trip could not be found.');
+  }
   if(data.resourceDirectory!==undefined){
     const r=data.resourceDirectory,object=v=>v&&typeof v==='object'&&!Array.isArray(v);
     const link=v=>{try{const u=new URL(v);return typeof v==='string'&&v.length<=2000&&u.protocol==='https:'&&!u.username&&!u.password;}catch{return false;}};

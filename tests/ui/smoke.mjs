@@ -66,6 +66,46 @@ for (const viewport of [{width: 390, height: 844}, {width: 1440, height: 900}]) 
     await go(page, 'Reports');
     await page.waitForSelector('.tax-card');
   });
+  // Test data for the growth features: stale listings, a sale awaiting postage and a sourcing trip.
+  const seedGrowth = page => page.evaluate(() => {
+    const ago = n => new Date(Date.now() - n * 864e5).toISOString().slice(0, 10);
+    const stock = db.items.filter(i => i.status === 'In Stock').slice(0, 3);
+    [20, 45, 90].forEach((d, n) => { if (stock[n]) Object.assign(stock[n], {stage: 'Listed', listedAt: ago(d), priceChangedAt: '', price: 40, cost: 12}); });
+    db.sourcingRuns = [{id: 'run1', place: 'BHF Ringwood', kind: 'Charity shop', date: ago(30), spend: 24, miles: 12, minutes: 90, notes: ''}];
+    db.items.slice(0, 4).forEach(i => { i.sourcingRunId = 'run1'; });
+    render();
+  });
+  await check('repricing coach', viewport, async page => {
+    await seedGrowth(page);
+    await go(page, 'Repricing');
+    await page.waitForSelector('.coach-group');
+    const groups = await page.$$eval('.coach-group', els => els.length);
+    assert.ok(groups >= 2, 'expected nudge/drop/clear groups, got ' + groups);
+    assert.ok(await page.$('[data-coach-price]'), 'no price suggestion button');
+  });
+  await check('sourcing trips', viewport, async page => {
+    await seedGrowth(page);
+    await go(page, 'Sourcing');
+    await page.waitForSelector('.sourcing-bar');
+    assert.ok(await page.$('table'), 'places table missing');
+    await page.click('[data-run-new]');
+    await page.waitForSelector('#runDialog[open] #runForm');
+    const fits = await page.$eval('#runDialog', el => { const r = el.getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth + 1; });
+    assert.ok(fits, 'trip dialog overflows');
+  });
+  await check('hmrc tracker', viewport, async page => {
+    await go(page, 'Reports');
+    await page.waitForSelector('.hmrc-card .hmrc-row');
+  });
+  await check('ship-by deadline', viewport, async page => {
+    const by = await page.evaluate(() => [shipDeadline('2026-11-20'), shipDeadline('2026-12-22')]);
+    assert.deepEqual(by, ['2026-11-27', '2026-12-31'], 'Fri + 5 working days, and skipping Christmas bank holidays');
+  });
+  await check('editor measure + crosslist', viewport, async page => {
+    await page.evaluate(() => openFullItem(db.items.find(i => i.status === 'In Stock')));
+    await page.waitForSelector('#measureBtn', {state: 'attached'});
+    await page.waitForSelector('#crosslist', {state: 'attached'});
+  });
   await check('item editor + Pip price', viewport, async page => {
     await page.evaluate(() => openFullItem(db.items.find(i => i.status === 'In Stock')));
     await page.waitForSelector('#modal .pg-hint');

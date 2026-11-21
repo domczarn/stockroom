@@ -1,4 +1,5 @@
 // Pip's AI helpers: offer advice, Ask Pip chat, buy-or-pass verdicts and the weekly report.
+import {lookupIndex, garmentType} from './grow.js';
 import {HttpError, readBody} from './security.js';
 import {ask, jsonFrom, aiAllowance, imageFromDataUrl} from './llm.js';
 import seed from './market-seed.json' with {type: 'json'};
@@ -177,6 +178,8 @@ If you can't tell what it is, set confidence to "low", give a wide range and say
   let low = money(data.low), high = money(data.high);
   if (low == null || high == null || high <= 0) throw new HttpError(502, 'Pip couldn’t price that item. Try a photo of the label.');
   if (low > high) [low, high] = [high, low];
+  const community = await lookupIndex(env, data.brand, garmentType({name: data.name, garment: data.category})).catch(() => null);
+  if (community) { low = Math.round((low + community.low) / 2 * 2) / 2; high = Math.round((high + community.high) / 2 * 2) / 2; if (low > high) [low, high] = [high, low]; }
   const brand = text(data.brand, 60), own = digest.byBrand.find(b => brand && norm(b.name) === norm(brand));
   const ownAvg = own?.sold ? own.revenue / own.sold : null;
   const v = scanVerdict({low, high, ownAvg, ownCount: own?.sold || 0, price});
@@ -184,5 +187,6 @@ If you can't tell what it is, set confidence to "low", give a wide range and say
     low, high, confidence: ['low', 'medium', 'high'].includes(data.confidence) ? data.confidence : 'low', reason: text(flat(data.reason), 300),
     checks: (Array.isArray(data.checks) ? data.checks : []).map(c => text(flat(c), 80)).filter(Boolean).slice(0, 3),
     yourHistory: own ? {sold: own.sold, avgSale: ownAvg != null ? Math.round(ownAvg * 100) / 100 : null, medianDaysToSell: own.medianDaysToSell, inStock: own.inStock} : null,
+    community: community ? {median: community.median, low: community.low, high: community.high, n: community.n, days: community.days, label: [community.label, community.type].filter(Boolean).join(' ')} : null,
     price, ...v};
 }

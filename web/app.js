@@ -218,20 +218,22 @@ function dailyActions() {
   const stock=db.items.filter(item=>!item.deletedAt);
   const shipments=stock.map(item=>({item,trade:trades.get(item.id)}))
     .filter(({item,trade})=>item.status==='Sold'&&trade&&tradeStatus(trade)==='Sold'&&saleRemaining(trade)>0)
-    .sort((a,b)=>a.trade.soldAt.localeCompare(b.trade.soldAt));
+    .map(row=>({...row,ship:shipInfo(row.trade,today)}))
+    .sort((a,b)=>String(a.ship.by||a.trade.soldAt).localeCompare(String(b.ship.by||b.trade.soldAt)));
+  const dueNow=shipments.filter(row=>row.ship.level==='urgent').length;
   const reviewed=new Set(db.receiptsReviewed||[]);
   const saleQueue=account.role==='admin'?saleReceipts.filter(row=>!reviewed.has(row.id)):[];
   const gmailQueue=personalGmail?.connection?.receipts.filter(row=>!row.reviewed)||[];
   const stale=stock.map(item=>({item,days:daysListed(item,today)}))
     .filter(({days})=>days>=30).sort((a,b)=>b.days-a.days);
-  const entry=(name,detail,action)=>'<button class="daily-row" type="button" '+action+'><span><strong>'+esc(name)+
+  const entry=(name,detail,action,level='')=>'<button class="daily-row'+(level?' ship-'+level:'')+'" type="button" '+action+'><span><strong>'+esc(name)+
     '</strong><small>'+esc(detail)+'</small></span><span aria-hidden="true">↗</span></button>';
   const tradeAction=(action,id)=>'data-trade="'+action+'" data-stock-id="'+esc(id)+'"';
   const card=(key,title,rows,empty,link='')=>!rows.length?'':'<article class="daily-card" data-daily-card="'+key+'"><div class="daily-card-head"><h3>'+
     title+'</h3><span class="daily-count">'+rows.length+'</span></div>'+
     (rows.length?rows.slice(0,2).join(''):'<p>'+empty+'</p>')+
     (rows.length>2?'<details><summary>Show '+(rows.length-2)+' more</summary>'+rows.slice(2).join('')+'</details>':'')+link+'</article>';
-  return card('ship','Ship next',shipments.map(({item,trade})=>entry(item.name,'Sold '+dateLabel(trade.soldAt),tradeAction('post',item.id))),'No orders waiting for postage.')+
+  return card('ship',dueNow?'Ship next · '+dueNow+' due today':'Ship next',shipments.map(({item,ship})=>entry(item.name,ship.label,tradeAction('post',item.id),ship.level)),'No orders waiting for postage.')+
     card('receipts','Review receipts',[
       ...saleQueue.map(row=>entry(row.name,'Sale receipt · '+row.stage,tradeAction('receipt',row.id))),
       ...gmailQueue.map(row=>entry(row.subject,'Gmail · '+row.category,'data-gmail-jump="'+esc(row.id)+'"'))
@@ -240,7 +242,7 @@ function dailyActions() {
     card('refunds','Chase refunds',stock.filter(item=>item.status==='Refund pending')
       .map(item=>entry(item.name,gbp(item.cost)+' purchase cost','data-edit="'+esc(item.id)+'"')),'No purchase refunds pending.')+
     card('reprice','Reprice stale stock',stale.map(({item,days})=>entry(item.name,days+' days listed'+
-      (Number.isFinite(item.price)?' · '+gbp(item.price):''),'data-reprice="'+esc(item.id)+'"')),'No items listed for 30 days or more.');
+      (Number.isFinite(item.price)?' · '+gbp(item.price):''),'data-reprice="'+esc(item.id)+'"')),'No items listed for 30 days or more.','<button type="button" class="link daily-link" data-tab="Repricing">Open repricing coach ↗</button>');
 }
 
 function renderDailyActions(){
@@ -388,8 +390,8 @@ function render() {
   markSections(tab);
   const headerAction = page => page==='Expenses'?'<button class="action" id="add" data-ledger="expense">＋ Add expense</button>':
     page==='Activity'?'<button class="action" id="add" data-ledger="sale">＋ Add sale</button>':'<button class="action" id="add">＋ Add stock</button>';
-  const titles = {Orders:'Bulk orders',Resources:'Reseller resources','Customer care':'Customer care',Dashboard: 'Business overview', Stock: 'Stock collection', Activity: 'Transactions', Expenses:'Business expenses',Account:'Settings',Profile:'Community',Admin:'Admin console',Studio:'Photo studio', 'Buying research': 'Buying research',Reports:'Reports','Buying insights':'Performance','Sale receipts':'Sale receipts','Vinted updates':'Vinted updates',Leaderboard:'Revenue leaderboard'};
-  const subtitles = {Orders:'Every supplier, every batch, from purchase to your stockroom.',Resources:'Your directory of suppliers, auction sellers and useful tools.','Customer care':'Thoughtful updates for every customer, from purchase to delivery.',Dashboard:'Your resale business at a glance.',Stock:'See what’s in, what’s selling and what needs your attention.',Activity:'Track sales, expenses and completed returns.',Account:'Your account, connections and preferences, in one place.',Profile:'Your profile, connections and messages.',Admin:'Members, plans, invites and app settings.',Studio:'Clean, square listing photos on pro backdrops, in one tap.',Expenses:'Record and review the costs of running your resale business.','Buying research':'UK market data and comparable asking prices.',Reports:'Review your numbers by month or across all time.','Buying insights':'See what sells, what earns and what to buy more of.','Sale receipts':'Review and match imported Vinted orders.','Vinted updates':'Connect the inbox you use for Vinted and review recent order emails.',Leaderboard:'See how the Stockroom community ranks by recorded sales revenue.'};
+  const titles = {Repricing:'Repricing coach',Sourcing:'Sourcing trips',Orders:'Bulk orders',Resources:'Reseller resources','Customer care':'Customer care',Dashboard: 'Business overview', Stock: 'Stock collection', Activity: 'Transactions', Expenses:'Business expenses',Account:'Settings',Profile:'Community',Admin:'Admin console',Studio:'Photo studio', 'Buying research': 'Buying research',Reports:'Reports','Buying insights':'Performance','Sale receipts':'Sale receipts','Vinted updates':'Vinted updates',Leaderboard:'Revenue leaderboard'};
+  const subtitles = {Repricing:'What to drop, refresh or clear, and how much cash it’s holding.',Sourcing:'Which shops, boots and suppliers actually make you money per hour.',Orders:'Every supplier, every batch, from purchase to your stockroom.',Resources:'Your directory of suppliers, auction sellers and useful tools.','Customer care':'Thoughtful updates for every customer, from purchase to delivery.',Dashboard:'Your resale business at a glance.',Stock:'See what’s in, what’s selling and what needs your attention.',Activity:'Track sales, expenses and completed returns.',Account:'Your account, connections and preferences, in one place.',Profile:'Your profile, connections and messages.',Admin:'Members, plans, invites and app settings.',Studio:'Clean, square listing photos on pro backdrops, in one tap.',Expenses:'Record and review the costs of running your resale business.','Buying research':'UK market data and comparable asking prices.',Reports:'Review your numbers by month or across all time.','Buying insights':'See what sells, what earns and what to buy more of.','Sale receipts':'Review and match imported Vinted orders.','Vinted updates':'Connect the inbox you use for Vinted and review recent order emails.',Leaderboard:'See how the Stockroom community ranks by recorded sales revenue.'};
   let html = tab==='Dashboard'?welcome():'<section class="top'+(tab==='Stock'?' stock-page-heading':'')+'"><div>'+
     (tab==='Stock'?'':'<div class="eyebrow">'+esc(tab.toUpperCase())+'</div>')+
     '<h1>'+titles[tab]+'</h1>'+(tab==='Stock'?'':'<p>'+subtitles[tab]+'</p>')+
@@ -407,6 +409,8 @@ function render() {
       table(['Product','Listings','Median displayed','Estimated resale','Max total buy¹'],db.research.map(row => '<tr>' + [esc(row[0]),row[1],gbp(row[3]),gbp(row[4]),gbp(row[5])].map(value=>'<td>'+value+'</td>').join('')+'</tr>').join('')) +
       '<p class="footnote">¹ Allows £15 target profit. Final sale prices may differ.</p><details class="panel"><summary>View comparable listings</summary>' + db.sources.map(row=>'<p>'+esc(row[0])+' · '+gbp(row[1])+' · '+esc(row[4])+'　<a target="_blank" rel="noopener" href="'+esc(/^https:\/\/www\.vinted\.co\.uk\//.test(row[5])?row[5]:'#')+'">View listing ↗</a></p>').join('') + '</details><a href="https://docs.google.com/spreadsheets/d/1OogYe9ABMZeuylHDlk7-xuZIyH3IkNLQAUQScNqZPPs/edit#gid=24002" target="_blank" rel="noopener">Open weekly research in Sheets ↗</a>';
   }
+  if(tab==='Repricing')html+=repricingView();
+  if(tab==='Sourcing')html+=sourcingView();
   if(tab==='Orders')html+=ordersView();
   if(tab==='Resources')html+=resourcesView();
   if(tab==='Customer care')html+=customerCareView();
@@ -424,7 +428,7 @@ function render() {
   if(lastRenderedTab!==tab){$('view').classList.remove('view-arriving');void $('view').offsetWidth;$('view').classList.add('view-arriving');lastRenderedTab=tab;}
   const utility=!SECTIONS.some(section=>section.tabs.some(([id])=>id===tab));$('screenBack').hidden=!utility;
   applyReadOnlyControls();
-  if(['Studio','Orders','Resources','Customer care','Admin','Account','Profile','Reports','Buying insights','Sale receipts','Vinted updates','Leaderboard'].includes(tab))$('add').hidden=true;
+  if(['Repricing','Sourcing','Studio','Orders','Resources','Customer care','Admin','Account','Profile','Reports','Buying insights','Sale receipts','Vinted updates','Leaderboard'].includes(tab))$('add').hidden=true;
   
   $('restore').disabled=isReadOnly();$('refreshImports').hidden=isReadOnly()||account.role!=='admin';
   workspacePickerView();
@@ -510,6 +514,7 @@ function openFullItem(item, pane = 'details') {
     form.elements[name].value = item?.[name] ?? (name === 'status' ? 'In Stock' : '');
   }
   form.elements.platform.value=item?.platform||'Vinted';
+  if(typeof fillSourcingSelect==='function')fillSourcingSelect(item);
   for(const name of ['purchasedAt','receivedAt','listedAt','refundedAt'])form.elements[name].max=todayUK();
   $('itemTradeHistory').innerHTML=(item?.bulkOrderId?'<div class="order-estimate"><b>Bulk order source</b><p>'+esc(orderSource(item))+'</p><button type="button" class="secondary" data-order-origin="'+esc(item.bulkOrderId)+'">View supplier & batch</button></div>':'')+tradeHistory(item);
   if (!item) form.elements.purchasedAt.value = todayUK();
@@ -635,6 +640,7 @@ form.onsubmit = async event => {
     purchaseDateReviewed:true,
     listingNotes: fields.listingNotes.trim(),
     platform:fields.platform,location:fields.location.trim(),
+    sourcingRunId:fields.sourcingRunId||'',
     status: fields.status,
     sale: fields.status === 'Sold' ? Number(fields.actual) : existing?.sale ?? null,
     refund: fields.status === 'Refunded' ? Number(fields.actual) : existing?.refund ?? null

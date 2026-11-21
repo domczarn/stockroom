@@ -51,13 +51,14 @@ function priceGuide(target) {
 
 function priceGuideHtml(target, cost) {
   const g = priceGuide(target);
-  if (!g) return '<span class="pg-none">Pip needs a sale of something similar before it can suggest a price.</span>';
+  const community = typeof communityLine === 'function' ? communityLine(target, cost) : '';
+  if (!g) return community || '<span class="pg-none">Pip needs a sale of something similar before it can suggest a price.</span>';
   const profit = Number.isFinite(cost) && cost !== null ? g.suggest - cost : null;
   return '<span class="pg-line"><span class="pg-pip" aria-hidden="true"></span><span><strong>Pip suggests ' + gbp(g.suggest) + '</strong>' +
     '<small>' + g.count + ' similar sale' + (g.count === 1 ? '' : 's') + (g.count > 1 ? ' · ' + gbp(g.low) + '–' + gbp(g.high) : '') + (g.days !== null ? ' · sold in about ' + g.days + ' day' + (g.days === 1 ? '' : 's') : '') +
     (profit !== null ? ' · ' + (profit >= 0 ? '+' : '') + gbp(profit) + ' profit' : '') + '</small>' +
     '<small class="pg-ex">Like: ' + g.examples.map(e => esc(e.item.name) + ' (' + gbp(e.price) + ')').join(', ') + '</small></span>' +
-    '<button type="button" class="pg-use" data-pg-use="' + g.suggest + '">Use ' + gbp(g.suggest) + '</button></span>';
+    '<button type="button" class="pg-use" data-pg-use="' + g.suggest + '">Use ' + gbp(g.suggest) + '</button></span>' + community;
 }
 
 // Live hint under the price field: Add stock sheet and the full item editor.
