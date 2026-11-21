@@ -1,6 +1,6 @@
 'use strict';
 // Applies Vinted email updates (sold, completed, delivered, refund, label) to stock,
-// then Pip reports what changed. Unsure matches are asked, never guessed.
+// then Pip shows a short summary. Unsure matches are skipped quietly, never guessed or asked about.
 
 const AU_DONE_KEY = 'stockroom-email-updates';
 const auDone = new Set((() => { try { return JSON.parse(localStorage.getItem(AU_DONE_KEY) || '[]'); } catch { return []; } })());
@@ -24,8 +24,7 @@ async function auLoadServerDone() {
     if ([...auDone].some(id => !auSynced.has(id))) auSaveDone();
   } catch {}
 }
-let auBusy = false, auSignature = '', auQuestions = [];
-const auAsked = new Set();
+let auBusy = false, auSignature = '';
 
 const AU_SYNONYMS = {qzip: 'quarter zip', '1/4': 'quarter', hoody: 'hoodie', tee: 't shirt', tshirt: 't shirt', windcheater: 'windbreaker', quaterzip: 'quarter zip', quarterzip: 'quarter zip'};
 const AU_STOP = new Set(['the', 'and', 'with', 'a', 'of', 'for', 'in', 'size', 'mens', 'men', 'womens', 'women', 'ladies', 'uk', 's', 'new', 'vintage']);
@@ -108,12 +107,11 @@ function auApply(event, item, data) {
   return null;
 }
 
-const AU_ASK = {sold: 'Which item sold?', completed: 'Which sale completed?', delivered: 'Which purchase arrived?', refund: 'Which purchase was refunded?', label: 'Which item has a label?'};
 
 async function auRun() {
   if (auBusy || !db || !account || isReadOnly() || document.getElementById('pipUpdates')) return;
   const receipts = (typeof personalGmail !== 'undefined' ? personalGmail?.connection?.receipts : null) || [];
-  const events = receipts.filter(r => r.event && !auDone.has(r.id) && !auAsked.has(r.id)).map(r => ({...r.event, id: r.id}))
+  const events = receipts.filter(r => r.event && !auDone.has(r.id)).map(r => ({...r.event, id: r.id}))
     .sort((a, b) => String(a.date).localeCompare(String(b.date)));
   const signature = events.map(e => e.id).join(',') + '|' + (db.items.length) + '|' + ((db.trades || []).length);
   if (!events.length || signature === auSignature) return;
@@ -121,48 +119,51 @@ async function auRun() {
   auBusy = true;
   const before = db;
   let next = db;
-  const lines = [], questions = [];
+  const lines = [], applied = [];
+  let skipped = 0;
   try {
     for (const event of events) {
       if (auAlreadyDone(event, next)) { auDone.add(event.id); continue; }
       const ranked = auRank(event.title, auCandidates(event, next),
         item => event.type !== 'sold' ? 0 : (Number.isFinite(item.price) && Math.abs(item.price - event.amount) < 0.01 ? 0.15 : 0) - ((typeof stockWorkflow === 'function' ? stockWorkflow(item) === 'arriving' : !item.receivedAt && !item.listedAt) ? 0.2 : 0));
-      if (!ranked.length) { if (event.type !== 'label') questions.push({event, options: []}); else auDone.add(event.id); continue; }
-      if (!auConfident(ranked)) { questions.push({event, options: ranked.slice(0, 3).map(r => r.item)}); continue; }
-      try {
-        const result = auApply(event, ranked[0].item, next);
-        next = result.next; lines.push(result.line); auDone.add(event.id);
-      } catch { questions.push({event, options: ranked.slice(0, 3).map(r => r.item)}); }
+      // Only act when Pip is sure. Anything else is skipped quietly and never asked about.
+      if (ranked.length && auConfident(ranked)) {
+        try { const result = auApply(event, ranked[0].item, next); next = result.next; lines.push(result.line); applied.push(event); }
+        catch { skipped++; }
+      } else if (event.type !== 'label') skipped++;
+      auDone.add(event.id);
     }
     const changed = next !== before;
     if (changed) { await persist(next); render(); }
     auSaveDone();
-    auQuestions = questions.filter(q => !auDone.has(q.event.id));
-    auQuestions.forEach(q => auAsked.add(q.event.id));
-    if (lines.length || auQuestions.length) auPanel(lines, changed ? before : null);
+    if (applied.length) auPanel(lines, changed ? before : null, applied, skipped);
   } catch (error) {
     auSignature = '';
     console.warn('Email updates not applied', error);
   } finally { auBusy = false; }
 }
 
-function auPanel(lines, undoFrom) {
+function auPanel(lines, undoFrom, events = [], skipped = 0) {
   document.getElementById('pipUpdates')?.remove();
+  const count = type => events.filter(e => e.type === type);
+  const sold = count('sold'), money = sold.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+  const stats = [
+    sold.length && ['Sold', sold.length + (sold.length === 1 ? ' item' : ' items'), gbp(money)],
+    count('completed').length && ['Paid out', String(count('completed').length), 'sales completed'],
+    count('delivered').length && ['Arrived', String(count('delivered').length), 'marked received'],
+    count('refund').length && ['Refunds', String(count('refund').length), 'purchases cancelled'],
+  ].filter(Boolean);
   const panel = document.createElement('section');
   panel.id = 'pipUpdates';
-  panel.className = 'pip-updates';
-  panel.setAttribute('role', 'dialog');
-  panel.setAttribute('aria-label', 'Pip stock updates');
-  const qHtml = auQuestions.map((q, qi) => '<div class="pu-q"><p><strong>' + esc(q.options.length ? AU_ASK[q.event.type] || 'Which item?' : 'Couldn’t find this in your stock') + '</strong> “' + esc(q.event.title) + '”' +
-      (q.event.amount ? ' · ' + gbp(q.event.amount) : '') + '</p><div class="pu-choices">' +
-      q.options.map(item => '<button type="button" data-pu-pick="' + qi + ':' + esc(item.id) + '">#' + esc(item.id) + ' ' + esc(item.name) + (Number.isFinite(item.price) ? ' · ' + gbp(item.price) : '') + '</button>').join('') +
-      '<button type="button" class="pu-skip" data-pu-skip="' + qi + '">' + (q.options.length ? 'None of these' : 'Not tracked in Stockroom, skip') + '</button></div></div>').join('');
-  panel.innerHTML = '<header><span class="pu-pip" aria-hidden="true"></span><div><strong>' +
-      (lines.length ? 'Pip updated your stock' : 'Pip needs a quick answer') + '</strong><small>From your Vinted emails</small></div>' +
+  panel.className = 'pip-updates summary';
+  panel.setAttribute('role', 'status');
+  panel.setAttribute('aria-label', 'Pip’s summary of your Vinted updates');
+  panel.innerHTML = '<header><span class="pu-pip" aria-hidden="true"></span><div><strong>' + (sold.length ? 'You made ' + gbp(money) + '!' : 'Pip updated your stock') + '</strong><small>From your latest Vinted emails</small></div>' +
       '<button type="button" class="pu-x" data-pu-close aria-label="Close">✕</button></header>' +
-    (lines.length ? '<ul class="pu-lines">' + lines.map(l => '<li class="' + l.tone + '"><i>' + l.icon + '</i><div><strong>' + esc(l.title) + '</strong><small>' + esc(l.body) + '</small></div></li>').join('') + '</ul>' : '') +
-    qHtml +
-    '<footer>' + (undoFrom ? '<button type="button" class="secondary" data-pu-undo>Undo</button>' : '') + '<button type="button" class="action" data-pu-close>Done</button></footer>';
+    '<div class="pu-stats">' + stats.map(([label, value, sub]) => '<div><span>' + label + '</span><b>' + esc(value) + '</b><small>' + esc(sub) + '</small></div>').join('') + '</div>' +
+    '<details class="pu-more"><summary>See what changed</summary><ul class="pu-lines">' + lines.map(l => '<li class="' + l.tone + '"><i>' + l.icon + '</i><div><strong>' + esc(l.title) + '</strong><small>' + esc(l.body) + '</small></div></li>').join('') + '</ul></details>' +
+    (skipped ? '<p class="pu-skipped">' + skipped + (skipped === 1 ? ' email didn’t' : ' emails didn’t') + ' match your stock, so Pip left ' + (skipped === 1 ? 'it' : 'them') + ' alone.</p>' : '') +
+    '<footer>' + (undoFrom ? '<button type="button" class="secondary" data-pu-undo>Undo</button>' : '') + '<button type="button" class="action" data-pu-close>Nice</button></footer>';
   panel._undo = undoFrom;
   document.body.append(panel);
   if (typeof pipChime === 'function' && localStorage.getItem('stockroom-sound') !== 'off') { try { pipChime(); } catch {} }
@@ -177,22 +178,6 @@ document.addEventListener('click', async event => {
     try { await persist(panel._undo); render(); toast('Updates undone. Pip won’t apply those emails again.'); panel.remove(); }
     catch (e) { toast(e.message || 'Could not undo.'); button.disabled = false; }
     return;
-  }
-  const skip = event.target.closest('[data-pu-skip]');
-  if (skip) { const q = auQuestions[Number(skip.dataset.puSkip)]; auDone.add(q.event.id); auSaveDone(); skip.closest('.pu-q').remove(); if (!panel.querySelector('.pu-q, .pu-lines')) panel.remove(); return; }
-  const pick = event.target.closest('[data-pu-pick]');
-  if (pick) {
-    const [qi, id] = pick.dataset.puPick.split(':');
-    const q = auQuestions[Number(qi)], item = db.items.find(row => row.id === id);
-    if (!q || !item) return;
-    pick.disabled = true;
-    try {
-      const result = auApply(q.event, item, db);
-      if (result.next !== db) { await persist(result.next); render(); }
-      auDone.add(q.event.id); auSaveDone();
-      const box = pick.closest('.pu-q');
-      box.outerHTML = '<ul class="pu-lines"><li class="' + result.line.tone + '"><i>' + result.line.icon + '</i><div><strong>' + esc(result.line.title) + '</strong><small>' + esc(result.line.body) + '</small></div></li></ul>';
-    } catch (e) { toast(e.message || 'Could not apply that update.'); pick.disabled = false; }
   }
 });
 
