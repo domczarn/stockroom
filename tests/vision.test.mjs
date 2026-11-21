@@ -121,3 +121,11 @@ test('buy-or-pass maths: max price leaves at least £5 and 60% headroom', () => 
   v = scanVerdict({low: 6, high: 8, ownAvg: null, ownCount: 0, price: null});
   assert.deepEqual([v.maxBuy, v.verdict], [2, 'unknown']);
 });
+
+import {flat} from '../worker/pipai.js';
+test('structured AI answers are flattened to readable text, never [object Object]', () => {
+  assert.equal(flat('hi'), 'hi');
+  assert.equal(flat(['a', 'b']), '- a\n- b');
+  assert.equal(flat({best_brand: 'Ralph Lauren', profit: 21.4}), '- **best brand**: Ralph Lauren\n- **profit**: 21.4');
+  assert.ok(!flat([{a: 1}]).includes('[object'));
+});

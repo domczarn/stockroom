@@ -5,6 +5,15 @@ import seed from './market-seed.json' with {type: 'json'};
 
 const money = v => { const n = Number(v); return Number.isFinite(n) && n >= 0 && n < 100000 ? Math.round(n * 100) / 100 : null; };
 const text = (v, max) => typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, max) : '';
+// Claude sometimes returns a list or object where we asked for text: turn it into readable lines.
+export function flat(v) {
+  if (v == null) return '';
+  if (typeof v === 'string') return v;
+  if (typeof v === 'number' || typeof v === 'boolean') return String(v);
+  if (Array.isArray(v)) return v.map(x => { const t = flat(x); return /^\s*[-•]/.test(t) || t.includes('\n') ? t : '- ' + t; }).join('\n');
+  if (typeof v === 'object') return Object.entries(v).map(([k, x]) => '- **' + k.replace(/_/g, ' ') + '**: ' + flat(x).replace(/\n/g, ' ')).join('\n');
+  return '';
+}
 const gbp = n => '£' + (Math.round(n * 100) / 100).toFixed(2);
 const VINTED_RULES = 'Context: UK Vinted seller. Sellers pay no selling fee; the buyer pays postage and buyer protection, so the seller keeps the full item price.';
 
@@ -48,7 +57,7 @@ Reply with ONLY JSON: {"verdict": "accept" | "counter" | "decline", "counter": n
     if (counter <= offer) verdict = 'accept', counter = null;
   }
   // If the maths overruled Pip, swap in wording that matches the final decision.
-  let reason = text(data.reason, 300), reply = String(data.reply || '').trim().slice(0, 600);
+  let reason = text(flat(data.reason), 300), reply = flat(data.reply).trim().slice(0, 600);
   const claudeCounter = money(data.counter);
   if (verdict !== data.verdict || (verdict === 'counter' && claudeCounter !== counter)) {
     if (verdict === 'accept') { reason = 'That leaves you ' + gbp(profit) + ' profit, so it’s worth taking.'; reply = 'Hi! Yes, happy to accept that. I’ll get it posted quickly.'; }
@@ -115,11 +124,11 @@ You are Pip, the assistant inside Booked & Paid Stockroom, a resale stock and pr
 - Keep answers short: at most 90 words. Use **bold** for key figures and "- " for lists of up to 5 lines.
 - "Profit" means item profit (sale minus what they paid) unless they ask about business expenses.
 DATA (JSON): ${JSON.stringify(digest)}`;
-  const raw = await ask(env, {system, history, prompt: `QUESTION: ${question}\nReply with ONLY JSON: {"answer": string, "suggestions": [two short follow-up questions they might ask next]}`, maxTokens: 500, temperature: .2});
+  const raw = await ask(env, {system, history, prompt: `QUESTION: ${question}\nReply with ONLY JSON: {"answer": string (plain text, not a list or object; use \"- \" lines inside the string for lists), "suggestions": [two short follow-up questions as strings]}`, maxTokens: 500, temperature: .2});
   let data;
   try { data = jsonFrom(raw); } catch { data = {answer: raw.slice(0, 900), suggestions: []}; }
-  return {answer: String(data.answer || '').trim().slice(0, 1500) || 'I couldn’t work that out. Try asking another way.',
-    suggestions: (Array.isArray(data.suggestions) ? data.suggestions : []).map(s => text(s, 80)).filter(Boolean).slice(0, 3)};
+  return {answer: flat(data.answer).trim().slice(0, 1500) || 'I couldn’t work that out. Try asking another way.',
+    suggestions: (Array.isArray(data.suggestions) ? data.suggestions : []).map(s => text(flat(s), 80)).filter(Boolean).slice(0, 3)};
 }
 
 // ---------- Buy-or-pass scanner ----------
@@ -158,8 +167,8 @@ If you can't tell what it is, set confidence to "low", give a wide range and say
   const ownAvg = own?.sold ? own.revenue / own.sold : null;
   const v = scanVerdict({low, high, ownAvg, ownCount: own?.sold || 0, price});
   return {name: text(data.name, 80) || 'This item', brand, category: text(data.category, 40), condition: text(data.condition, 40),
-    low, high, confidence: ['low', 'medium', 'high'].includes(data.confidence) ? data.confidence : 'low', reason: text(data.reason, 300),
-    checks: (Array.isArray(data.checks) ? data.checks : []).map(c => text(c, 80)).filter(Boolean).slice(0, 3),
+    low, high, confidence: ['low', 'medium', 'high'].includes(data.confidence) ? data.confidence : 'low', reason: text(flat(data.reason), 300),
+    checks: (Array.isArray(data.checks) ? data.checks : []).map(c => text(flat(c), 80)).filter(Boolean).slice(0, 3),
     yourHistory: own ? {sold: own.sold, avgSale: ownAvg != null ? Math.round(ownAvg * 100) / 100 : null, medianDaysToSell: own.medianDaysToSell, inStock: own.inStock} : null,
     price, ...v};
 }
