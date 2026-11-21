@@ -128,9 +128,18 @@ function admAiCard() {
     : '<p class="ai-status ' + (a.ok ? 'ok' : 'bad') + '"><b>' + (a.ok ? '✓ Claude connected' : '✕ Not using Claude') + '</b>' + (a.model ? ' · ' + esc(a.model) : '') + '</p><p class="footnote">' + esc(a.reason) + '</p>';
   return '<section class="panel"><h2>Pip’s AI</h2>' + body + '<button type="button" class="secondary" data-adm-ai>' + (a ? 'Check again' : 'Check connection') + '</button></section>';
 }
+let adminBilling = null;
+async function admSetupBilling() { adminBilling = {checking: true}; if (tab === 'Admin') render(); try { adminBilling = await api('/api/billing/setup', {method: 'POST', body: '{}'}); } catch (error) { adminBilling = {ok: false, reason: error.message}; } if (tab === 'Admin') render(); }
+function admBillingCard() {
+  const b = adminBilling;
+  const body = !b ? '<p>Creates the Pro plan in Stripe (£7 a month, £60 a year) if it isn’t there yet, and checks your Stripe key works.</p>' : b.checking ? '<p>Talking to Stripe…</p>'
+    : b.ok ? '<p class="ai-status ok"><b>✓ Stripe ready</b> · ' + (b.live ? 'live mode' : 'TEST mode') + '</p><p class="footnote">Product ' + esc(b.product) + '</p>'
+    : '<p class="ai-status bad"><b>✕ Stripe not working</b></p><p class="footnote">' + esc(b.reason) + '</p>';
+  return '<section class="panel"><h2>Billing</h2>' + body + '<button type="button" class="secondary" data-adm-billing>' + (b ? 'Check again' : 'Set up billing') + '</button></section>';
+}
 function admSettings() {
   const s = adminData.settings;
-  return admAiCard() + '<section class="panel"><h2>Sign-ups</h2>' +
+  return admAiCard() + admBillingCard() + '<section class="panel"><h2>Sign-ups</h2>' +
     '<label class="adm-switch"><input type="checkbox" id="admSignups"' + (s.signups_open === '1' ? ' checked' : '') + '><span></span><div><b>Anyone can sign up</b><small>Turn off for invite-only. Existing members can always sign in.</small></div></label></section>' +
     '<section class="panel"><h2>Gmail beta</h2><label>Spaces for Gmail auto-updates<input type="number" id="admGmailCap" min="0" max="100000" step="1" inputmode="numeric" value="' + esc(s.gmail_cap) + '"></label><p class="footnote">Google allows 100 people to connect an unverified app. Keep this below 100 until Google verifies Stockroom.</p></section>' +
     '<section class="panel"><h2>Company details</h2><p>Shown on the Privacy policy and Terms.</p><label>Company number<input id="admCompanyNumber" maxlength="12" value="' + esc(s.company_number) + '" placeholder="e.g. 12345678"></label><label>Registered office address<input id="admCompanyAddress" maxlength="200" value="' + esc(s.company_address) + '" placeholder="Street, town, postcode"></label></section>' +
@@ -221,6 +230,7 @@ document.addEventListener('click', async event => {
   if (tabBtn) { adminTab = tabBtn.dataset.admTab; render(); return; }
   if (t.closest('[data-adm-reload]')) { await loadAdmin(); render(); return; }
   if (t.closest('[data-adm-ai]')) { await admLoadAi(); return; }
+  if (t.closest('[data-adm-billing]')) { await admSetupBilling(); return; }
   const filter = t.closest('[data-adm-filter]');
   if (filter) { adminFilter = filter.dataset.admFilter; render(); return; }
   const open = t.closest('[data-adm-open]');
