@@ -91,7 +91,7 @@ export async function writeListingRoute(request, env, user) {
   try { result = await run(env, image, LISTING_PROMPT({details, photo: !!image}), 700, 0.5); }
   catch (error) {
     console.log(JSON.stringify({listing: 'error', message: String(error?.message || error).slice(0, 300)}));
-    throw new HttpError(502, 'Pip is busy. Try again in a moment.');
+    throw error instanceof HttpError ? error : new HttpError(502, 'Pip is busy. Try again in a moment.');
   }
   const raw = String(result?.response ?? result ?? '');
   const json = raw.match(/\{[\s\S]*\}/);

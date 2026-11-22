@@ -27,21 +27,26 @@ export async function aiAllowance(env, user) {
 // ask(env, {system, prompt, image (Uint8Array), maxTokens, temperature}) → plain text reply.
 export async function ask(env, {system = '', prompt, image = null, maxTokens = 600, temperature = 0.3, history = []}) {
   if (env.ANTHROPIC_API_KEY) {
-    const content = [];
-    if (image) content.push({type: 'image', source: {type: 'base64', media_type: mediaType(image), data: toBase64(image)}});
-    content.push({type: 'text', text: prompt});
-    const response = await (env.ANTHROPIC_FETCH || fetch)('https://api.anthropic.com/v1/messages', {
-      method: 'POST', signal: AbortSignal.timeout(45000),
-      headers: {'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json'},
-      body: JSON.stringify({model: env.ANTHROPIC_MODEL || 'claude-haiku-5-5', max_tokens: maxTokens, temperature, ...(system ? {system} : {}),
-        messages: [...history, {role: 'user', content}]}),
-    }).catch(() => null);
-    if (response?.ok) {
-      const data = await response.json();
-      return (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('').trim();
-    }
-    console.log(JSON.stringify({ai: 'anthropic_error', status: response?.status || 0, body: (await response?.text().catch(() => '') || '').slice(0, 300)}));
-    if (!env.AI) throw new HttpError(502, 'Pip is busy. Try again in a moment.');
+    const call = async withImage => {
+      const content = [];
+      if (withImage) content.push({type: 'image', source: {type: 'base64', media_type: mediaType(image), data: toBase64(image)}});
+      content.push({type: 'text', text: prompt});
+      return (env.ANTHROPIC_FETCH || fetch)('https://api.anthropic.com/v1/messages', {
+        method: 'POST', signal: AbortSignal.timeout(40000),
+        headers: {'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json'},
+        body: JSON.stringify({model: env.ANTHROPIC_MODEL || 'claude-haiku-5-5', max_tokens: maxTokens, temperature, ...(system ? {system} : {}),
+          messages: [...history, {role: 'user', content}]}),
+      }).then(async r => ({ok: r.ok, status: r.status, body: r.ok ? await r.json() : (await r.text().catch(() => '')).slice(0, 400)}),
+        e => ({ok: false, status: 0, body: String(e?.name === 'TimeoutError' ? 'timeout' : e?.message || e).slice(0, 200)}));
+    };
+    let r = await call(!!image);
+    if (!r.ok && [0, 429, 500, 502, 503, 529].includes(r.status)) { await new Promise(x => setTimeout(x, 1200)); r = await call(!!image); }
+    if (!r.ok && image && r.status === 400) r = await call(false); // photo rejected: write from the details alone
+    if (r.ok) return (r.body.content || []).filter(b => b.type === 'text').map(b => b.text).join('').trim();
+    console.log(JSON.stringify({ai: 'anthropic_error', status: r.status, body: r.body}));
+    await env.DB?.prepare('INSERT INTO error_events (id, at, path, status, message) VALUES (?, ?, ?, ?, ?)')
+      .bind(crypto.randomUUID(), new Date().toISOString(), '/ai/anthropic', r.status, String(r.body).slice(0, 300)).run().catch(() => {});
+    if (!env.AI) throw new HttpError(502, r.status === 401 || r.status === 403 ? 'Pip’s AI key isn’t working. The owner has been told.' : r.status === 400 && /credit|billing|balance/i.test(r.body) ? 'Pip is out of AI credit. The owner has been told.' : 'Pip is busy. Try again in a moment.');
   }
   if (!env.AI) throw new HttpError(503, 'Pip’s AI isn’t set up yet.');
   const text = (system ? system + '\n\n' : '') + history.map(m => (m.role === 'user' ? 'User: ' : 'Pip: ') + (typeof m.content === 'string' ? m.content : '')).join('\n') + (history.length ? '\nUser: ' : '') + prompt;
