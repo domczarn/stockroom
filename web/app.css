@@ -2927,3 +2927,15 @@ body.qr-open{overflow:hidden}
   body.nav-phone .stock-view-switch{height:auto!important}
   body.nav-phone .stock-toolbar-actions select{font-size:14px!important}
 }
+
+/* ---------- Home sheet: dark, matching the rest of the app ---------- */
+.mh-sheet{background:linear-gradient(180deg,#1d1b24,#16151c)!important;color:var(--ink,#f4f2f8)!important;border:1px solid rgba(255,255,255,.07);box-shadow:0 -10px 40px -14px rgba(0,0,0,.7)!important}
+.mh-sheet h2,.mh-sheet .mh-pulse h3{color:#f4f2f8!important;-webkit-text-fill-color:#f4f2f8!important}
+.mh-tile,.mh-quick button{background:rgba(255,255,255,.05)!important;border-color:rgba(255,255,255,.08)!important;color:#f4f2f8!important}
+.mh-tile small{color:#9c98aa!important}
+.mh-tile b{color:#f4f2f8!important}
+.mh-tile span{background:rgba(155,120,255,.16)!important;color:#b9a4ff!important}
+.mh-pulse{background:rgba(255,255,255,.04)!important;border-color:rgba(155,120,255,.28)!important}
+.mh-pulse p{color:#a9a5b6!important}
+.mh-pulse p b{color:#b9a4ff!important}
+.mh-pulse-cta{background:#f4f2f8!important;color:#16151c!important}
