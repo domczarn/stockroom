@@ -128,6 +128,36 @@ for (const viewport of [{width: 390, height: 844}, {width: 1440, height: 900}]) 
     });
     assert.equal(out, 'InPost|true|245 824 706|Posted|true|true|true', out);
   });
+  await check('label viewer + back', viewport, async page => {
+    await page.evaluate(() => { const id = db.items.find(i => i.status === 'In Stock').id; let d = recordSale(db, id, 30, todayUK()); d.items.find(i => i.id === id).shipLabel = '/favicon.svg'; db = d; render(); });
+    await page.click('[data-label-show]');
+    await page.waitForSelector('.label-view .label-frame');
+    await page.click('.label-view [data-label-close]');
+    assert.equal(await page.$('.label-view'), null, 'label closes with its button');
+    await page.click('[data-label-show]');
+    await page.waitForSelector('.label-view');
+    await page.goBack(); await page.waitForTimeout(300);
+    assert.equal(await page.$('.label-view'), null, 'phone back closes the label');
+    assert.equal(await page.evaluate(() => tab), 'Dashboard', 'back closed the label without leaving Home');
+    await go(page, 'Stock'); await go(page, 'Activity');
+    await page.goBack(); await page.waitForTimeout(300);
+    assert.equal(await page.evaluate(() => tab), 'Stock', 'back returns to the previous screen');
+    await page.evaluate(() => openItem(db.items[0]));
+    await page.waitForSelector('#modal[open]');
+    await page.goBack(); await page.waitForTimeout(400);
+    assert.equal(await page.evaluate(() => document.getElementById('modal').open), false, 'back closes the item sheet');
+    assert.equal(await page.evaluate(() => tab), 'Stock');
+    if (viewport.width < 500) {
+      await go(page, 'Profile');
+      await page.waitForSelector('.me-hub .me-row');
+      assert.ok(!(await page.isVisible('#accountMenu')), 'no ☰ menu on phone');
+      await page.click('.me-row[data-settings-section="account"]'); await page.waitForTimeout(400);
+      assert.equal(await page.evaluate(() => tab), 'Account');
+      assert.ok(await page.isVisible('#screenBack'), 'back button on Settings');
+      await page.click('#screenBack'); await page.waitForTimeout(400);
+      assert.equal(await page.evaluate(() => tab), 'Profile', 'header back returns to Profile');
+    }
+  });
   await check('editor measure + crosslist', viewport, async page => {
     await page.evaluate(() => openFullItem(db.items.find(i => i.status === 'In Stock')));
     await page.waitForSelector('#measureBtn', {state: 'attached'});

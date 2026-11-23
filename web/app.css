@@ -2819,3 +2819,111 @@ body.qr-open{overflow:hidden}
 .ship-way-steps i.pulse{background:#5aa0ff;animation:wayPulse 1.4s ease-in-out infinite}
 @keyframes wayPulse{0%,100%{opacity:.35}50%{opacity:1}}
 @media (prefers-reduced-motion:reduce){.ship-way-steps i.pulse{animation:none;opacity:.6}}
+
+/* ---------- Phone: Profile holds settings (like Vinted), back button, label viewer ---------- */
+.me-hub{display:none}
+@media (max-width:800px){
+  body.nav-phone #accountMenu{display:none!important}
+  body.nav-phone.tab-profile #view>.subnav,body.nav-phone.tab-profile #view>.top,body.nav-phone.tab-profile .pip-profile{display:none!important}
+  .me-hub{display:grid;gap:12px;margin:4px 0 16px}
+  .me-title{font-size:24px!important;margin:0 0 2px;letter-spacing:-.03em}
+  .me-card,.me-row{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:12px;width:100%;cursor:pointer;color:var(--ink);-webkit-tap-highlight-color:transparent}
+  .me-card{padding:12px 14px;border-radius:16px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08)}
+  .me-card .me-avatar img{width:46px;height:46px;border-radius:50%;object-fit:cover;background:#2a2633}
+  .me-card>span:nth-child(2),.me-row>span{flex:1;min-width:0}
+  .me-card b{display:block;font-size:15px;font-weight:650}
+  .me-card small,.me-row small{display:block;font-size:12px;color:var(--muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .me-card em,.me-row em{font-style:normal;color:var(--muted);font-size:18px}
+  .me-group{border-radius:16px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);overflow:hidden}
+  .me-row{padding:11px 14px;min-height:46px;border-top:1px solid rgba(255,255,255,.06)}
+  .me-group>.me-row:first-child{border-top:0}
+  .me-row:active,.me-card:active{background:rgba(255,255,255,.07)}
+  .me-row i{font-style:normal;width:22px;text-align:center;font-size:16px}
+  .me-row b{font-size:14px;font-weight:550}
+  .me-signout b{color:#ff8a8a}
+  body.nav-phone .app-header .screen-back:not([hidden]){display:grid;place-items:center;width:34px;min-width:34px;height:34px;min-height:34px;border-radius:50%;background:rgba(255,255,255,.08);border:0;color:var(--ink);font-size:18px;margin:0 6px 0 0}
+}
+.label-view .label-title{font-size:14px;font-weight:650;color:#111}
+.label-frame{flex:1;min-height:0;width:100%;max-width:560px;border:0;border-radius:12px;background:#f4f4f6;margin-bottom:12px}
+
+/* ---------- Phone: compact, easy-to-scan sizing ---------- */
+@media (max-width:800px){
+  body.nav-phone #view h1{font-size:24px!important;line-height:1.15}
+  body.nav-phone #view .top p,body.nav-phone #view .top>div>p{font-size:12.5px;margin-top:4px}
+  body.nav-phone #view .top{margin-bottom:12px}
+  body.nav-phone #view h2{font-size:16.5px}
+  body.nav-phone nav.subnav{margin-bottom:12px!important}
+  body.nav-phone .subnav button{font-size:13px!important;padding:8px 9px 9px!important;min-height:34px!important}
+  body.nav-phone .app-header{min-height:52px;padding-top:6px;padding-bottom:6px}
+  body.nav-phone .app-header .notification-bell,body.nav-phone .app-header .aura-btn{width:36px!important;height:36px!important;min-width:36px!important;min-height:36px!important}
+  body.nav-phone .mh-avatar{width:34px!important;height:34px!important}
+  body.nav-phone .mh-store{font-size:13px!important;padding:6px 12px!important}
+  /* controls */
+  body.nav-phone #view button.action{min-height:40px!important;font-size:14px!important}
+  body.nav-phone #view button.secondary{min-height:36px!important;font-size:13px!important}
+  body.nav-phone #view select,body.nav-phone #view input:not([type=checkbox]):not([type=radio]):not([type=range]){min-height:40px!important;height:40px;font-size:16px}
+  body.nav-phone #view textarea{font-size:16px}
+  body.nav-phone #view .panel,body.nav-phone #view section.panel{padding:14px!important;border-radius:16px!important}
+  /* home */
+  body.nav-phone .mh-chart{max-height:170px}
+  body.nav-phone .mh-pill{min-height:0!important;padding:6px 12px!important;font-size:12.5px!important}
+  body.nav-phone .mh-sheet{padding:14px 12px 12px!important}
+  body.nav-phone .mh-sheet h2{font-size:16px!important}
+  body.nav-phone .mh-tile{padding:9px 12px!important}
+  body.nav-phone .mh-tile b{font-size:16px!important}
+  body.nav-phone .mh-pulse-cta{min-height:38px!important;padding:8px 14px!important;font-size:13px!important}
+  body.nav-phone .pip-brain{padding:14px!important}
+  body.nav-phone .pip-signal{padding:10px 12px!important}
+  body.nav-phone .daily-row{min-height:0!important}
+  body.nav-phone .ship-qr-panel,body.nav-phone .ship-way-panel{padding:12px;border-radius:18px;margin-bottom:12px}
+  body.nav-phone .ship-qr-panel h2,body.nav-phone .ship-way-panel h2{font-size:15.5px!important}
+  body.nav-phone .ship-qr-row,body.nav-phone .ship-way-row{padding:8px 10px;gap:10px}
+  body.nav-phone .ship-qr-thumb{width:38px;height:38px}
+  body.nav-phone .ship-qr-show,body.nav-phone .ship-qr-add{padding:7px 10px;font-size:12px}
+  /* stock */
+  body.nav-phone #view .stock-image{max-height:112px}
+  body.nav-phone .stock-card{font-size:13px}
+  body.nav-phone .stock-card h3,body.nav-phone .stock-card strong.stock-name,body.nav-phone .stock-card .stock-title{font-size:14px!important}
+  body.nav-phone .stock-next{min-height:36px!important}
+  body.nav-phone .stock-card summary{min-height:36px!important;font-size:18px!important}
+  /* settings */
+  body.nav-phone .settings-navigation button{padding:10px 14px!important;min-height:0!important}
+  body.nav-phone .settings-navigation strong{font-size:14px!important}
+  /* bottom bar a touch slimmer */
+  body.nav-phone nav button{min-height:46px!important;padding:5px 3px!important}
+}
+@media (max-width:800px){
+  body.nav-phone .mh-range button{min-height:0!important;height:30px!important;padding:0 12px!important;font-size:12.5px!important}
+  body.nav-phone .mh-range{padding:2px!important}
+  body.nav-phone .mh-pills{gap:8px}
+  body.nav-phone .mh-pills .mh-pill{height:34px!important}
+  body.nav-phone .tell-pip{margin-top:12px!important}
+  body.nav-phone .tell-pip form,body.nav-phone .tell-pip .tell-bar{min-height:0!important}
+  body.nav-phone .pip-brain h2{font-size:17px!important}
+  body.nav-phone .pip-brain .ask-pip-bar{min-height:44px!important}
+  body.nav-phone .pip-brain .ask-pip-bar input{font-size:15px!important}
+  body.nav-phone .stock-overview>div{padding:10px 12px!important}
+  body.nav-phone .stock-overview{margin-bottom:10px!important}
+  body.nav-phone .stock-overview strong{font-size:17px!important}
+  body.nav-phone .stock-overview span{font-size:9.5px!important}
+  body.nav-phone .stock-controls{padding:10px!important;gap:8px!important}
+  body.nav-phone .stock-toolbar{gap:8px!important}
+  body.nav-phone .stock-filters button{height:32px!important;min-height:32px!important;font-size:12.5px!important}
+  body.nav-phone .stock-tools summary{min-height:34px!important;font-size:13px!important}
+  body.nav-phone .stock-card button:not(.stock-image):not(.stock-next){font-size:14px!important}
+}
+@media (max-width:800px){
+  body.nav-phone .tell-pip form{padding:4px 5px 4px 10px!important;min-height:46px!important}
+  body.nav-phone .tell-pip .tell-mic,body.nav-phone .tell-pip .tell-go{width:34px!important;height:34px!important;min-height:34px!important;min-width:34px!important}
+  body.nav-phone .tell-examples button{height:28px!important;min-height:28px!important;font-size:12px!important}
+}
+@media (max-width:800px){
+  body.nav-phone #view .top button.action,body.nav-phone #view .top>#add{height:42px!important;min-height:42px!important;font-size:14px!important}
+  body.nav-phone #view tbody tr{padding:11px 12px!important;border-radius:16px!important}
+  body.nav-phone #view tbody td{padding-top:4px!important;padding-bottom:4px!important}
+  body.nav-phone #view tbody td:last-child button,body.nav-phone #view tbody td button.secondary{min-height:32px!important;height:32px!important;font-size:12.5px!important}
+  body.nav-phone #view .view-tabs button{height:30px!important}
+  body.nav-phone .stock-view-switch button{height:30px!important;min-height:30px!important}
+  body.nav-phone .stock-view-switch{height:auto!important}
+  body.nav-phone .stock-toolbar-actions select{font-size:14px!important}
+}

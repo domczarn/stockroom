@@ -20,10 +20,10 @@ function readyToPostHtml(where = 'home') {
       return '<article class="ship-qr-row' + (item.shipQr ? ' has-qr' : '') + (ship.level ? ' ship-' + ship.level : '') + '">' +
         (photo ? '<img class="ship-qr-thumb" src="' + esc(photo) + '" alt="" loading="lazy">' : '<span class="ship-qr-thumb none" aria-hidden="true">📦</span>') +
         '<span class="ship-qr-text"><b>' + esc(item.name) + '</b><small>' + esc([ship.label, item.shipCarrier].filter(Boolean).join(' · ')) + '</small></span>' +
-        (!item.shipQr && item.shipLabel ? '<a class="ship-qr-show label" href="' + esc(item.shipLabel) + '" target="_blank" rel="noopener">🏷 Label</a>' : '') +
+        (!item.shipQr && item.shipLabel ? '<button type="button" class="ship-qr-show label" data-label-show="' + esc(item.id) + '">🏷 Label</button>' : '') +
         (item.shipQr
           ? '<button type="button" class="ship-qr-show" data-qr-show="' + esc(item.id) + '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 14h2M14 18h2v2M18 18h2v2"/></svg>Show QR</button>'
-          : '<button type="button" class="ship-qr-add" data-qr-add="' + esc(item.id) + '">＋ Add QR</button>') +
+          : '<button type="button" class="ship-qr-add" data-qr-add="' + esc(item.id) + '">＋ ' + (item.shipLabel ? 'QR' : 'Add QR') + '</button>') +
         '</article>';
     }).join('') + '</div>' + (rows.length > 4 && where === 'home' ? '<button type="button" class="link ship-qr-more" data-tab="Stock">See all ' + rows.length + ' in Stock ↗</button>' : '') + '</section>';
 }
@@ -100,7 +100,7 @@ function showQr(id) {
     '<div class="qr-item"><b>' + esc(item.name) + '</b><small>' + esc([item.size && 'Size ' + item.size, ship?.label].filter(Boolean).join(' · ')) + '</small></div>' +
     '<div class="qr-image"><img src="' + esc(item.shipQr) + '" alt="Shipping QR code"></div>' +
     '<p class="qr-tip">' + (item.shipCode ? 'No scanner? Enter code <b>' + esc(item.shipCode) + '</b> at the locker. ' : '') + 'Turn your screen brightness up if it won’t scan.</p>' +
-    (item.shipLabel ? '<p class="qr-tip"><a href="' + esc(item.shipLabel) + '" target="_blank" rel="noopener">Open the shipping label PDF</a></p>' : '') +
+    (item.shipLabel ? '<p class="qr-tip"><button type="button" class="link" data-label-show="' + esc(item.id) + '">Open the shipping label</button></p>' : '') +
     '<div class="qr-actions">' + (rows.length > 1 ? '<button type="button" class="qr-nav" data-qr-step="-1" aria-label="Previous parcel">‹</button>' : '') +
       '<button type="button" class="qr-posted" data-trade="post" data-stock-id="' + esc(item.id) + '">Mark as posted</button>' +
       (rows.length > 1 ? '<button type="button" class="qr-nav" data-qr-step="1" aria-label="Next parcel">›</button>' : '') + '</div>' +
@@ -153,9 +153,10 @@ if (typeof render === 'function') {
     if (view && !view.querySelector('.ship-qr-panel, .ship-way-panel')) {
       if (tab === 'Dashboard') {
         const html = readyToPostHtml('home') + onTheWayHtml('home');
-        const anchor = view.querySelector('.mh-stats') || view.querySelector('.welcome') || view.querySelector('.home-chart');
-        if (html && anchor) anchor.insertAdjacentHTML(anchor.classList.contains('welcome') ? 'afterend' : 'beforebegin', html);
-        else if (html) view.insertAdjacentHTML('afterbegin', html);
+        // Money chart and the dashboard always come first; posting panels sit right under them.
+        const anchor = view.querySelector('.mh-sheet') || view.querySelector('.home-chart') || view.querySelector('.welcome');
+        if (html && anchor) anchor.insertAdjacentHTML('afterend', html);
+        else if (html) view.insertAdjacentHTML('beforeend', html);
       } else if (tab === 'Stock') {
         const html = readyToPostHtml('stock') + onTheWayHtml('stock');
         if (html) view.insertAdjacentHTML('afterbegin', html);
