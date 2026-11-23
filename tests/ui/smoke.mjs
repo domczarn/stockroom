@@ -128,6 +128,10 @@ for (const viewport of [{width: 390, height: 844}, {width: 1440, height: 900}]) 
     });
     assert.equal(out, 'InPost|true|245 824 706|Posted|true|true|true', out);
   });
+  await check('avatars load', viewport, async page => {
+    await page.waitForFunction(() => { const img = document.querySelector('#navAvatar img'); return img && img.complete; });
+    assert.ok(await page.evaluate(() => document.querySelector('#navAvatar img').naturalWidth > 0), 'profile avatar is broken');
+  });
   await check('long parcel rows fit the screen', viewport, async page => {
     await page.evaluate(() => {
       let d = db;

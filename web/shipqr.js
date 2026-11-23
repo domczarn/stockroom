@@ -169,6 +169,8 @@ if (typeof render === 'function') {
         const anchor = view.querySelector('.mh-sheet') || view.querySelector('.home-chart') || view.querySelector('.welcome');
         if (html && anchor) anchor.insertAdjacentHTML('afterend', html);
         else if (html) view.insertAdjacentHTML('beforeend', html);
+        // Ready to post already lists these, so drop the duplicate To do card.
+        if (view.querySelector('.ship-qr-panel')) [...view.querySelectorAll('.daily-card')].find(c => /^\s*Ship next/.test(c.textContent))?.remove();
       } else if (tab === 'Stock') {
         // Under the Stock tabs and title, never above them.
         const html = readyToPostHtml('stock') + onTheWayHtml('stock');

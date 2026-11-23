@@ -176,7 +176,7 @@ export default {
       if (url.pathname === '/api/avatar' && request.method === 'GET') {
         const seed=url.searchParams.get('seed') || '';
         if(!/^[a-f0-9-]{36}$/.test(seed))throw new HttpError(400,'Invalid avatar.');
-        return new Response(pipSvg(seed),{headers:{'content-type':'image/svg+xml','cache-control':'private, max-age=86400','x-content-type-options':'nosniff',...(object.httpMetadata.contentType==='application/pdf'?{'content-disposition':'inline; filename="vinted-label.pdf"'}:{'content-security-policy':"default-src 'none'"})}});
+        return new Response(pipSvg(seed),{headers:{'content-type':'image/svg+xml','cache-control':'private, max-age=86400','x-content-type-options':'nosniff','content-security-policy':"default-src 'none'"}});
       }
       if(url.pathname === '/api/profile' || url.pathname === '/api/profile/activity' || url.pathname === '/api/leaderboard' || url.pathname === '/api/friends' || url.pathname.startsWith('/api/friends/')){
         const result=await socialRoute(request,url,env,user,context);

@@ -2968,3 +2968,61 @@ body.qr-open{overflow:hidden}
 [data-ship-panel="stock"] header p{display:none}
 [data-ship-panel="stock"]{padding:11px 12px!important}
 [data-ship-panel="stock"] header{margin-bottom:8px}
+
+/* =========================================================================
+   Phone design system: one calm type scale, segmented cards, no shouting.
+   Page title 22 · section title 16 · body 13.5 · labels 11 · numbers 20
+   ========================================================================= */
+@media (max-width:800px){
+  /* page headers */
+  body.nav-phone #view h1{font-size:22px!important;letter-spacing:-.03em!important}
+  body.nav-phone #view .top .eyebrow{display:none}
+  body.nav-phone #view .top p{font-size:13px!important;line-height:1.45;color:var(--muted)!important;margin:3px 0 0!important;max-width:34ch}
+  body.nav-phone #view .top{margin-bottom:14px!important;gap:10px}
+  /* section headings + copy inside cards */
+  body.nav-phone #view .panel h2,body.nav-phone #view section h2,body.nav-phone #view article h2{font-size:16px!important;line-height:1.3;letter-spacing:-.02em!important}
+  body.nav-phone #view h3{font-size:14.5px!important;line-height:1.35}
+  body.nav-phone #view .panel p,body.nav-phone #view section>p,body.nav-phone #view article p{font-size:13px!important;line-height:1.5}
+  body.nav-phone #view .eyebrow{font-size:10px!important;letter-spacing:.08em!important}
+  body.nav-phone #view .footnote,body.nav-phone #view small{font-size:11.5px}
+  /* stat tiles (Repricing, Bulk orders, Performance, Expenses, Reports, Admin) */
+  body.nav-phone #view .metric{padding:12px 13px!important;min-height:0!important}
+  body.nav-phone #view .metric strong{font-size:20px!important;margin:6px 0 3px!important;letter-spacing:-.02em}
+  body.nav-phone #view .metric>span{font-size:10px!important;letter-spacing:.06em}
+  body.nav-phone #view .metric small,body.nav-phone #view .metric p{font-size:11.5px!important;line-height:1.4;color:var(--muted)}
+  body.nav-phone #view strong{letter-spacing:-.01em}
+  /* the big single-figure cards (projected profit etc.) */
+  body.nav-phone #view .projection strong,body.nav-phone #view .finance-projection strong{font-size:24px!important}
+  /* cards: consistent padding and spacing */
+  body.nav-phone #view .panel{margin-bottom:12px}
+  /* primary actions: full-width but calm */
+  body.nav-phone #view .top>.action,body.nav-phone #view .top>#add{height:42px!important;min-height:42px!important;font-size:14px!important}
+  /* settings rows: text left, button under it */
+  body.nav-phone .settings-action-row{flex-direction:column;align-items:stretch;gap:10px;padding:12px 0!important}
+  body.nav-phone .settings-action-row>div{margin:0!important;padding:0!important;text-align:left!important;width:100%}
+  body.nav-phone .settings-action-row h3{font-size:14.5px!important}
+  body.nav-phone .settings-action-row p{font-size:12.5px!important}
+  body.nav-phone .settings-panel{padding:14px!important}
+  /* profile: one title only */
+  body.nav-phone.tab-profile #pageName{visibility:hidden}
+  /* customer care hero: compact */
+  body.nav-phone #view .care-hero,body.nav-phone #view .care-intro{padding:14px!important}
+  /* to-do rows readable on dark */
+  .daily-row{border-top-color:rgba(255,255,255,.07)!important}
+  .daily-row strong{color:var(--ink)!important;font-size:13px!important}
+  .daily-row small{color:var(--muted)!important}
+  /* stock photo placeholder matches the dark app */
+  .stock-image:has(.stock-photo-empty){background:linear-gradient(150deg,#26242e,#1d1b23)!important;color:#7d7a8a!important}
+  .stock-photo-empty svg{opacity:.7}
+}
+@media (max-width:800px){
+  body.nav-phone .care-intro{display:flex!important;gap:12px!important;align-items:center;padding:14px!important}
+  body.nav-phone .care-intro img{width:52px!important;height:52px!important;flex-shrink:0}
+  body.nav-phone .care-intro h2{font-size:15px!important;margin:0 0 4px!important}
+  body.nav-phone .care-intro p{font-size:12.5px!important;margin:0!important;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+}
+@media (max-width:800px){
+  body.nav-phone .stock-overview>div{display:flex!important;flex-direction:column;justify-content:space-between}
+  body.nav-phone .settings-navigation [aria-current="page"]{background:rgba(155,120,255,.14)!important;color:var(--ink)!important}
+  body.nav-phone .settings-navigation [aria-current="page"] strong{color:var(--ink)!important}
+}
