@@ -9,6 +9,9 @@ const encoder=new TextEncoder();
 const mailboxPattern=/^[^\s@]{1,190}@[^\s@]{1,60}$/;
 const messageId=/^[a-f0-9]{10,40}$/;
 const dayMs=86400000;
+const BACKFILL_DAYS=45;
+// Label and courier emails need one full read; older saved ones that already have a tracking number count as read.
+const needsFullRead=r=>!r.read&&(r.courier||(r.event?.type==='label'&&!r.event.tracking));
 const b64=bytes=>btoa(String.fromCharCode(...bytes));
 const b64url=bytes=>b64(bytes).replaceAll('+','-').replaceAll('/','_').replace(/=+$/,'');
 const decode=value=>Uint8Array.from(atob(value),c=>c.charCodeAt(0));
@@ -240,8 +243,8 @@ export async function check(env,user,context,row){
     if(current?.connection_id!==row.connection_id||current.lease!==lease)return false;
     const before=JSON.parse(current.receipts);
     const merged=new Map(before.map(receipt=>[receipt.id,receipt]));
-    for(const receipt of receipts){const known=merged.get(receipt.id);if(!known)merged.set(receipt.id,receipt);else if(receipt.event&&(!known.event||(receipt.event.tracking&&!known.event.tracking)))merged.set(receipt.id,{...known,event:receipt.event,...(receipt.courier?{courier:receipt.courier}:{})});}
-    const recent=[...merged.values()].sort((a,b)=>b.receivedAt.localeCompare(a.receivedAt)).slice(0,120);
+    for(const receipt of receipts){const known=merged.get(receipt.id);if(!known)merged.set(receipt.id,receipt);else if((receipt.read&&!known.read)||(receipt.event&&(!known.event||(receipt.event.tracking&&!known.event.tracking))))merged.set(receipt.id,{...known,...receipt});}
+    const recent=[...merged.values()].sort((a,b)=>b.receivedAt.localeCompare(a.receivedAt)).slice(0,220);
     const result=await env.DB.prepare('UPDATE gmail_connections SET state=?,checked_at=?,receipts=?,lease=0 WHERE owner_id=? AND connection_id=? AND lease=? AND enabled=1 AND receipts=?')
       .bind(state,new Date().toISOString(),JSON.stringify(recent),user.id,row.connection_id,lease,current.receipts).run();
     const added=recent.filter(receipt=>!before.some(existing=>existing.id===receipt.id)).length;
@@ -251,25 +254,33 @@ export async function check(env,user,context,row){
   try{
     const token=await unprotect(env,user.id,row.token);
     const {access_token}=await googleToken(env,{refresh_token:token,grant_type:'refresh_token'});
+    // Cloudflare allows ~50 outside requests per run, so spend them carefully and pick up the rest next check.
+    let budget=38;
     const senders=['no-reply@vinted.co.uk',...COURIER_DOMAINS.map(d=>'@'+d)].map(f=>'from:'+f).join(' OR ');
     const list=await getGmail('messages',access_token,{q:'('+senders+') newer_than:'+row.days+'d',maxResults:'40',fields:'messages(id)'});
-    const ids=(list.messages||[]).filter(m=>messageId.test(m.id)).slice(0,40);
+    // Also look further back for completed orders and labels, so older sales still close properly.
+    const older=await getGmail('messages',access_token,{q:'from:no-reply@vinted.co.uk (subject:"order is completed" OR subject:"shipping label") newer_than:'+BACKFILL_DAYS+'d',maxResults:'30',fields:'messages(id)'}).catch(()=>({}));
+    const ids=[...new Set([...(list.messages||[]),...(older.messages||[])].map(m=>m.id))].filter(id=>messageId.test(id));
     const knownReceipts=new Map(JSON.parse(row.receipts||'[]').map(r=>[r.id,r]));
     const results=[];
-    for(let i=0;i<ids.length;i+=6){
-      const batch=await Promise.all(ids.slice(i,i+6).map(({id})=>getGmail('messages/'+id,access_token,{
+    const fresh=ids.filter(id=>!knownReceipts.has(id));
+    for(const id of ids)if(knownReceipts.has(id))results.push({...knownReceipts.get(id)});
+    for(let i=0;i<fresh.length&&budget>0;i+=6){
+      const slice=fresh.slice(i,i+Math.min(6,budget));
+      budget-=slice.length;
+      const batch=await Promise.all(slice.map(id=>getGmail('messages/'+id,access_token,{
         format:'metadata',metadataHeaders:['From','Subject','Authentication-Results'],fields:'id,internalDate,snippet,payload(headers)'
-      })));
-      results.push(...batch.map(message=>receiptUpdate(message,row.days,now)).filter(Boolean));
+      }).catch(()=>null)));
+      results.push(...batch.filter(Boolean).map(message=>receiptUpdate(message,BACKFILL_DAYS,now)).filter(Boolean));
     }
-    // Full read only for emails not seen before (or labels saved before tracking numbers were read).
-    let fullReads=0;
+    // Full read for label and courier emails not read properly yet (tracking number, label PDF, QR code).
+    results.sort((a,b)=>String(b.receivedAt).localeCompare(String(a.receivedAt)));
     for(let i=0;i<results.length;i++){
-      const r=results[i], known=knownReceipts.get(r.id);
-      if(!r.needsBody)continue;
-      if(known&&(known.event?.tracking||known.courier))results[i]={...known};
-      else if(++fullReads>12)results[i]=null; // the rest are picked up on the next check
-      else try{results[i]=await enrichReceipt(env,user.id,access_token,r);}catch{results[i]={...r,needsBody:undefined};}
+      const r=results[i];
+      if(!needsFullRead(r))continue;
+      if(budget<3)break; // the rest are picked up on the next check
+      budget-=2;
+      try{results[i]={...(await enrichReceipt(env,user.id,access_token,{...r,needsBody:true})),read:true};}catch{results[i]={...r,needsBody:undefined};}
     }
     for(let i=results.length-1;i>=0;i--)if(!results[i])results.splice(i,1);
     if(user.admin){
@@ -370,9 +381,11 @@ async function importPurchases(env,token,receipts){
   const inStock=new Set();
   try{for(const item of JSON.parse(owner?.payload||'{}').items||[])if(item.sourceTransactionId)inStock.add(String(item.sourceTransactionId));}catch{}
   const added=[];
+  let reads=0;
   for(const receipt of receipts.slice(0,12)){
     const seen=await env.DB.prepare("SELECT 1 FROM purchase_imports WHERE json_extract(payload,'$.gmailId')=? LIMIT 1").bind(receipt.id).first();
     if(seen)continue;
+    if(++reads>4)break; // stay inside Cloudflare's request limit; the rest come next check
     try{
       const message=await getGmail('messages/'+receipt.id,token,{format:'full',fields:'id,payload'});
       const html=findBody(message.payload,'text/html')||findBody(message.payload,'text/plain');

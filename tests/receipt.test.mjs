@@ -94,3 +94,13 @@ console.log('vinted events ok');
   assert.equal(r.courier, 'evri.com'); assert.equal(r.quiet, true); assert.equal(r.needsBody, true);
   console.log('courier emails ok');
 }
+
+// Evri drop-off emails are a single HTML part with the tracking number in a table.
+{
+  const {messageParts, courierEvent} = await import('../worker/gmail.js');
+  const html = '<html><head><style>.a{b:c}</style></head><body><p> Thanks for dropping off your Vinted parcel on Thursday 19 November at 19:28. </p><p>Tracking number</p> <p style="x">H00IAA3049598684</p></body></html>';
+  const {text} = messageParts({mimeType: 'text/html', body: {data: Buffer.from(html).toString('base64url')}});
+  const e = courierEvent('Thanks for dropping off your parcel', text, '2026-11-19T19:29:28Z', 'evri.com');
+  assert.deepEqual([e.type, e.tracking, e.carrier], ['posted', 'H00IAA3049598684', 'Evri']);
+  console.log('evri html ok');
+}

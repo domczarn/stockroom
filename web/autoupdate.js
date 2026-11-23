@@ -59,7 +59,7 @@ function auCandidates(event, data) {
     case 'sold': return live.filter(item => item.status === 'In Stock');
     case 'completed': return live.filter(item => { const t = lastTradeOf(item.id); return item.status === 'Sold' && t && !t.completedAt && !t.paidAt; });
     case 'delivered': case 'refund': return live.filter(item => item.status === 'In Stock' && !item.receivedAt);
-    case 'label': return live.filter(item => { const t = lastTradeOf(item.id); return item.status === 'Sold' && t && !t.postedAt; });
+    case 'label': return live.filter(item => { const t = lastTradeOf(item.id); return item.status === 'Sold' && t && !t.completedAt && !t.paidAt && !item.shipTracking; });
   }
   return [];
 }
@@ -151,7 +151,9 @@ function auTrackingApply(event, data) {
 async function auRun() {
   if (auBusy || !db || !account || isReadOnly() || document.getElementById('pipUpdates')) return;
   const receipts = (typeof personalGmail !== 'undefined' ? personalGmail?.connection?.receipts : null) || [];
-  const events = receipts.filter(r => r.event && !auDone.has(r.id + (r.event.type === 'label' && r.event.tracking ? ':t' : ''))).map(r => ({...r.event, id: r.id + (r.event.type === 'label' && r.event.tracking ? ':t' : '')}))
+  // Tracking-based updates use a fresh key so emails read properly after the fix get one more go.
+  const auKey = r => r.id + (['label', 'qr', 'posted', 'parcel-delivered'].includes(r.event.type) && r.event.tracking ? ':t2' : '');
+  const events = receipts.filter(r => r.event && !auDone.has(auKey(r))).map(r => ({...r.event, id: auKey(r)}))
     .sort((a, b) => String(a.date).localeCompare(String(b.date)));
   const signature = events.map(e => e.id).join(',') + '|' + (db.items.length) + '|' + ((db.trades || []).length);
   if (!events.length || signature === auSignature) return;
@@ -168,8 +170,8 @@ async function auRun() {
         let result = null;
         try { result = auTrackingApply(event, next); } catch {}
         if (result) { next = result.next; lines.push(result.line); applied.push(event); auDone.add(event.id); }
-        // No match yet: the label email may not be in yet. Keep trying for 3 days, then leave it (it's probably a parcel coming to you).
-        else if (auDays(event.date, todayUK()) > 3 || next.items.some(row => row.shipTracking === event.tracking)) auDone.add(event.id);
+        // No match yet: the label email may not be in yet. Keep trying for 10 days, then leave it (it's probably a parcel coming to you).
+        else if (auDays(event.date, todayUK()) > 10 || next.items.some(row => row.shipTracking === event.tracking)) auDone.add(event.id);
         continue;
       }
       const ranked = auRank(event.title, auCandidates(event, next),
