@@ -4,7 +4,7 @@ let personalGmail=null;
 let gmailBusy=false;
 let gmailCheckMessage='';
 const gmailFilters={category:'All',review:'unreviewed'};
-const gmailCategories=['Purchase','Sale','Delivery','Refund / cancellation','Order update'];
+const gmailCategories=['Purchase','Sale','Delivery','Refund / cancellation'];
 const gmailOutcomes={connected:'Gmail connected. Stockroom will check for Vinted updates.',cancelled:'Google access was cancelled.',expired:'The connection link expired. Choose Connect Gmail to try again.',permission:'Google did not grant ongoing Gmail read access. Reconnect to try again.',failed:'Gmail could not be connected. Try again.'};
 
 function gmailSetup(step){
@@ -49,7 +49,7 @@ function renderGmail(){
     '<label><input type="checkbox" data-gmail-option="alerts"'+(connection.alerts?' checked':'')+optionsLocked+'> Push alerts on enabled devices</label>'+
     '<label>Search window <select data-gmail-option="days"'+optionsLocked+'>'+[1,3,7].map(day=>'<option value="'+day+'"'+(day===connection.days?' selected':'')+'>'+day+' '+(day===1?'day':'days')+'</option>').join('')+'</select></label></div>');
   updates.hidden=false;
-  const filtered=connection.receipts.filter(item=>(gmailFilters.category==='All'||item.category===gmailFilters.category)&&
+  const filtered=connection.receipts.filter(item=>!item.quiet&&item.category!=='Order update'&&!/confirmation needed|order confirmed|payment successful|purchase confirmed/i.test(item.subject)&&(gmailFilters.category==='All'||item.category===gmailFilters.category)&&
     (gmailFilters.review==='all'||item.reviewed===(gmailFilters.review==='reviewed')));
   const options=['All',...gmailCategories].map(label=>'<option'+(gmailFilters.category===label?' selected':'')+'>'+esc(label)+'</option>').join('');
   renderPart(updates,'<h2>Vinted updates</h2><p class="footnote">Open the original email to confirm item details and amounts before recording a purchase or sale.</p><div class="gmail-actions">'+

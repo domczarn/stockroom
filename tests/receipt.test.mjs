@@ -46,3 +46,17 @@ console.log('receipt ok');
   assert.equal(vintedEvent('Your payment is being sent to your bank', 'Withdrawal amount: £52.50', at), null);
 }
 console.log('vinted events ok');
+
+{
+  const message = subject => ({id:'1a1ef6a23b1699b3', internalDate:String(Date.now()), payload:{headers:[
+    {name:'From', value:'Team Vinted <no-reply@vinted.co.uk>'}, {name:'Subject', value:subject},
+    {name:'Authentication-Results', value:'mx.google.com; dmarc=pass (p=REJECT) header.from=vinted.co.uk'}]}});
+  assert.equal(receiptUpdate(message('This order is completed'), 7).category, 'Sale');
+  assert.equal(receiptUpdate(message('Nike hoodie shipping label'), 7).category, 'Delivery');
+  assert.equal(receiptUpdate(message('Order confirmed'), 7), null);
+  assert.equal(receiptUpdate(message('Payment successful'), 7), null);
+  assert.equal(receiptUpdate(message('Your order update'), 7), null);
+  const arrived = receiptUpdate(message('White zip up top - Confirmation needed'), 7);
+  assert.equal(arrived.quiet, true); assert.equal(arrived.event.type, 'delivered');
+  console.log('gmail filter ok');
+}

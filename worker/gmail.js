@@ -114,18 +114,19 @@ export function receiptUpdate(message,days,now=Date.now()){
   const received=Number(message.internalDate);
   if(!Number.isFinite(received)||received<now-days*dayMs||received>now+60000)return null;
   const subject=header('subject').replace(/\s+/g,' ').trim().slice(0,230);
-  let category;
-  if(/offer|favou?rite|password|sign.in|new message|verification code/i.test(subject))return null;
-  if(/^your receipt for\b/i.test(subject))category='Purchase';
+  let category, quiet=false;
+  // Only the steps that move money or stock: bought, sold, posted/delivered, refunds. Confirmation and reminder emails are ignored.
+  if(/offer|favou?rite|password|sign.in|new message|verification code|reminder|review|rate your|feedback|promo|newsletter|tips?\b|survey/i.test(subject))return null;
+  if(/\b(?:order confirmed|payment (?:successful|confirmed|received)|purchase (?:confirmed|successful|confirmation)|sale confirmed|booking confirmed)\b/i.test(subject))return null;
+  if(/^your receipt for\b/i.test(subject)||/\byou (?:just )?bought\b/i.test(subject))category='Purchase';
   else if(/\b(?:refund(?:ed)?|cancel(?:led|ed|lation)|return completed)\b/i.test(subject))category='Refund / cancellation';
-  else if(/\b(?:you sold|item sold|sale (?:confirmed|complete|completed)|sold an item)\b/i.test(subject))category='Sale';
-  else if(/\b(?:purchase (?:confirmed|successful|confirmation)|you (?:just )?bought|order confirmed|payment successful)\b/i.test(subject))category='Purchase';
-  else if(/\b(?:delivered|delivery|shipped|posted|on its way|parcel|confirmation needed|shipping label|ready for (?:pickup|collection))\b/i.test(subject))category='Delivery';
-  else if(/\b(?:payout|paid|payment|order|purchase|sale|transaction)\b/i.test(subject))category='Order update';
+  else if(/\b(?:you.ve sold|you sold|item sold|sold an item|sale (?:complete|completed)|this order is completed)\b/i.test(subject))category='Sale';
+  else if(/\bconfirmation needed\b/i.test(subject)){category='Delivery';quiet=true;} // your purchase arrived: used to mark stock received, not shown
+  else if(/\b(?:delivered|shipped|posted|on its way|shipping label|ready for (?:pickup|collection)|dropped off|in transit)\b/i.test(subject))category='Delivery';
   else return null;
   const receivedAt=new Date(received).toISOString();
   const event=vintedEvent(subject,message.snippet,receivedAt);
-  return {id:message.id,subject,category,receivedAt,reviewed:false,...(event?{event}:{})};
+  return {id:message.id,subject,category,receivedAt,reviewed:quiet,...(quiet?{quiet:true}:{}),...(event?{event}:{})};
 }
 
 // Turn a Vinted email (subject + Gmail's text preview) into a stock update Stockroom can apply.
