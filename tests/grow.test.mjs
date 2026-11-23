@@ -75,3 +75,12 @@ test('Instagram handles are cleaned and validated', async () => {
   assert.equal(instagramHandle('two..dots'), null);
   assert.equal(instagramHandle('.leadingdot'), null);
 });
+
+test('shipping QR codes must be an image or this account’s stored media', () => {
+  const base = qr => ({items: [{id: '1', name: 'Jacket', cost: 5, status: 'In Stock', price: null, sale: null, refund: null, shipQr: qr}], sales: [], expenses: [], sources: [], research: []});
+  assert.ok(validateWorkspace(base('data:image/png;base64,iVBORw0KGgo='), 'owner'));
+  assert.ok(validateWorkspace(base('/api/media/owner/123e4567-e89b-12d3-a456-426614174000'), 'owner'));
+  assert.ok(validateWorkspace(base(''), 'owner'));
+  assert.throws(() => validateWorkspace(base('/api/media/someone-else/123e4567-e89b-12d3-a456-426614174000'), 'owner'), /Invalid shipping QR/);
+  assert.throws(() => validateWorkspace(base('https://evil.example/qr.png'), 'owner'), /Invalid shipping QR/);
+});

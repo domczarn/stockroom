@@ -114,6 +114,8 @@ export function validateWorkspace(data,owner) {
     for(const [k,v] of Object.entries(item))if(typeof v==='string'&&!string(v))throw new HttpError(400,'Item text is too long.');
     if(!Array.isArray(item.photos||[])||(item.photos||[]).length>4)throw new HttpError(400,'Use up to four photos per item.');
     for(const p of item.photos||[])if(typeof p!=='string'||!((photoPattern.test(p)&&p.length<2000000)||new RegExp('^/api/media/'+encodeURIComponent(owner).replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'/[a-f0-9-]{36}$').test(p)))throw new HttpError(400,'Invalid or foreign account photo.');
+    if(item.shipQr!==undefined&&item.shipQr!==''&&(typeof item.shipQr!=='string'||!((photoPattern.test(item.shipQr)&&item.shipQr.length<3000000)||new RegExp('^/api/media/'+encodeURIComponent(owner).replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'/[a-f0-9-]{36}$').test(item.shipQr))))throw new HttpError(400,'Invalid shipping QR code.');
+    if(item.shipQrAt!==undefined&&item.shipQrAt!==''&&!exactDate(item.shipQrAt))throw new HttpError(400,'Invalid shipping QR date.');
     if(item.referencePhotos && (!Array.isArray(item.referencePhotos)||item.referencePhotos.length>4||item.referencePhotos.some(p=>!p||!/^\/api\/photos\/\d{5,30}\/[0-3]$/.test(p.url))))throw new HttpError(400,'Invalid reference photo.');
     if(!string(item.brand,150)||!string(item.listingTitle,150)||!string(item.listingDescription,20000)||!string(item.purchasedAt,10)|| (item.purchasedAt&&!/^\d{4}-\d{2}-\d{2}$/.test(item.purchasedAt)))throw new HttpError(400,'Invalid item details.');
     if(![item.receivedAt,item.listedAt,item.soldAt,item.refundedAt,item.priceChangedAt,item.deletedAt].every(v=>v==null||v===''||exactDate(v)) || (item.stage&&!['Awaiting delivery','Ready to photograph','Ready to list','Listed','Return inspection'].includes(item.stage)))throw new HttpError(400,'Invalid stock timeline.');
@@ -184,18 +186,22 @@ export function validateWorkspace(data,owner) {
   if(JSON.stringify(data).length>18000000)throw new HttpError(413,'Workspace too large.');
   return data;
 }
+// Move an inline image (data URL) into private storage and return its media path.
+async function storeImage(p,owner,env){
+  const [,type,body]=p.match(/^data:(image\/(?:jpeg|png|webp));base64,(.+)$/)||[];
+  if(!body)throw new HttpError(400,'Invalid photo.');
+  const raw=atob(body);const bytes=Uint8Array.from(raw,c=>c.charCodeAt(0));
+  const jpeg=bytes[0]===255&&bytes[1]===216&&bytes[2]===255;
+  const png=bytes[0]===137&&bytes[1]===80&&bytes[2]===78&&bytes[3]===71;
+  const webp=String.fromCharCode(...bytes.slice(0,4))==='RIFF'&&String.fromCharCode(...bytes.slice(8,12))==='WEBP';
+  if(!((type==='image/jpeg'&&jpeg)||(type==='image/png'&&png)||(type==='image/webp'&&webp)))throw new HttpError(400,'Photo content does not match its type.');
+  const id=crypto.randomUUID();await env.BUCKET.put('users/'+owner+'/'+id,bytes,{httpMetadata:{contentType:type}});
+  return '/api/media/'+encodeURIComponent(owner)+'/'+id;
+}
 export async function storePhotos(data,owner,env) {
-  for(const item of data.items)for(let n=0;n<(item.photos||[]).length;n++){
-    const p=item.photos[n];if(!p.startsWith('data:'))continue;
-    const [,type,body]=p.match(/^data:(image\/(?:jpeg|png|webp));base64,(.+)$/)||[];
-    if(!body)throw new HttpError(400,'Invalid photo.');
-    const raw=atob(body);const bytes=Uint8Array.from(raw,c=>c.charCodeAt(0));
-    const jpeg=bytes[0]===255&&bytes[1]===216&&bytes[2]===255;
-    const png=bytes[0]===137&&bytes[1]===80&&bytes[2]===78&&bytes[3]===71;
-    const webp=String.fromCharCode(...bytes.slice(0,4))==='RIFF'&&String.fromCharCode(...bytes.slice(8,12))==='WEBP';
-    if(!((type==='image/jpeg'&&jpeg)||(type==='image/png'&&png)||(type==='image/webp'&&webp)))throw new HttpError(400,'Photo content does not match its type.');
-    const id=crypto.randomUUID();await env.BUCKET.put('users/'+owner+'/'+id,bytes,{httpMetadata:{contentType:type}});
-    item.photos[n]='/api/media/'+encodeURIComponent(owner)+'/'+id;
+  for(const item of data.items){
+    for(let n=0;n<(item.photos||[]).length;n++)if(item.photos[n].startsWith('data:'))item.photos[n]=await storeImage(item.photos[n],owner,env);
+    if(typeof item.shipQr==='string'&&item.shipQr.startsWith('data:'))item.shipQr=await storeImage(item.shipQr,owner,env);
   }
   return data;
 }
