@@ -185,7 +185,7 @@ async function saveQuick() {
     photos: [...quick.photos], status: 'In Stock', platform: 'Vinted',
     purchasedAt: f.purchasedAt || today, purchaseDateReviewed: true,
     stage: quick.arrived ? '' : 'Awaiting delivery', receivedAt: quick.arrived ? today : '',
-    listedAt: '', material: '', measurements: '', flaws: '', listingTitle: '', listingDescription: '', listingUrl: '', listingNotes: '', location: '',
+    listedAt: '', material: quick.extra?.material || '', measurements: '', flaws: quick.extra?.flaws || '', listingTitle: quick.extra?.listingTitle || '', listingDescription: quick.extra?.listingDescription || '', listingUrl: '', listingNotes: '', location: '',
     refundedAt: '', sale: null, refund: null
   };
   quick.busy = true; syncQuick(); error.textContent = 'Saving…';

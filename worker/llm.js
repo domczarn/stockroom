@@ -29,7 +29,7 @@ export async function ask(env, {system = '', prompt, image = null, maxTokens = 6
   if (env.ANTHROPIC_API_KEY) {
     const call = async withImage => {
       const content = [];
-      if (withImage) content.push({type: 'image', source: {type: 'base64', media_type: mediaType(image), data: toBase64(image)}});
+      if (withImage) for (const img of Array.isArray(image) ? image : [image]) content.push({type: 'image', source: {type: 'base64', media_type: mediaType(img), data: toBase64(img)}});
       content.push({type: 'text', text: prompt});
       return (env.ANTHROPIC_FETCH || fetch)('https://api.anthropic.com/v1/messages', {
         method: 'POST', signal: AbortSignal.timeout(40000),
@@ -39,9 +39,9 @@ export async function ask(env, {system = '', prompt, image = null, maxTokens = 6
       }).then(async r => ({ok: r.ok, status: r.status, body: r.ok ? await r.json() : (await r.text().catch(() => '')).slice(0, 400)}),
         e => ({ok: false, status: 0, body: String(e?.name === 'TimeoutError' ? 'timeout' : e?.message || e).slice(0, 200)}));
     };
-    let r = await call(!!image);
-    if (!r.ok && [0, 429, 500, 502, 503, 529].includes(r.status)) { await new Promise(x => setTimeout(x, 1200)); r = await call(!!image); }
-    if (!r.ok && image && r.status === 400) r = await call(false); // photo rejected: write from the details alone
+    let r = await call(Array.isArray(image) ? image.length > 0 : !!image);
+    if (!r.ok && [0, 429, 500, 502, 503, 529].includes(r.status)) { await new Promise(x => setTimeout(x, 1200)); r = await call(Array.isArray(image) ? image.length > 0 : !!image); }
+    if (!r.ok && (Array.isArray(image) ? image.length : image) && r.status === 400) r = await call(false); // photo rejected: write from the details alone
     if (r.ok) {
       const text = (r.body.content || []).filter(b => b.type === 'text').map(b => b.text).join('').trim();
       if (!text || r.body.stop_reason === 'max_tokens') await env.DB?.prepare('INSERT INTO error_events (id, at, path, status, message) VALUES (?, ?, ?, ?, ?)')
@@ -55,7 +55,8 @@ export async function ask(env, {system = '', prompt, image = null, maxTokens = 6
   }
   if (!env.AI) throw new HttpError(503, 'Pip’s AI isn’t set up yet.');
   const text = (system ? system + '\n\n' : '') + history.map(m => (m.role === 'user' ? 'User: ' : 'Pip: ') + (typeof m.content === 'string' ? m.content : '')).join('\n') + (history.length ? '\nUser: ' : '') + prompt;
-  const input = {messages: [{role: 'user', content: text}], ...(image ? {image: [...image]} : {}), max_tokens: maxTokens, temperature};
+  const first = Array.isArray(image) ? image[0] : image;
+  const input = {messages: [{role: 'user', content: text}], ...(first ? {image: [...first]} : {}), max_tokens: maxTokens, temperature};
   let result;
   try { result = await env.AI.run(WORKERS_MODEL, input); }
   catch (error) {

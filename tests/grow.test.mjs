@@ -49,3 +49,20 @@ test('listingGaps suggests what to add', async () => {
   assert.deepEqual(listingGaps({Name: 'Nike hoodie', Brand: 'Nike'}, true), ['the size', 'the condition', 'the colour']);
   assert.deepEqual(listingGaps({Name: 'Thing', Brand: 'Nike', Size: 'M', Condition: 'Good', Colour: 'Black', Measurements: 'x'}, false), ['a cover photo', 'the item type']);
 });
+
+test('Tell Pip only keeps valid changes to real in-stock items', async () => {
+  const {cleanActions} = await import('../worker/pipplus.js');
+  const out = cleanActions([
+    {type: 'mark_sold', itemId: '0001', amount: '25', buyer: 'fred', date: '2026-11-22'},
+    {type: 'mark_sold', itemId: '9999', amount: 10},
+    {type: 'set_price', itemId: '0001', price: 19.5},
+    {type: 'add_item', name: 'Nike jumper', cost: 4, quantity: 3, date: '2030-01-01', place: 'BHF'},
+    {type: 'add_item', name: 'No cost'},
+    {type: 'delete_everything'},
+    {type: 'log_expense', description: 'Mailing bags', amount: 4.5, category: 'Packaging', date: '2026-11-23'}
+  ], new Set(['0001']), '2026-11-23');
+  assert.deepEqual(out.map(a => a.type), ['mark_sold', 'set_price', 'add_item', 'log_expense']);
+  assert.equal(out[0].amount, 25);
+  assert.equal(out[2].purchasedAt, '2026-11-23', 'future dates are pulled back to today');
+  assert.equal(out[2].quantity, 3);
+});
