@@ -28,7 +28,7 @@ function loginPage(request,env={}){
     'content-security-policy':"default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'"+ts+"; frame-src 'self'"+ts+"; connect-src 'self'"+ts+"; font-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"}});
 }
 function landingPage(request){
-  return new Response(request.method==='HEAD'?null:assets['/welcome.html'],{status:200,headers:{'content-type':'text/html; charset=utf-8','cache-control':'public, max-age=300','x-content-type-options':'nosniff','referrer-policy':'strict-origin-when-cross-origin',
+  return new Response(request.method==='HEAD'?null:assets['/welcome.html'],{status:200,headers:{'content-type':'text/html; charset=utf-8','cache-control':'private, no-store','x-content-type-options':'nosniff','referrer-policy':'strict-origin-when-cross-origin',
     'content-security-policy':"default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"}});
 }
 function welcomePage(request,suspended=false){
