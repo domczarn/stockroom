@@ -83,7 +83,43 @@
     <ul class="ticks reveal"><li>Reads care labels for size and material</li><li>Prices from real sold data</li><li>Writes a search-ready title and description</li></ul>
   </div>
   <div class="demo snap-demo reveal" aria-hidden="true">
-    <div class="snap-photo"><div class="garment"></div><div class="label-tag">M</div><div class="beam"></div><div class="flaw-ring"></div></div>
+    <div class="snap-photo"><svg class="qz" viewBox="0 0 240 260" aria-hidden="true">
+  <defs>
+    <linearGradient id="qzBody" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2b3f74"/><stop offset=".55" stop-color="#1b2a52"/><stop offset="1" stop-color="#111a36"/></linearGradient>
+    <linearGradient id="qzSleeve" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#23345f"/><stop offset="1" stop-color="#141f3f"/></linearGradient>
+    <linearGradient id="qzZip" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#9ea3b3"/><stop offset=".5" stop-color="#eef0f6"/><stop offset="1" stop-color="#8e93a3"/></linearGradient>
+    <pattern id="qzKnit" width="4" height="4" patternUnits="userSpaceOnUse"><path d="M0 2h4" stroke="#fff" stroke-opacity=".035" stroke-width="1"/></pattern>
+    <pattern id="qzRib" width="4" height="10" patternUnits="userSpaceOnUse"><path d="M2 0v10" stroke="#000" stroke-opacity=".28" stroke-width="1.4"/></pattern>
+  </defs>
+  <g class="qz-sway">
+    <!-- sleeves -->
+    <path class="qz-arm-l" d="M58 62 L22 92 Q12 150 18 214 L44 216 Q48 160 64 118 Z" fill="url(#qzSleeve)"/>
+    <path class="qz-arm-r" d="M182 62 L218 92 Q228 150 222 214 L196 216 Q192 160 176 118 Z" fill="url(#qzSleeve)"/>
+    <rect x="16" y="204" width="30" height="18" rx="4" fill="#16224a"/><rect x="16" y="204" width="30" height="18" rx="4" fill="url(#qzRib)"/>
+    <rect x="194" y="204" width="30" height="18" rx="4" fill="#16224a"/><rect x="194" y="204" width="30" height="18" rx="4" fill="url(#qzRib)"/>
+    <!-- body -->
+    <path d="M58 52 Q90 40 104 38 L136 38 Q150 40 182 52 L184 236 Q120 244 56 236 Z" fill="url(#qzBody)"/>
+    <path d="M58 52 Q90 40 104 38 L136 38 Q150 40 182 52 L184 236 Q120 244 56 236 Z" fill="url(#qzKnit)"/>
+    <!-- side shadows -->
+    <path d="M58 60 Q70 150 60 236 L56 236 Z" fill="#000" opacity=".18"/><path d="M182 60 Q170 150 180 236 L184 236 Z" fill="#000" opacity=".22"/>
+    <!-- hem rib -->
+    <path d="M56 222 Q120 230 184 222 L184 238 Q120 246 56 238 Z" fill="#16224a"/><path d="M56 222 Q120 230 184 222 L184 238 Q120 246 56 238 Z" fill="url(#qzRib)"/>
+    <!-- stand-up collar -->
+    <path d="M96 40 Q120 30 144 40 L146 14 Q120 6 94 14 Z" fill="#22336a"/>
+    <path d="M94 14 Q120 6 146 14" fill="none" stroke="#0e1630" stroke-width="2"/>
+    <path d="M100 18 Q120 12 140 18" fill="none" stroke="#fff" stroke-opacity=".06" stroke-width="3"/>
+    <!-- zip placket -->
+    <rect x="116" y="10" width="8" height="92" rx="3" fill="#0f1834"/>
+    <path d="M120 12 V100" stroke="url(#qzZip)" stroke-width="3" stroke-dasharray="2 2.4"/>
+    <g class="qz-pull"><rect x="115.5" y="26" width="9" height="7" rx="2" fill="url(#qzZip)"/><rect x="117.5" y="32" width="5" height="15" rx="2.5" fill="url(#qzZip)"/></g>
+    <!-- open collar lapels -->
+    <path d="M116 40 L104 60 L116 100 Z" fill="#000" opacity=".16"/><path d="M124 40 L136 60 L124 100 Z" fill="#000" opacity=".12"/>
+    <!-- chest embroidery spot (unbranded) -->
+    <circle cx="80" cy="84" r="5" fill="#c9a24a" opacity=".85"/>
+    <!-- care label -->
+    <rect class="qz-label" x="112" y="44" width="16" height="10" rx="1.5" fill="#f1efe8"/><text x="120" y="52" text-anchor="middle" font-size="7" font-weight="700" fill="#222" font-family="Geist,system-ui">M</text>
+  </g>
+</svg><div class="beam"></div><div class="flaw-ring"></div></div>
     <div class="snap-fields">
       <div class="f"><small>Brand</small><b>Ralph Lauren</b></div>
       <div class="f"><small>Item</small><b>Quarter zip jumper</b></div>
@@ -120,8 +156,44 @@
     <p class="reveal">Standing at the rail? Snap the item. Pip tells you what it sells for, the most you should pay to make it worth it, and what to check before you buy, using your own sales and Stockroom-wide sold prices.</p>
   </div>
   <div class="demo scan-demo reveal" aria-hidden="true">
-    <div class="viewfinder"><span></span><span></span><span></span><span></span><div class="scan-garment"></div><div class="scan-line"></div></div>
-    <div class="verdict"><span class="stamp">BUY</span><div><b>Pay up to £8</b><small>Sells for £22–£28 · usually within 9 days</small></div></div>
+    <div class="viewfinder"><span></span><span></span><span></span><span></span><div class="scan-garment"><svg class="qz" viewBox="0 0 240 260" aria-hidden="true">
+  <defs>
+    <linearGradient id="sqzBody" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2b3f74"/><stop offset=".55" stop-color="#1b2a52"/><stop offset="1" stop-color="#111a36"/></linearGradient>
+    <linearGradient id="sqzSleeve" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#23345f"/><stop offset="1" stop-color="#141f3f"/></linearGradient>
+    <linearGradient id="sqzZip" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#9ea3b3"/><stop offset=".5" stop-color="#eef0f6"/><stop offset="1" stop-color="#8e93a3"/></linearGradient>
+    <pattern id="sqzKnit" width="4" height="4" patternUnits="userSpaceOnUse"><path d="M0 2h4" stroke="#fff" stroke-opacity=".035" stroke-width="1"/></pattern>
+    <pattern id="sqzRib" width="4" height="10" patternUnits="userSpaceOnUse"><path d="M2 0v10" stroke="#000" stroke-opacity=".28" stroke-width="1.4"/></pattern>
+  </defs>
+  <g class="qz-sway">
+    <!-- sleeves -->
+    <path class="qz-arm-l" d="M58 62 L22 92 Q12 150 18 214 L44 216 Q48 160 64 118 Z" fill="url(#sqzSleeve)"/>
+    <path class="qz-arm-r" d="M182 62 L218 92 Q228 150 222 214 L196 216 Q192 160 176 118 Z" fill="url(#sqzSleeve)"/>
+    <rect x="16" y="204" width="30" height="18" rx="4" fill="#16224a"/><rect x="16" y="204" width="30" height="18" rx="4" fill="url(#sqzRib)"/>
+    <rect x="194" y="204" width="30" height="18" rx="4" fill="#16224a"/><rect x="194" y="204" width="30" height="18" rx="4" fill="url(#sqzRib)"/>
+    <!-- body -->
+    <path d="M58 52 Q90 40 104 38 L136 38 Q150 40 182 52 L184 236 Q120 244 56 236 Z" fill="url(#sqzBody)"/>
+    <path d="M58 52 Q90 40 104 38 L136 38 Q150 40 182 52 L184 236 Q120 244 56 236 Z" fill="url(#sqzKnit)"/>
+    <!-- side shadows -->
+    <path d="M58 60 Q70 150 60 236 L56 236 Z" fill="#000" opacity=".18"/><path d="M182 60 Q170 150 180 236 L184 236 Z" fill="#000" opacity=".22"/>
+    <!-- hem rib -->
+    <path d="M56 222 Q120 230 184 222 L184 238 Q120 246 56 238 Z" fill="#16224a"/><path d="M56 222 Q120 230 184 222 L184 238 Q120 246 56 238 Z" fill="url(#sqzRib)"/>
+    <!-- stand-up collar -->
+    <path d="M96 40 Q120 30 144 40 L146 14 Q120 6 94 14 Z" fill="#22336a"/>
+    <path d="M94 14 Q120 6 146 14" fill="none" stroke="#0e1630" stroke-width="2"/>
+    <path d="M100 18 Q120 12 140 18" fill="none" stroke="#fff" stroke-opacity=".06" stroke-width="3"/>
+    <!-- zip placket -->
+    <rect x="116" y="10" width="8" height="92" rx="3" fill="#0f1834"/>
+    <path d="M120 12 V100" stroke="url(#sqzZip)" stroke-width="3" stroke-dasharray="2 2.4"/>
+    <g class="qz-pull"><rect x="115.5" y="26" width="9" height="7" rx="2" fill="url(#sqzZip)"/><rect x="117.5" y="32" width="5" height="15" rx="2.5" fill="url(#sqzZip)"/></g>
+    <!-- open collar lapels -->
+    <path d="M116 40 L104 60 L116 100 Z" fill="#000" opacity=".16"/><path d="M124 40 L136 60 L124 100 Z" fill="#000" opacity=".12"/>
+    <!-- chest embroidery spot (unbranded) -->
+    <circle cx="80" cy="84" r="5" fill="#c9a24a" opacity=".85"/>
+    <!-- care label -->
+    <rect class="qz-label" x="112" y="44" width="16" height="10" rx="1.5" fill="#f1efe8"/><text x="120" y="52" text-anchor="middle" font-size="7" font-weight="700" fill="#222" font-family="Geist,system-ui">M</text>
+  </g>
+</svg></div><div class="scan-line"></div><i class="det d1">Ralph Lauren</i><i class="det d2">Quarter zip</i><i class="det d3">Size M</i><i class="det d4">Very good</i></div>
+    <div class="verdict"><span class="stamp">BUY</span><div><b>Pay up to £8</b><small>Ralph Lauren quarter zip sells for £22–£28 · usually within 9 days</small></div></div>
   </div>
 </section>
 

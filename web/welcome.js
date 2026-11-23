@@ -74,7 +74,7 @@
     for (;;) {
       demo.classList.remove('play'); void demo.offsetWidth; demo.classList.add('play');
       if (reduce) return;
-      await wait(7000);
+      await wait(8000);
       if (!isVisible(section)) await untilVisible(section);
     }
   }
