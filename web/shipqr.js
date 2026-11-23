@@ -14,12 +14,12 @@ function readyToPostHtml(where = 'home') {
   if (!rows.length) return '';
   const withQr = rows.filter(r => r.item.shipQr).length;
   return '<section class="ship-qr-panel" data-ship-panel="' + where + '"><header><div><h2>Ready to post <span class="daily-count">' + rows.length + '</span></h2>' +
-    '<p>' + (withQr ? withQr + ' with a QR code ready to scan' : 'Add the QR code from Vinted’s shipping email so you know which is which') + '</p></div></header>' +
+    '<p>' + (withQr ? withQr + ' with a QR code ready to scan' : 'QR codes from Vinted’s emails attach automatically') + '</p></div></header>' +
     '<div class="ship-qr-list">' + rows.slice(0, where === 'home' ? 4 : 12).map(({item, ship}) => {
       const photo = (item.photos || [])[0];
       return '<article class="ship-qr-row' + (item.shipQr ? ' has-qr' : '') + (ship.level ? ' ship-' + ship.level : '') + '">' +
         (photo ? '<img class="ship-qr-thumb" src="' + esc(photo) + '" alt="" loading="lazy">' : '<span class="ship-qr-thumb none" aria-hidden="true">📦</span>') +
-        '<span class="ship-qr-text"><b>' + esc(item.name) + '</b><small>' + esc([ship.label, item.shipCarrier].filter(Boolean).join(' · ')) + '</small></span>' +
+        '<span class="ship-qr-text"><b>' + esc(item.name) + '</b><small>' + esc([String(ship.label || '').replace(/ working days? left/, 'd left').replace(/ working day left/, 'd left'), item.shipCarrier].filter(Boolean).join(' · ')) + '</small></span>' +
         (!item.shipQr && item.shipLabel ? '<button type="button" class="ship-qr-show label" data-label-show="' + esc(item.id) + '">🏷 Label</button>' : '') +
         (item.shipQr
           ? '<button type="button" class="ship-qr-show" data-qr-show="' + esc(item.id) + '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 14h2M14 18h2v2M18 18h2v2"/></svg>Show QR</button>'
@@ -39,6 +39,18 @@ function onTheWayHtml(where = 'home') {
   const rows = onTheWay();
   if (!rows.length) return '';
   const step = item => item.shipDeliveredAt ? 2 : 1;
+  const delivered = rows.filter(r => r.item.shipDeliveredAt).length;
+  const rowsHtml = limit => rows.slice(0, limit).map(({item, trade}) => {
+    const s = step(item);
+    return '<article class="ship-way-row"><span class="ship-way-text"><b>' + esc(item.name) + '</b><small>' +
+      esc([item.shipCarrier, s === 2 ? 'Delivered ' + dateLabel(item.shipDeliveredAt) : 'Posted ' + dateLabel(trade.postedAt)].filter(Boolean).join(' · ')) + '</small></span>' +
+      '<span class="ship-way-steps" aria-label="' + (s === 2 ? 'Delivered' : 'In transit') + '"><i class="on"></i><i class="' + (s === 2 ? 'on' : 'pulse') + '"></i><i class="' + (s === 2 ? 'pulse' : '') + '"></i></span></article>';
+  }).join('');
+  // Stock: one slim line you can tap open. Home: a short list.
+  if (where === 'stock') return '<details class="ship-way-mini"><summary><span class="swm-icon" aria-hidden="true">🚚</span><span><b>On the way</b> · ' + rows.length + (delivered ? ' · ' + delivered + ' delivered' : '') + '</span><em aria-hidden="true">›</em></summary><div class="ship-way-list">' + rowsHtml(20) + '</div></details>';
+  return '<section class="ship-way-panel"><header><h2>On the way <span class="daily-count">' + rows.length + '</span></h2></header><div class="ship-way-list">' + rowsHtml(3) + '</div>' +
+    (rows.length > 3 ? '<button type="button" class="link ship-qr-more" data-tab="Stock">See all ' + rows.length + ' ↗</button>' : '') + '</section>';
+  // eslint-disable-next-line no-unreachable
   return '<section class="ship-way-panel"><header><h2>On the way <span class="daily-count">' + rows.length + '</span></h2><p>Posted parcels. Updates come in from InPost, Evri and Royal Mail emails.</p></header><div class="ship-way-list">' +
     rows.slice(0, where === 'home' ? 4 : 12).map(({item, trade}) => {
       const s = step(item);
@@ -158,8 +170,11 @@ if (typeof render === 'function') {
         if (html && anchor) anchor.insertAdjacentHTML('afterend', html);
         else if (html) view.insertAdjacentHTML('beforeend', html);
       } else if (tab === 'Stock') {
+        // Under the Stock tabs and title, never above them.
         const html = readyToPostHtml('stock') + onTheWayHtml('stock');
-        if (html) view.insertAdjacentHTML('afterbegin', html);
+        const anchor = view.querySelector('.stock-page-heading') || view.querySelector('.top');
+        if (html && anchor) anchor.insertAdjacentHTML('afterend', html);
+        else if (html) view.insertAdjacentHTML('afterbegin', html);
       }
     }
     return out;

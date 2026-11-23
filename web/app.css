@@ -2946,3 +2946,25 @@ body.qr-open{overflow:hidden}
 .ship-way-row,.ship-qr-row{min-width:0;max-width:100%;box-sizing:border-box}
 .ship-way-text small{white-space:normal;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .ship-way-text b,.ship-qr-text b{max-width:100%}
+
+/* ---------- Compact parcel panels ---------- */
+.ship-way-panel header{margin-bottom:8px}
+.ship-way-panel header p{display:none}
+.ship-way-row{padding:9px 11px;gap:10px}
+.ship-way-text b{font-size:13px}
+.ship-way-text small{font-size:11.5px;-webkit-line-clamp:1}
+.ship-qr-panel header p{font-size:12px;margin-top:2px}
+.ship-way-mini{margin:0 0 12px;border-radius:14px;background:rgba(90,160,255,.08);border:1px solid rgba(90,160,255,.22)}
+.ship-way-mini summary{list-style:none;display:flex;align-items:center;gap:10px;padding:10px 13px;cursor:pointer;font-size:13.5px;color:var(--ink);-webkit-tap-highlight-color:transparent}
+.ship-way-mini summary::-webkit-details-marker{display:none}
+.ship-way-mini summary>span:nth-child(2){flex:1;min-width:0;color:var(--muted)}
+.ship-way-mini summary b{color:var(--ink);font-weight:650}
+.ship-way-mini summary em{font-style:normal;color:var(--muted);font-size:18px;transition:transform .25s}
+.ship-way-mini[open] summary em{transform:rotate(90deg)}
+.ship-way-mini .ship-way-list{padding:0 8px 8px}
+.ship-way-mini .ship-way-row{background:rgba(0,0,0,.22)}
+.ship-qr-text small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#view .stock-page-heading+.ship-qr-panel,#view .stock-page-heading+.ship-way-mini{margin-top:4px}
+[data-ship-panel="stock"] header p{display:none}
+[data-ship-panel="stock"]{padding:11px 12px!important}
+[data-ship-panel="stock"] header{margin-bottom:8px}
