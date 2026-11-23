@@ -27,6 +27,10 @@ function loginPage(request,env={}){
   return new Response(request.method==='HEAD'?null:html,{status:200,headers:{'content-type':'text/html; charset=utf-8','cache-control':'private, no-store','x-content-type-options':'nosniff','referrer-policy':key?'strict-origin':'same-origin',
     'content-security-policy':"default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'"+ts+"; frame-src 'self'"+ts+"; connect-src 'self'"+ts+"; font-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"}});
 }
+function landingPage(request){
+  return new Response(request.method==='HEAD'?null:assets['/welcome.html'],{status:200,headers:{'content-type':'text/html; charset=utf-8','cache-control':'public, max-age=300','x-content-type-options':'nosniff','referrer-policy':'strict-origin-when-cross-origin',
+    'content-security-policy':"default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"}});
+}
 function welcomePage(request,suspended=false){
   const title=suspended?'Stockroom access paused':'Welcome to Stockroom';
   const copy=suspended?'This account cannot access Stockroom. Contact your administrator to restore access.':
@@ -106,7 +110,7 @@ export default {
       const rawUser=identity(request);
       const importRoute = ['/api/purchases','/api/sync-status','/api/sale-imports','/api/market-research'].includes(url.pathname) || /^\/api\/photos\//.test(url.pathname);
       if((url.pathname==='/'||url.pathname==='/index.html')&&['GET','HEAD'].includes(request.method)){
-        if(!rawUser)return loginPage(request,env);
+        if(!rawUser)return landingPage(request);
         try{await authorize(request,env);}
         catch(error){if(error instanceof HttpError&&error.status===403)return welcomePage(request,true);throw error;}
       }

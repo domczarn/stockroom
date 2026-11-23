@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b0b0e">
+<title>Booked &amp; Paid Stockroom · The AI-powered app for UK resellers</title>
+<meta name="description" content="Track stock, listings, sales and profit in one place. Pip, your built-in AI, writes Vinted listings, prices your stock, spots flaws and tells you what to do next.">
+<meta property="og:title" content="Booked &amp; Paid Stockroom">
+<meta property="og:description" content="The AI-powered stock and profit app for UK resellers. Free for your first 20 items every month.">
+<meta property="og:image" content="https://stockroom.bookednpaid.com/apple-touch-icon.png">
+<link rel="icon" type="image/svg+xml" href="/icon.svg">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="preload" href="/geist.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/welcome.css">
+</head>
+<body>
+<div class="progress" aria-hidden="true"><i id="progress"></i></div>
+<div class="bg-net" aria-hidden="true"></div>
+
+<header class="nav" id="nav">
+  <a class="logo" href="/" aria-label="Booked &amp; Paid Stockroom home"><img src="/pip-orb.svg" alt="" width="34" height="34"><span><small>Booked &amp; Paid</small><b>Stockroom</b></span></a>
+  <nav aria-label="Main"><a href="#features">Features</a><a href="#pip">Pip AI</a><a href="#pricing">Pricing</a><a href="#faq">FAQ</a></nav>
+  <div class="nav-cta"><a class="ghost" href="/login">Sign in</a><a class="btn" href="/login?start=1">Start free</a></div>
+</header>
+
+<main>
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-copy">
+    <span class="pill reveal"><span class="dot"></span> Built for UK Vinted resellers</span>
+    <h1 class="reveal"><span class="line">Your resale hustle,</span><span class="line"><span class="grad">run like a business.</span></span></h1>
+    <p class="lead reveal">Stockroom tracks every piece from the charity shop rail to the buyer’s door. Pip, the AI built in, writes your listings, prices your stock, spots flaws and tells you exactly what to do next.</p>
+    <div class="cta reveal"><a class="btn big" href="/login?start=1">Start free <span aria-hidden="true">→</span></a><a class="ghost big" href="#pip">See Pip in action</a></div>
+    <p class="fine reveal">Free for your first 20 new items every month. No card needed.</p>
+  </div>
+
+  <div class="phone-wrap reveal" aria-hidden="true">
+    <div class="orbit o1"></div><div class="orbit o2"></div>
+    <div class="phone" id="heroPhone">
+      <div class="notch"></div>
+      <div class="island" id="heroIsland" data-mood="idle"><span class="face"><i></i><i></i></span><span class="island-text" id="heroIslandText">Pip is ready</span><span class="island-trail" id="heroIslandTrail"></span></div>
+      <div class="screen">
+        <div class="app-head"><small>Good evening</small><b>Your stock</b></div>
+        <div class="kpis"><div><small>Profit this month</small><b data-count="486.40" data-prefix="£">£0</b></div><div><small>Sold</small><b data-count="31">0</b></div></div>
+        <div class="tell"><span class="face sm"><i></i><i></i></span><span class="tell-type" id="heroType"></span><span class="caret"></span></div>
+        <ul class="stock" id="heroStock">
+          <li><span class="thumb t1"></span><span><b>Ralph Lauren Quarter Zip</b><small>Listed 3 days · £28</small></span><em class="good">+£22</em></li>
+          <li><span class="thumb t2"></span><span><b>Nike Windrunner Jacket</b><small>Post by Fri · 2 days left</small></span><em class="warn">Ship</em></li>
+          <li><span class="thumb t3"></span><span><b>Carhartt Detroit Jacket</b><small>Listed 34 days · £60</small></span><em class="drop">Try £52</em></li>
+          <li><span class="thumb t4"></span><span><b>Stüssy Logo Hoodie</b><small>Sold · £40</small></span><em class="good">+£31</em></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TICKER -->
+<div class="ticker" aria-hidden="true"><div class="ticker-track">
+  <span>Snap to stock</span><span>Write with Pip</span><span>Buy or pass</span><span>Tell Pip</span><span>Flaw finder</span><span>Photo studio</span><span>Measure from a photo</span><span>Repricing coach</span><span>Ship-by countdown</span><span>Sourcing trips</span><span>HMRC tracker</span><span>Gmail auto-updates</span><span>Depop &amp; eBay copy</span><span>Weekly report</span>
+  <span>Snap to stock</span><span>Write with Pip</span><span>Buy or pass</span><span>Tell Pip</span><span>Flaw finder</span><span>Photo studio</span><span>Measure from a photo</span><span>Repricing coach</span><span>Ship-by countdown</span><span>Sourcing trips</span><span>HMRC tracker</span><span>Gmail auto-updates</span><span>Depop &amp; eBay copy</span><span>Weekly report</span>
+</div></div>
+
+<!-- MEET PIP -->
+<section class="meet" id="pip">
+  <div class="meet-orb reveal" aria-hidden="true">
+    <img src="/pip-orb.svg" alt="" width="260" height="260">
+    <span class="chip c1">Writes listings</span><span class="chip c2">Prices stock</span><span class="chip c3">Spots flaws</span><span class="chip c4">Reads labels</span><span class="chip c5">Knows your numbers</span><span class="chip c6">Cuts out photos</span>
+  </div>
+  <div class="meet-copy">
+    <span class="eyebrow reveal">Meet Pip</span>
+    <h2 class="reveal">An AI co-pilot that actually knows <span class="grad">your</span> business.</h2>
+    <p class="reveal">Pip isn’t a chatbot bolted on the side. It lives inside your stock, sales and photos, so every answer is about your pieces, your prices and your profit.</p>
+  </div>
+</section>
+
+<!-- SHOWCASE: SNAP -->
+<section class="show" data-demo="snap">
+  <div class="show-copy">
+    <span class="eyebrow reveal">Snap to stock</span>
+    <h2 class="reveal">Two photos. One finished item.</h2>
+    <p class="reveal">Photograph the piece and its label. Pip reads the brand and size, judges the condition, flags any flaws, suggests a resale price and writes the Vinted listing. You just check it and save.</p>
+    <ul class="ticks reveal"><li>Reads care labels for size and material</li><li>Prices from real sold data</li><li>Writes a search-ready title and description</li></ul>
+  </div>
+  <div class="demo snap-demo reveal" aria-hidden="true">
+    <div class="snap-photo"><div class="garment"></div><div class="label-tag">M</div><div class="beam"></div><div class="flaw-ring"></div></div>
+    <div class="snap-fields">
+      <div class="f"><small>Brand</small><b>Ralph Lauren</b></div>
+      <div class="f"><small>Item</small><b>Quarter zip jumper</b></div>
+      <div class="f"><small>Size</small><b>M (from label)</b></div>
+      <div class="f"><small>Condition</small><b>Very good</b></div>
+      <div class="f flaw"><small>Flaw spotted</small><b>Small mark on left cuff</b></div>
+      <div class="f price"><small>Should sell for</small><b>£24–£30</b></div>
+    </div>
+  </div>
+</section>
+
+<!-- SHOWCASE: TELL PIP -->
+<section class="show flip" data-demo="tell">
+  <div class="show-copy">
+    <span class="eyebrow reveal">Tell Pip</span>
+    <h2 class="reveal">Just say what happened.</h2>
+    <p class="reveal">“Sold the black Nike hoodie for £25.” “Bought three jumpers for £12 at the British Heart Foundation.” “Drop everything over 60 days by 20%.” Type it or say it. Pip turns it into changes you confirm with one tap.</p>
+  </div>
+  <div class="demo tell-demo reveal" aria-hidden="true">
+    <div class="tell-bar"><span class="face sm"><i></i><i></i></span><span id="tellType"></span><span class="caret"></span><span class="send">↑</span></div>
+    <div class="tell-cards" id="tellCards">
+      <div class="tc"><span class="ic">£</span><span><b>Sold Black Nike Hoodie</b><small>£25.00 · today</small></span><span class="ok">✓</span></div>
+      <div class="tc"><span class="ic">＋</span><span><b>Add 3 × Jumper</b><small>£4.00 each · from BHF</small></span><span class="ok">✓</span></div>
+      <div class="tc"><span class="ic">−</span><span><b>Expense: mailing bags</b><small>£4.50 · Packaging</small></span><span class="ok">✓</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- SHOWCASE: BUY OR PASS -->
+<section class="show" data-demo="scan">
+  <div class="show-copy">
+    <span class="eyebrow reveal">Buy or pass</span>
+    <h2 class="reveal">Know what to pay before you reach the till.</h2>
+    <p class="reveal">Standing at the rail? Snap the item. Pip tells you what it sells for, the most you should pay to make it worth it, and what to check before you buy, using your own sales and Stockroom-wide sold prices.</p>
+  </div>
+  <div class="demo scan-demo reveal" aria-hidden="true">
+    <div class="viewfinder"><span></span><span></span><span></span><span></span><div class="scan-garment"></div><div class="scan-line"></div></div>
+    <div class="verdict"><span class="stamp">BUY</span><div><b>Pay up to £8</b><small>Sells for £22–£28 · usually within 9 days</small></div></div>
+  </div>
+</section>
+
+<!-- FEATURE GRID -->
+<section class="features" id="features">
+  <div class="section-head"><span class="eyebrow reveal">Everything in one place</span><h2 class="reveal">Every tool a serious reseller needs.</h2></div>
+  <div class="grid">
+    <article class="tile reveal"><span class="ti">✍️</span><h3>Write with Pip</h3><p>Vinted titles, descriptions and hashtags built to rank in search, from your photo and details.</p></article>
+    <article class="tile reveal"><span class="ti">📸</span><h3>Photo studio</h3><p>Cut out the background and drop your piece on marble, linen or a soft studio shadow.</p></article>
+    <article class="tile reveal"><span class="ti">🔍</span><h3>Flaw finder</h3><p>Pip checks your photos for stains, holes and bobbling so buyers are never surprised.</p></article>
+    <article class="tile reveal"><span class="ti">📏</span><h3>Measure from a photo</h3><p>Lay it flat next to an A4 sheet. Pip gives you pit to pit and length in cm and inches.</p></article>
+    <article class="tile reveal"><span class="ti">↘️</span><h3>Repricing coach</h3><p>Stale listings sorted into nudge, drop and clear, with a suggested price and cash tied up.</p></article>
+    <article class="tile reveal"><span class="ti">📦</span><h3>Ship-by countdown</h3><p>Every sale counts down Vinted’s 5 working days, skipping bank holidays. Never miss a post.</p></article>
+    <article class="tile reveal"><span class="ti">🧭</span><h3>Sourcing trips</h3><p>See which charity shops and car boots actually make you money per hour, after travel.</p></article>
+    <article class="tile reveal"><span class="ti">🏛️</span><h3>HMRC tracker</h3><p>Watch your sales against the platform reporting limits, plus a Self Assessment export.</p></article>
+    <article class="tile reveal"><span class="ti">✉️</span><h3>Gmail auto-updates</h3><p>Connect Gmail and your Vinted buys, sales and postage update your stock on their own.</p></article>
+    <article class="tile reveal"><span class="ti">🔁</span><h3>Depop &amp; eBay copy</h3><p>One tap rewrites a listing in each platform’s style, with eBay item specifics.</p></article>
+    <article class="tile reveal"><span class="ti">💬</span><h3>Ask Pip &amp; offers</h3><p>“What’s my best brand?” “Should I take £18?” Straight answers from your own numbers.</p></article>
+    <article class="tile reveal"><span class="ti">📈</span><h3>Weekly report</h3><p>A Monday email with your profit, best sellers and what to do this week.</p></article>
+  </div>
+</section>
+
+<!-- NUMBERS -->
+<section class="numbers" data-demo="numbers">
+  <div class="show-copy">
+    <span class="eyebrow reveal">Know your numbers</span>
+    <h2 class="reveal">See real profit, not just sales.</h2>
+    <p class="reveal">Every piece carries what you paid, fees, postage and refunds. Stockroom shows true profit, return on what you spent, your best brands and how long stock takes to sell.</p>
+  </div>
+  <div class="dash reveal" aria-hidden="true">
+    <div class="dash-tag">Example workspace</div>
+    <div class="dash-kpis">
+      <div><small>Net profit</small><b data-count="1284.50" data-prefix="£">£0</b></div>
+      <div><small>Return on spend</small><b data-count="212" data-suffix="%">0%</b></div>
+      <div><small>Avg days to sell</small><b data-count="11">0</b></div>
+    </div>
+    <div class="bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <div class="dash-foot"><span>Jun</span><span>Jul</span><span>Aug</span><span>Sep</span><span>Oct</span><span>Nov</span></div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section class="pricing" id="pricing">
+  <div class="section-head"><span class="eyebrow reveal">Pricing</span><h2 class="reveal">Start free. Go Pro when Pip pays for itself.</h2></div>
+  <div class="plans">
+    <article class="plan reveal">
+      <h3>Free</h3><div class="price">£0</div><p class="per">forever</p>
+      <ul><li>20 new items every month</li><li>Stock, sales and profit tracking</li><li>Ship-by countdown and repricing coach</li><li>Sourcing trips and HMRC tracker</li><li>Reports and CSV export</li></ul>
+      <a class="ghost big full" href="/login?start=1">Start free</a>
+    </article>
+    <article class="plan pro reveal">
+      <span class="badge">Most popular</span>
+      <h3>Pro</h3><div class="price">£7<small>/month</small></div><p class="per">or £60 a year (save £24)</p>
+      <ul><li>Unlimited items</li><li>All of Pip: Snap to stock, Write with Pip, Tell Pip, Buy or pass</li><li>Flaw finder, measurements and Photo studio</li><li>Gmail auto-updates</li><li>Depop &amp; eBay copy and the weekly report</li></ul>
+      <a class="btn big full" href="/login?start=1">Start free, upgrade any time</a>
+    </article>
+  </div>
+  <p class="fine center reveal">Cancel any time from Settings. Full refund of your first payment if you ask within 14 days.</p>
+</section>
+
+<!-- FAQ -->
+<section class="faq" id="faq">
+  <div class="section-head"><span class="eyebrow reveal">Questions</span><h2 class="reveal">Good to know.</h2></div>
+  <details class="reveal"><summary>Does Stockroom post on Vinted for me?</summary><p>No. Stockroom never logs in to or automates your Vinted account. Pip writes the listing and you copy it in, which keeps your account safe.</p></details>
+  <details class="reveal"><summary>Do I need to connect Gmail?</summary><p>No, it’s optional. If you connect it, Stockroom reads only Vinted emails about things you bought, sold and posted, and uses them to update your stock.</p></details>
+  <details class="reveal"><summary>Is Pip always right?</summary><p>Pip is very good but not perfect. Its listings, prices and flaw checks are suggestions to help you decide, so give them a quick check before you post.</p></details>
+  <details class="reveal"><summary>Where is my data kept?</summary><p>In your own private workspace, hosted on Cloudflare. You can export a full backup or delete your account any time from Settings.</p></details>
+  <details class="reveal"><summary>Does it work on my phone?</summary><p>Yes. Stockroom is built phone-first. Add it to your home screen and it works like an app.</p></details>
+</section>
+
+<!-- FINAL CTA -->
+<section class="final">
+  <div class="final-card reveal">
+    <img src="/pip-orb.svg" alt="" width="150" height="150">
+    <h2>Your next flip starts here.</h2>
+    <p>Set up in under a minute. Your first 20 items every month are free.</p>
+    <a class="btn big" href="/login?start=1">Start free <span aria-hidden="true">→</span></a>
+  </div>
+</section>
+</main>
+
+<footer class="foot">
+  <div><b>Booked &amp; Paid Stockroom</b><small>Booked &amp; Paid Ltd · Company number 16714808 · Registered in England and Wales</small></div>
+  <nav><a href="/privacy.html">Privacy</a><a href="/terms.html">Terms</a><a href="mailto:info@bookednpaid.com">info@bookednpaid.com</a><a href="/login">Sign in</a></nav>
+</footer>
+<script src="/welcome.js" defer></script>
+</body>
+</html>

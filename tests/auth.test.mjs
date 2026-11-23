@@ -42,10 +42,13 @@ test('new emails get a fresh account; bad input and brute force are refused', as
   assert.match(row.id, /^[0-9a-f-]{36}$/);
 });
 
-test('signed-out visitors get the login page; passkey routes need a session', async () => {
+test('signed-out visitors get the website, /login has the sign-in form; passkey routes need a session', async () => {
   const env = environment();
   const page = await app.fetch(new Request(origin + '/'), env);
-  assert.match(await page.text(), /Sign in to Stockroom/);
+  assert.match(await page.text(), /run like a business/);
+  assert.match(page.headers.get('content-security-policy'), /script-src 'self'/);
+  const login = await app.fetch(new Request(origin + '/login'), env);
+  assert.match(await login.text(), /Sign in to Stockroom/);
   assert.equal((await post(env, '/auth/passkey/register/options', {})).status, 401);
   const opts = await (await post(env, '/auth/passkey/login/options', {})).json();
   assert.equal(opts.options.rpId, 'stockroom.bookednpaid.com');
