@@ -2767,18 +2767,3 @@ body.tour-open{overflow:hidden}
 .tour-explore{all:unset;display:block;margin:12px auto 2px;font-size:13.5px;color:var(--muted);cursor:pointer;padding:6px 10px}
 .tour-explore[hidden],.tour-back[hidden],.tour-skip[hidden]{display:none}
 @media (prefers-reduced-motion:reduce){.tour-card,.tour-bg{transition:opacity .2s ease!important;transform:none!important}.tour-slide,.tour-orb img,.tour-icon,.tour-ring,.tour-chip,.tour-check{animation:none!important}}
-/* Phone: Pip menu top left */
-.menu-pip{display:none}
-@media (max-width:800px){
-  body.menu-left .account-menu>summary{width:40px;height:40px;border-radius:50%!important;border:0!important;padding:0;background:linear-gradient(140deg,#7c5cff,#b55cff)!important;box-shadow:0 0 0 2px rgba(155,140,255,.28),0 6px 18px -6px rgba(124,92,255,.7);transition:transform .45s var(--spring,ease),box-shadow .3s ease}
-  body.menu-left .account-menu[open]>summary{transform:scale(.92);box-shadow:0 0 0 3px rgba(155,140,255,.55)}
-  body.menu-left .account-menu .hamburger{display:none}
-  body.menu-left .menu-pip{display:block;width:26px;height:26px}
-  body.menu-left .account-menu .menu-dot{position:absolute;top:0;right:0}
-  body.menu-left .app-header{display:flex;align-items:center;gap:10px}
-  body.menu-left .app-header>.account-menu{order:-1;flex-shrink:0}
-  body.menu-left .app-header .header-actions{margin-left:auto}
-  body.menu-left .account-dropdown{left:0;right:auto;transform-origin:top left;width:min(300px,calc(100vw - 24px))}
-  body.home-phone .app-header{display:grid!important;grid-template-columns:40px minmax(0,1fr) auto}
-  body.home-phone .app-header>.account-menu{grid-column:1}
-}

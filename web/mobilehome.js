@@ -108,20 +108,16 @@ document.addEventListener('click', event => {
 });
 // Header: Pip avatar on the left and the workspace name in a centre pill, on the phone Home only.
 function mhHeader() {
-  const header = document.querySelector('.app-header'), menu = document.getElementById('accountMenu'), actions = header?.querySelector('.header-actions');
-  if (!header || !menu || !actions) return;
-  const phone = phoneHome();
-  if (!menu.querySelector('.menu-pip')) menu.querySelector('summary').insertAdjacentHTML('afterbegin', '<img class="menu-pip" src="/favicon.svg" alt="">');
-  if (!header.querySelector('.mh-store')) actions.insertAdjacentHTML('beforebegin', '<span class="mh-store">Stockroom</span>');
-  // Phones: the Pip in the top left is the menu. Desktop: the menu stays top right.
-  if (phone && menu.parentElement !== header) header.prepend(menu);
-  if (!phone && menu.parentElement !== actions) actions.append(menu);
-  menu.querySelector('summary').setAttribute('aria-label', phone ? 'Open menu' : 'Open app menu');
-  document.body.classList.toggle('menu-left', phone);
-  const on = typeof tab !== 'undefined' && tab === 'Dashboard' && phone;
+  const header = document.querySelector('.app-header');
+  if (!header) return;
+  if (!header.querySelector('.mh-avatar')) {
+    header.insertAdjacentHTML('afterbegin', '<button type="button" class="mh-avatar" data-tab="Profile" aria-label="Your profile"><img src="/favicon.svg" alt=""></button>');
+    header.querySelector('.header-actions')?.insertAdjacentHTML('beforebegin', '<span class="mh-store"><img src="/favicon.svg" alt="">Stockroom</span>');
+  }
+  const on = typeof tab !== 'undefined' && tab === 'Dashboard' && phoneHome();
   document.body.classList.toggle('home-phone', on);
   const name = account?.role === 'admin' ? 'Dom’s stock' : (account?.email || 'Stockroom').split('@')[0].split(/[._-]/)[0] + '’s stock';
-  header.querySelector('.mh-store').textContent = name.charAt(0).toUpperCase() + name.slice(1);
+  header.querySelector('.mh-store').lastChild.textContent = name.charAt(0).toUpperCase() + name.slice(1);
 }
 if (typeof render === 'function') {
   const baseRenderMh = render;
