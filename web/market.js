@@ -28,11 +28,11 @@ function renderMarketResearch(){
   ];
   $('marketResearch').innerHTML='<section class="panel market-intro"><span class="eyebrow">RESELLER INTELLIGENCE</span><h2>What’s selling on Vinted UK</h2>'+
     '<p>'+esc(dateLabel(report.periodStart))+' to '+esc(dateLabel(report.periodEnd))+' · Source checked '+esc(dateLabel(report.checkedOn))+'</p>'+
-    '<p>'+esc(report.source.method)+' <a href="'+esc(report.source.url)+'" target="_blank" rel="noopener noreferrer">'+esc(report.source.name)+' ↗</a></p></section>'+
+    '<details class="fold"><summary>About this data</summary><p>'+esc(report.source.method)+' <a href="'+esc(report.source.url)+'" target="_blank" rel="noopener noreferrer">'+esc(report.source.name)+' ↗</a></p></details></section>'+
     '<section class="panel market-analysis"><span class="eyebrow">AI MARKET ANALYSIS</span><h2>What the numbers suggest</h2><div class="market-analysis-grid">'+
-    report.analysis.map(note=>'<div><h3>'+esc(note.title)+'</h3><p>'+esc(note.body)+'</p></div>').join('')+'</div></section>'+
-    groups.filter(([,data])=>data.length).map(([title,data,details,price])=>'<section class="market-group"><h2>'+title+'</h2>'+
-      table(['Rank and item','Detected sales',price,...(details?['Avg. time to sell','Sell-through']:[])],rows(data,details))+'</section>').join('')+
+    report.analysis.map((note,i)=>'<details class="fold market-note"'+(i===0?' open':'')+'><summary>'+esc(note.title)+'</summary><p>'+esc(note.body)+'</p></details>').join('')+'</div></section>'+
+    groups.filter(([,data])=>data.length).map(([title,data,details,price],i)=>'<details class="market-group fold"'+(i===0?' open':'')+'><summary><h2>'+title+'</h2></summary>'+
+      table(['Rank and item','Detected sales',price,...(details?['Avg. time to sell','Sell-through']:[])],rows(data,details))+'</details>').join('')+
     '<p class="footnote">Volume measures activity in the source sample. Use comparable sold prices and your own costs when evaluating a specific buy.</p>'+
     '<button type="button" class="secondary" data-tab="Buying insights">See my recorded sales ↗</button>';
   labelViewCells($('marketResearch'));

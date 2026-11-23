@@ -132,6 +132,17 @@ for (const viewport of [{width: 390, height: 844}, {width: 1440, height: 900}]) 
     await page.waitForFunction(() => { const img = document.querySelector('#navAvatar img'); return img && img.complete; });
     assert.ok(await page.evaluate(() => document.querySelector('#navAvatar img').naturalWidth > 0), 'profile avatar is broken');
   });
+  if (viewport.width < 500) await check('transactions: tap a row for actions', viewport, async page => {
+    await go(page, 'Activity');
+    await page.click('#view tbody tr td:nth-child(2)');
+    await page.waitForSelector('.row-sheet.open [data-row-act]');
+    await page.goBack(); await page.waitForTimeout(400);
+    assert.equal(await page.$('.row-sheet'), null, 'back closes the action sheet');
+    assert.equal(await page.evaluate(() => tab), 'Activity');
+    await page.click('#view tbody tr td:nth-child(2)');
+    await page.click('.row-sheet [data-row-act="0"]');
+    await page.waitForSelector('dialog[open]');
+  });
   await check('long parcel rows fit the screen', viewport, async page => {
     await page.evaluate(() => {
       let d = db;

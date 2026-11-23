@@ -3026,3 +3026,58 @@ body.qr-open{overflow:hidden}
   body.nav-phone .settings-navigation [aria-current="page"]{background:rgba(155,120,255,.14)!important;color:var(--ink)!important}
   body.nav-phone .settings-navigation [aria-current="page"] strong{color:var(--ink)!important}
 }
+
+/* ---------- Money lists on phone: tight rows, actions in a sheet ---------- */
+@media (max-width:800px){
+  body.nav-phone.tab-rows #view tbody{display:block;border-radius:16px;overflow:hidden;border:1px solid rgba(255,255,255,.07);background:rgba(255,255,255,.03)}
+  body.nav-phone.tab-rows #view table{border:0!important;background:none!important}
+  body.nav-phone.tab-rows #view article:has(>table){border:0!important;background:none!important;padding:0!important;box-shadow:none!important}
+  body.nav-phone.tab-rows #view tbody tr{display:grid!important;grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"tag name amount" "tag meta status";column-gap:10px;row-gap:2px;align-items:center;padding:11px 14px!important;margin:0!important;border:0!important;border-top:1px solid rgba(255,255,255,.06)!important;border-radius:0!important;background:none!important;box-shadow:none!important;cursor:pointer;-webkit-tap-highlight-color:transparent}
+  body.nav-phone.tab-rows #view tbody tr:first-child{border-top:0!important}
+  body.nav-phone.tab-rows #view tbody tr:active{background:rgba(255,255,255,.05)!important}
+  body.nav-phone.tab-rows #view tbody td{padding:0!important;border:0!important;min-width:0}
+  body.nav-phone.tab-rows #view tbody td::before{display:none!important}
+  body.nav-phone.tab-rows #view tbody td:nth-child(1){grid-area:tag}
+  body.nav-phone.tab-rows #view tbody td:nth-child(1) .tag{font-size:10px!important;padding:3px 7px!important;min-width:52px;text-align:center}
+  body.nav-phone.tab-rows #view tbody td:nth-child(2){grid-area:name;font-size:13.5px!important;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  body.nav-phone.tab-rows #view tbody td:nth-child(3){grid-area:amount;font-size:14px!important;font-weight:650;color:var(--ink);text-align:right}
+  body.nav-phone.tab-rows #view tbody td:nth-child(4){grid-area:meta;font-size:11.5px!important;color:var(--muted)}
+  body.nav-phone.tab-rows #view tbody td:nth-child(4)::before{content:'Profit '!important;display:inline!important;font-size:11.5px!important;letter-spacing:0!important;color:var(--muted)}
+  body.nav-phone.tab-rows #view tbody td:nth-child(4) .tag{font-size:10px!important;padding:1px 6px!important}
+  body.nav-phone.tab-rows #view tbody td:nth-child(5){grid-area:status;font-size:11.5px!important;color:var(--muted);text-align:right}
+  body.nav-phone.tab-rows #view tbody td:nth-child(n+6){display:none!important}
+  body.nav-phone.tab-rows #view tbody td[colspan]{grid-column:1/-1;grid-row:1;font-size:13px!important;color:var(--muted);font-weight:400}
+}
+.row-sheet{position:fixed;inset:0;z-index:2147482400}
+.row-sheet-back{position:absolute;inset:0;background:rgba(0,0,0,.45);opacity:0;transition:opacity .2s}
+.row-sheet-card{position:absolute;left:8px;right:8px;bottom:calc(8px + env(safe-area-inset-bottom));padding:10px 14px 12px;border-radius:22px;background:#1d1b24;border:1px solid rgba(255,255,255,.08);transform:translateY(110%);transition:transform .25s cubic-bezier(.2,.9,.3,1);display:flex;flex-direction:column}
+.row-sheet.open .row-sheet-back{opacity:1}.row-sheet.open .row-sheet-card{transform:none}
+.row-sheet-grip{width:36px;height:4px;border-radius:3px;background:rgba(255,255,255,.2);margin:0 auto 10px}
+.row-sheet-card>b{font-size:15px;color:var(--ink,#f4f2f8);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row-sheet-card>small{font-size:12px;color:var(--muted,#9c98aa);margin:2px 0 12px}
+.row-sheet-actions{display:grid;gap:8px}
+.row-sheet-actions button{all:unset;box-sizing:border-box;text-align:center;padding:13px;border-radius:14px;background:rgba(255,255,255,.07);color:var(--ink,#f4f2f8);font-weight:600;font-size:15px;cursor:pointer}
+.row-sheet-actions button.danger{color:#ff8080}
+.row-sheet-actions button.cancel{background:none;color:var(--muted,#9c98aa);font-weight:500}
+@media (prefers-reduced-motion:reduce){.row-sheet-card,.row-sheet-back{transition:none}}
+
+/* ---------- Fold-away sections (Buying research) ---------- */
+details.fold>summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;-webkit-tap-highlight-color:transparent}
+details.fold>summary::-webkit-details-marker{display:none}
+details.fold>summary::after{content:'›';font-size:18px;color:var(--muted);transition:transform .2s;flex-shrink:0}
+details.fold[open]>summary::after{transform:rotate(90deg)}
+details.fold>summary h2{margin:0!important}
+.market-intro details.fold>summary{font-size:12.5px;color:var(--muted);margin-top:8px}
+.market-analysis-grid{display:grid!important;gap:8px!important;grid-template-columns:1fr!important}
+details.market-note{border-radius:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);padding:11px 13px}
+details.market-note>summary{font-size:14px;font-weight:600;color:var(--ink)}
+details.market-note>p{margin:8px 0 0!important;font-size:13px;line-height:1.5;color:var(--muted)}
+details.market-group{margin:0 0 10px;border-radius:16px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);padding:12px 14px}
+details.market-group>summary h2{font-size:15.5px!important}
+details.market-group[open]>summary{margin-bottom:10px}
+@media (max-width:800px){
+  body.nav-phone .market-group tbody tr{padding:10px 12px!important;border-radius:12px!important;margin-bottom:8px!important}
+  body.nav-phone .market-group tbody td{padding:4px 6px!important;font-size:13px!important}
+  body.nav-phone .market-group tbody td:first-child{padding:0 0 6px!important;font-size:13.5px!important}
+  body.nav-phone .market-group tbody td::before{font-size:9.5px!important}
+}

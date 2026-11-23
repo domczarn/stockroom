@@ -17,13 +17,14 @@ function navLayerClosed(el) {
   if (el?._navLayer && history.state?.sr === 'layer' && history.state.id === el._navLayer) { el._navLayer = 0; navSkipPop++; history.back(); }
 }
 function navTopLayer() {
-  return document.querySelector('.label-view') || document.querySelector('.qr-view') ||
+  return document.querySelector('.row-sheet') || document.querySelector('.label-view') || document.querySelector('.qr-view') ||
     [...document.querySelectorAll('dialog[open]')].at(-1) || document.querySelector('.tour.open, #pipUpdates') ||
     (document.getElementById('accountMenu')?.open ? document.getElementById('accountMenu') : null);
 }
 function navCloseLayer(layer) {
   layer._navLayer = 0;
-  if (layer.classList.contains('label-view')) closeLabel();
+  if (layer.classList.contains('row-sheet')) closeRowSheet(true);
+  else if (layer.classList.contains('label-view')) closeLabel();
   else if (layer.classList.contains('qr-view')) closeQr();
   else if (layer.tagName === 'DIALOG') { if (typeof requestClose === 'function') requestClose(layer); else layer.close(); }
   else if (layer.id === 'accountMenu') layer.open = false;
@@ -163,6 +164,7 @@ if (typeof render === 'function') {
     const phone = navPhone();
     document.body.classList.toggle('nav-phone', phone);
     document.body.classList.toggle('tab-profile', tab === 'Profile');
+    document.body.classList.toggle('tab-rows', ROW_SHEET_TABS.includes(tab));
     const back = document.getElementById('screenBack');
     if (back && phone) back.hidden = NAV_ROOTS.includes(tab);
     if (phone && tab === 'Profile' && document.getElementById('pageName')) document.getElementById('pageName').textContent = 'Profile';
@@ -177,3 +179,44 @@ if (typeof render === 'function') {
     return out;
   };
 }
+
+// ---------- Money lists: tight rows; tap a row for its actions (like Vinted) ----------
+const ROW_SHEET_TABS = ['Activity', 'Expenses'];
+function closeRowSheet(silent) {
+  const el = document.querySelector('.row-sheet');
+  if (!el) return;
+  el.classList.remove('open');
+  setTimeout(() => el.remove(), 220);
+  if (!silent) navLayerClosed(el);
+}
+function openRowSheet(row) {
+  const buttons = [...row.querySelectorAll('td:last-child button, td:last-child a')];
+  if (!buttons.length) return;
+  closeRowSheet(true);
+  const cells = [...row.children].map(td => td.textContent.trim());
+  const el = document.createElement('div');
+  el.className = 'row-sheet';
+  el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true');
+  el.innerHTML = '<div class="row-sheet-back" data-row-sheet-close></div><div class="row-sheet-card"><span class="row-sheet-grip"></span>' +
+    '<b>' + esc(cells[1] || '') + '</b><small>' + esc([cells[0], cells[2]].filter(Boolean).join(' · ')) + '</small>' +
+    '<div class="row-sheet-actions">' + buttons.map((b, i) => '<button type="button" data-row-act="' + i + '" class="' + (/remove/i.test(b.textContent) ? 'danger' : '') + '">' + esc(b.textContent.trim()) + '</button>').join('') +
+    '<button type="button" class="cancel" data-row-sheet-close>Cancel</button></div></div>';
+  el._buttons = buttons;
+  document.body.appendChild(el);
+  requestAnimationFrame(() => el.classList.add('open'));
+  navPushLayer(el);
+}
+document.addEventListener('click', event => {
+  const t = event.target;
+  const sheet = t.closest('.row-sheet');
+  if (sheet) {
+    const act = t.closest('[data-row-act]');
+    if (act) { const original = sheet._buttons[Number(act.dataset.rowAct)]; closeRowSheet(); setTimeout(() => original?.click(), 60); }
+    else if (t.closest('[data-row-sheet-close]')) closeRowSheet();
+    return;
+  }
+  if (!navPhone() || !ROW_SHEET_TABS.includes(tab)) return;
+  const row = t.closest('#view tbody tr');
+  if (!row || t.closest('button, a, input, select')) return;
+  openRowSheet(row);
+});
