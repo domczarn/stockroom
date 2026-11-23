@@ -33,6 +33,16 @@ const go = (page, tab) => page.evaluate(t => navigate(t), tab).then(() => page.w
 
 for (const viewport of [{width: 390, height: 844}, {width: 1440, height: 900}]) {
   await check('home chart', viewport, async page => {
+    if (viewport.width <= 800) {
+      await page.waitForSelector('.mh .mh-chart .mh-line', {state: 'attached'});
+      await page.waitForSelector('.mh-sheet .mh-pulse .mh-pulse-cta');
+      await page.click('[data-mh-range="7"]');
+      await page.waitForSelector('[data-mh-range="7"][aria-pressed="true"]');
+      const fits = await page.$eval('.mh-stats', el => el.scrollWidth <= el.clientWidth + 1);
+      assert.ok(fits, 'stats strip overflows');
+      assert.ok(await page.$('body.home-phone .mh-store'), 'store pill missing');
+      return;
+    }
     await page.waitForSelector('.revenue-studio .rc-svg .rc-line, .revenue-studio .rc-svg .rc-solo', {state: 'attached'});
     const svg = await page.$('.rc-svg'); const box = await svg.boundingBox();
     await page.mouse.move(box.x + box.width * 0.5, box.y + box.height / 2);

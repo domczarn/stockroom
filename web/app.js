@@ -392,11 +392,12 @@ function render() {
     page==='Activity'?'<button class="action" id="add" data-ledger="sale">＋ Add sale</button>':'<button class="action" id="add">＋ Add stock</button>';
   const titles = {Repricing:'Repricing coach',Sourcing:'Sourcing trips',Orders:'Bulk orders',Resources:'Reseller resources','Customer care':'Customer care',Dashboard: 'Business overview', Stock: 'Stock collection', Activity: 'Transactions', Expenses:'Business expenses',Account:'Settings',Profile:'Community',Admin:'Admin console',Studio:'Photo studio', 'Buying research': 'Buying research',Reports:'Reports','Buying insights':'Performance','Sale receipts':'Sale receipts','Vinted updates':'Vinted updates',Leaderboard:'Revenue leaderboard'};
   const subtitles = {Repricing:'What to drop, refresh or clear, and how much cash it’s holding.',Sourcing:'Which shops, boots and suppliers actually make you money per hour.',Orders:'Every supplier, every batch, from purchase to your stockroom.',Resources:'Your directory of suppliers, auction sellers and useful tools.','Customer care':'Thoughtful updates for every customer, from purchase to delivery.',Dashboard:'Your resale business at a glance.',Stock:'See what’s in, what’s selling and what needs your attention.',Activity:'Track sales, expenses and completed returns.',Account:'Your account, connections and preferences, in one place.',Profile:'Your profile, connections and messages.',Admin:'Members, plans, invites and app settings.',Studio:'Clean, square listing photos on pro backdrops, in one tap.',Expenses:'Record and review the costs of running your resale business.','Buying research':'UK market data and comparable asking prices.',Reports:'Review your numbers by month or across all time.','Buying insights':'See what sells, what earns and what to buy more of.','Sale receipts':'Review and match imported Vinted orders.','Vinted updates':'Connect the inbox you use for Vinted and review recent order emails.',Leaderboard:'See how the Stockroom community ranks by recorded sales revenue.'};
-  let html = tab==='Dashboard'?welcome():'<section class="top'+(tab==='Stock'?' stock-page-heading':'')+'"><div>'+
+  const phoneDash = tab==='Dashboard' && typeof phoneHome==='function' && phoneHome();
+  let html = tab==='Dashboard'?(phoneDash?mobileHome():welcome()):'<section class="top'+(tab==='Stock'?' stock-page-heading':'')+'"><div>'+
     (tab==='Stock'?'':'<div class="eyebrow">'+esc(tab.toUpperCase())+'</div>')+
     '<h1>'+titles[tab]+'</h1>'+(tab==='Stock'?'':'<p>'+subtitles[tab]+'</p>')+
     '</div>'+headerAction(tab)+'</section>';
-  if (tab === 'Dashboard') html += dashboard();
+  if (tab === 'Dashboard') html += phoneDash ? dashboardPhone() : dashboard();
   if (tab === 'Stock') html+=stockPage();
   if (tab === 'Activity') html += activity();
   if(tab==='Reports')html+=reportsView();
