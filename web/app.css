@@ -2939,3 +2939,10 @@ body.qr-open{overflow:hidden}
 .mh-pulse p{color:#a9a5b6!important}
 .mh-pulse p b{color:#b9a4ff!important}
 .mh-pulse-cta{background:#f4f2f8!important;color:#16151c!important}
+
+/* Long tracking numbers must never widen the page */
+.ship-way-panel,.ship-qr-panel{max-width:100%;min-width:0;overflow:hidden;box-sizing:border-box}
+.ship-way-list,.ship-qr-list{grid-template-columns:minmax(0,1fr)}
+.ship-way-row,.ship-qr-row{min-width:0;max-width:100%;box-sizing:border-box}
+.ship-way-text small{white-space:normal;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.ship-way-text b,.ship-qr-text b{max-width:100%}

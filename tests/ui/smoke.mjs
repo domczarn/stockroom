@@ -128,6 +128,19 @@ for (const viewport of [{width: 390, height: 844}, {width: 1440, height: 900}]) 
     });
     assert.equal(out, 'InPost|true|245 824 706|Posted|true|true|true', out);
   });
+  await check('long parcel rows fit the screen', viewport, async page => {
+    await page.evaluate(() => {
+      let d = db;
+      for (const item of d.items.filter(i => i.status === 'In Stock').slice(0, 3)) {
+        d = recordSale(d, item.id, 25, todayUK()); d = advanceOrder(d, item.id, 'Posted', todayUK());
+        Object.assign(d.items.find(i => i.id === item.id), {name: 'Very Long Vintage Ralph Lauren Quarter Zip Jumper Navy Medium', shipCarrier: 'InPost', shipTracking: 'JJD0002212127199444', shipDeliveredAt: todayUK()});
+      }
+      db = d; render();
+    });
+    await page.waitForSelector('.ship-way-row');
+    const widths = await page.evaluate(() => [Math.max(...[...document.querySelectorAll('.ship-way-row, .ship-way-panel, .ship-way-text small')].map(e => e.getBoundingClientRect().right)), document.querySelector('main').getBoundingClientRect().right]);
+    assert.ok(widths[0] <= widths[1] + 1, 'On the way row sticks out past the page: ' + widths.join(','));
+  });
   await check('label viewer + back', viewport, async page => {
     await page.evaluate(() => { const id = db.items.find(i => i.status === 'In Stock').id; let d = recordSale(db, id, 30, todayUK()); d.items.find(i => i.id === id).shipLabel = '/favicon.svg'; db = d; render(); });
     await page.click('[data-label-show]');

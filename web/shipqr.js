@@ -43,7 +43,7 @@ function onTheWayHtml(where = 'home') {
     rows.slice(0, where === 'home' ? 4 : 12).map(({item, trade}) => {
       const s = step(item);
       return '<article class="ship-way-row"><span class="ship-way-text"><b>' + esc(item.name) + '</b><small>' +
-        esc([item.shipCarrier, s === 2 ? 'Delivered ' + dateLabel(item.shipDeliveredAt) + ' · waiting for buyer to confirm' : 'Posted ' + dateLabel(trade.postedAt), item.shipTracking].filter(Boolean).join(' · ')) + '</small></span>' +
+        esc([item.shipCarrier, s === 2 ? 'Delivered ' + dateLabel(item.shipDeliveredAt) + ', waiting for buyer' : 'Posted ' + dateLabel(trade.postedAt)].filter(Boolean).join(' · ')) + '</small></span>' +
         '<span class="ship-way-steps" aria-label="' + (s === 2 ? 'Delivered' : 'In transit') + '"><i class="on"></i><i class="' + (s === 2 ? 'on' : 'pulse') + '"></i><i class="' + (s === 2 ? 'pulse' : '') + '"></i></span></article>';
     }).join('') + '</div></section>';
 }
