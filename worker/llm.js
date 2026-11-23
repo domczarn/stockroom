@@ -34,7 +34,7 @@ export async function ask(env, {system = '', prompt, image = null, maxTokens = 6
       return (env.ANTHROPIC_FETCH || fetch)('https://api.anthropic.com/v1/messages', {
         method: 'POST', signal: AbortSignal.timeout(40000),
         headers: {'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json'},
-        body: JSON.stringify({model: env.ANTHROPIC_MODEL || 'claude-haiku-5-5', max_tokens: maxTokens, temperature, ...(system ? {system} : {}),
+        body: JSON.stringify({model: env.ANTHROPIC_MODEL || 'claude-haiku-5-5', max_tokens: maxTokens, ...(system ? {system} : {}),
           messages: [...history, {role: 'user', content}]}),
       }).then(async r => ({ok: r.ok, status: r.status, body: r.ok ? await r.json() : (await r.text().catch(() => '')).slice(0, 400)}),
         e => ({ok: false, status: 0, body: String(e?.name === 'TimeoutError' ? 'timeout' : e?.message || e).slice(0, 200)}));
