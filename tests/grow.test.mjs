@@ -66,3 +66,12 @@ test('Tell Pip only keeps valid changes to real in-stock items', async () => {
   assert.equal(out[2].purchasedAt, '2026-11-23', 'future dates are pulled back to today');
   assert.equal(out[2].quantity, 3);
 });
+
+test('Instagram handles are cleaned and validated', async () => {
+  const {instagramHandle} = await import('../worker/social.js');
+  assert.equal(instagramHandle('@Dom.Resells'), 'dom.resells');
+  assert.equal(instagramHandle('https://www.instagram.com/vintage_rail/?hl=en'), 'vintage_rail');
+  assert.equal(instagramHandle('bad handle'), null);
+  assert.equal(instagramHandle('two..dots'), null);
+  assert.equal(instagramHandle('.leadingdot'), null);
+});

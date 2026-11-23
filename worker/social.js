@@ -4,7 +4,13 @@ import { HttpError, readBody } from './security.js';
 const idPattern = /^[a-f0-9]{64}$/;
 const usernamePattern = /^[a-z][a-z0-9_]{2,23}$/;
 const reserved = new Set(['admin', 'support', 'system', 'stockroom', 'pip']);
+// Instagram handles: letters, digits, dots and underscores, up to 30 characters. Accepts "@name" or an instagram.com link.
+export const instagramHandle = value => {
+  const v = String(value ?? '').trim().toLowerCase().replace(/^https?:\/\/(?:www\.)?instagram\.com\//, '').replace(/^@/, '').replace(/[/?#].*$/, '');
+  return /^(?!.*\.\.)(?!\.)(?!.*\.$)[a-z0-9._]{1,30}$/.test(v) ? v : null;
+};
 const profileDTO = row => ({
+  instagram: row.instagram || '',
   username: row.username, avatarSeed: row.avatar_seed, shareRevenue: Boolean(row.share_revenue),
   shareActivity: Boolean(row.share_activity), shareLeaderboard: Boolean(row.share_leaderboard)
 });
@@ -85,16 +91,27 @@ export async function socialRoute(request, url, env, user, context) {
     const username = typeof body?.username === 'string' ? body.username.trim().toLowerCase() : '';
     if (!usernamePattern.test(username) || reserved.has(username) || typeof body?.shareRevenue !== 'boolean' || ['shareActivity','shareLeaderboard'].some(key=>body[key]!==undefined&&typeof body[key]!=='boolean'))
       throw new HttpError(400, 'Use 3–24 letters, digits or underscores, starting with a letter.');
+    let handle;
+    if (body.instagram !== undefined) {
+      handle = body.instagram === '' ? null : instagramHandle(body.instagram);
+      if (body.instagram !== '' && !handle) throw new HttpError(400, 'That doesn’t look like an Instagram handle.');
+      if (handle && await env.DB.prepare('SELECT 1 FROM profiles WHERE instagram=? AND user_id<>?').bind(handle, user.id).first())
+        throw new HttpError(409, 'That Instagram handle is already linked to another Stockroom account.');
+    }
     const current=await ownProfile(env,user);
     const shareActivity=Number(body.shareActivity??current.shareActivity);
     const result = await env.DB.prepare('UPDATE OR IGNORE profiles SET username=?,share_revenue=?,share_activity=?,share_leaderboard=?,last_active_at=CASE WHEN ?=0 THEN NULL ELSE last_active_at END WHERE user_id=?')
       .bind(username,Number(body.shareRevenue),shareActivity,Number(body.shareLeaderboard??current.shareLeaderboard),shareActivity,user.id).run();
     if (!result.meta.changes) throw new HttpError(409, 'That username is taken.');
+    if (body.instagram !== undefined) {
+      const ig = await env.DB.prepare('UPDATE OR IGNORE profiles SET instagram=? WHERE user_id=?').bind(handle, user.id).run();
+      if (!ig.meta.changes) throw new HttpError(409, 'That Instagram handle is already linked to another Stockroom account.');
+    }
     return {profile: await ownProfile(env, user)};
   }
   if (url.pathname === '/api/friends') {
     if (method === 'GET') {
-      const rows = await env.DB.prepare(`SELECT c.*,p.username,p.avatar_seed,CASE WHEN c.state='accepted' AND p.share_activity=1 THEN p.last_active_at END AS last_active,
+      const rows = await env.DB.prepare(`SELECT c.*,p.username,p.avatar_seed,CASE WHEN c.state='accepted' THEN p.instagram END AS instagram,CASE WHEN c.state='accepted' AND p.share_activity=1 THEN p.last_active_at END AS last_active,
         CASE WHEN c.state='accepted' THEN (SELECT MAX(m.created_at) FROM messages m WHERE m.connection=c.id) END AS last_message,
         CASE WHEN c.state='accepted' THEN (SELECT COUNT(*) FROM messages m
           WHERE m.connection=c.id AND m.sender<>? AND (m.created_at || ':' || m.id)>COALESCE(r.cursor,'')) ELSE 0 END AS unread
@@ -104,17 +121,21 @@ export async function socialRoute(request, url, env, user, context) {
         AND (c.state<>'blocked' OR c.blocked_by=?) ORDER BY c.state,last_message DESC,p.username LIMIT 200`)
         .bind(user.id,user.id,user.id,user.id,user.id,user.id).all();
       return {friends: rows.results.map(row => ({
-        id: row.id, username: row.username, avatarSeed: row.avatar_seed,
+        id: row.id, username: row.username, avatarSeed: row.avatar_seed, instagram: row.instagram || '',
         state: row.state, incoming: row.recipient === user.id, unread:row.unread, lastMessageAt:row.last_message,lastActiveAt:row.last_active
       }))};
     }
     if (method !== 'POST') throw new HttpError(405, 'Method not allowed.');
     const body = await readBody(request, 1000);
-    const username = typeof body?.username === 'string' ? body.username.trim().toLowerCase() : '';
-    if (!usernamePattern.test(username)) throw new HttpError(400, 'Enter their exact username.');
+    const raw = typeof body?.username === 'string' ? body.username.trim().toLowerCase() : '';
+    const viaInstagram = raw.startsWith('@') || /instagram\.com\//.test(raw);
+    const username = viaInstagram ? '' : raw, handle = viaInstagram ? instagramHandle(raw) : null;
+    if (!(viaInstagram ? handle : usernamePattern.test(username))) throw new HttpError(400, 'Enter their exact Stockroom username, or their Instagram as @handle.');
     if (!(await ownProfile(env, user)).username) throw new HttpError(400, 'Save your username first.');
-    const peer = await env.DB.prepare(`SELECT p.user_id FROM profiles p WHERE p.username=? AND ${active}`).bind(username).first();
-    if (!peer || peer.user_id === user.id) throw new HttpError(404, 'No other active account matches that username.');
+    let peer = await env.DB.prepare(`SELECT p.user_id FROM profiles p WHERE ${viaInstagram ? 'p.instagram=?' : 'p.username=?'} AND p.username IS NOT NULL AND ${active}`).bind(viaInstagram ? handle : username).first();
+    // "@name" could also be someone's Stockroom username.
+    if (!peer && viaInstagram && usernamePattern.test(handle)) peer = await env.DB.prepare(`SELECT p.user_id FROM profiles p WHERE p.username=? AND ${active}`).bind(handle).first();
+    if (!peer || peer.user_id === user.id) throw new HttpError(404, viaInstagram ? 'Nobody on Stockroom has linked that Instagram yet. Send them an invite instead.' : 'No other active account matches that username.');
     const id = await connectionId(user.id, peer.user_id);
     const count = await env.DB.prepare("SELECT count(*) AS n FROM connections WHERE state IN ('pending','accepted') AND (sender=? OR recipient=?)").bind(user.id, user.id).first();
     if (count.n >= 150) throw new HttpError(409, 'Remove a connection before adding another.');

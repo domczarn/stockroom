@@ -28,7 +28,7 @@ assert.equal((await call('/api/profile','b','PUT',{username:'Alice',shareRevenue
 assert.equal((await call('/api/profile','b','PUT',{username:'bravo',shareRevenue:false}))[0],200);
 assert.equal((await call('/api/friends','a','POST',{username:'bravo'}))[0],200);
 const list=(await call('/api/friends','b'))[1].friends;
-assert.deepEqual(Object.keys(list[0]).sort(),['avatarSeed','id','incoming','lastActiveAt','lastMessageAt','state','unread','username']);
+assert.deepEqual(Object.keys(list[0]).sort(),['avatarSeed','id','incoming','instagram','lastActiveAt','lastMessageAt','state','unread','username']);
 const link='/api/friends/'+list[0].id;
 assert.equal((await call(link,'a','PUT',{action:'accept'}))[0],409);
 assert.equal((await call(link+'/messages','a'))[0],403);
@@ -109,3 +109,17 @@ validateWorkspace(resold,'owner');
 assert.deepEqual([...splitCost(10,[1,1,1])],[3.34,3.33,3.33]);
 assert.equal(csvCell('=2+2'),"\"'=2+2\"");
 console.log('Passed: private profile and messaging, consent, suspension, sale import replay, return accounting, resale, bundle rounding and CSV safety.');
+
+// Instagram: save a handle, it must be unique, and others can add you by @handle.
+{
+  const saved = await call('/api/profile','a','PUT',{username:'alice',shareRevenue:false,instagram:'@Alice.Shop'});
+  assert.equal(saved[0],200); assert.equal(saved[1].profile.instagram,'alice.shop');
+  assert.equal((await call('/api/profile','admin','PUT',{username:'dommy',shareRevenue:false,instagram:'https://instagram.com/alice.shop'}))[0],409);
+  assert.equal((await call('/api/profile','admin','PUT',{username:'dommy',shareRevenue:false,instagram:'not a handle!'}))[0],400);
+  assert.equal((await call('/api/profile','admin','PUT',{username:'dommy',shareRevenue:false}))[0],200);
+  assert.equal((await call('/api/friends','admin','POST',{username:'@alice.shop'}))[0],200);
+  assert.equal((await call('/api/friends','admin','POST',{username:'@nobody.here'}))[0],404);
+  const pending = (await call('/api/friends','admin'))[1].friends.find(f => f.username === 'alice');
+  assert.equal(pending.instagram,'','handle hidden until the request is accepted');
+  console.log('instagram ok');
+}

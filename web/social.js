@@ -51,14 +51,14 @@ function profileView() {
     '<button class="link profile-settings" type="button" data-tab="Leaderboard">Revenue leaderboard ↗</button> '+
     '<button class="link profile-settings" type="button" data-tab="Account">Account settings ↗</button></section>'+
     '<section class="panel social-panel"><span class="eyebrow">YOUR NETWORK</span><h2>Friends</h2>'+
-    '<form id="friendForm" class="social-inline"><label>Find by username<input name="username" required maxlength="25" autocapitalize="none" spellcheck="false" placeholder="@username"></label><button class="action">Add friend</button></form>'+
+    '<form id="friendForm" class="social-inline"><label>Find by username or Instagram<input name="username" required maxlength="60" autocapitalize="none" spellcheck="false" placeholder="username or @instagram"></label><button class="action">Add friend</button></form>'+
     '<div id="friendsList">'+friendsMarkup()+'</div></section></div>';
 }
 
 const friendAction = (friend, action, label) => '<button type="button" class="secondary" data-friend="'+esc(friend.id)+'" data-friend-action="'+action+'">'+label+'</button>';
 function friendsMarkup() {
   if (!friendsLoaded) return '<p class="footnote">Loading connections…</p>';
-  if (!friends.length) return '<p class="footnote">No connections yet. Add someone by their Stockroom username.</p>';
+  if (!friends.length) return '<p class="footnote">No connections yet. Add someone by their Stockroom username or their Instagram @handle.</p>';
   return friends.map(friend => {
     const state = friend.state === 'accepted' ? (activityLabel(friend.lastActiveAt)||'Connected') : friend.state === 'blocked' ? 'Blocked' : friend.incoming ? 'Request received' : 'Request sent';
     const controls = friend.state === 'accepted'
@@ -66,7 +66,7 @@ function friendsMarkup() {
       : friend.state === 'blocked' ? friendAction(friend,'unblock','Unblock')
       : friend.incoming ? friendAction(friend,'accept','Accept')+friendAction(friend,'remove','Decline')
       : friendAction(friend,'remove','Cancel');
-    return '<div class="friend-row">'+avatar(friend.avatarSeed)+'<div class="friend-name"><strong>@'+esc(friend.username)+'</strong><small>'+state+'</small></div><div class="friend-actions">'+controls+'</div></div>';
+    return '<div class="friend-row">'+avatar(friend.avatarSeed)+'<div class="friend-name"><strong>@'+esc(friend.username)+'</strong><small>'+state+(friend.instagram?' · <a class="ig-link" href="https://www.instagram.com/'+encodeURIComponent(friend.instagram)+'/" target="_blank" rel="noopener noreferrer">Instagram @'+esc(friend.instagram)+'</a>':'')+'</small></div><div class="friend-actions">'+controls+'</div></div>';
   }).join('');
 }
 
@@ -294,14 +294,14 @@ function initialiseSocial() {
     button.disabled = true;
     try {
       if (form.id === 'profileForm') {
-        const {profile: next} = await api('/api/profile',{method:'PUT',body:JSON.stringify({username:form.elements.username.value,shareRevenue:form.elements.shareRevenue.checked,shareActivity:form.elements.shareActivity.checked,shareLeaderboard:form.elements.shareLeaderboard.checked})});
+        const {profile: next} = await api('/api/profile',{method:'PUT',body:JSON.stringify({username:form.elements.username.value,instagram:(form.elements.instagram?.value||'').trim(),shareRevenue:form.elements.shareRevenue.checked,shareActivity:form.elements.shareActivity.checked,shareLeaderboard:form.elements.shareLeaderboard.checked})});
         applyProfile(next);
         void activePresence();
         form.elements.username.value = next.username;
         if ($('profileHandle')) $('profileHandle').textContent = '@'+next.username;
         toast('Profile saved');
       } else if (form.id === 'friendForm') {
-        await api('/api/friends',{method:'POST',body:JSON.stringify({username:form.elements.username.value.trim().replace(/^@/,'')})});
+        await api('/api/friends',{method:'POST',body:JSON.stringify({username:form.elements.username.value.trim()})});
         form.reset();
         toast('Friend request sent');
         await loadFriends();
@@ -352,6 +352,8 @@ function initialiseSocial() {
 
 function profileSettingsForm(){return '<form id="profileForm"><label>Username<input name="username" required minlength="3" maxlength="24" autocapitalize="none" spellcheck="false" pattern="[a-zA-Z][a-zA-Z0-9_]{2,23}" value="'+esc(profile?.username||'')+'" placeholder="your_username"></label>'+
     '<p class="footnote">Friends can find you by this username. Your email stays private.</p>'+
+    '<label>Instagram <small>optional</small><input name="instagram" maxlength="60" autocapitalize="none" spellcheck="false" value="'+esc(profile?.instagram?'@'+profile.instagram:'')+'" placeholder="@yourshop"></label>'+
+    '<p class="footnote">Lets resellers who follow you on Instagram find and add you here. Only connected friends see it.</p>'+
     '<label class="social-toggle"><input type="checkbox" name="shareRevenue" '+(profile?.shareRevenue?'checked':'')+'> Share my total sales revenue with accepted friends</label>'+
     '<label class="social-toggle"><input type="checkbox" name="shareActivity" '+(profile?.shareActivity?'checked':'')+'> Show when I was last active to accepted friends</label>'+
     '<label class="social-toggle"><input type="checkbox" name="shareLeaderboard" '+(profile?.shareLeaderboard?'checked':'')+'> Show my sales revenue on the member leaderboard</label>'+
