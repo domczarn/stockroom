@@ -2541,3 +2541,74 @@ html body { background: url(/constellation.svg) right top / min(1100px, 140vw) a
 @media(max-width:800px){.hmrc-row{grid-template-columns:1fr}.run-grid{grid-template-columns:1fr 1fr}.coach-grid{grid-template-columns:1fr}.sourcing-bar .action{width:100%}}
 .panel .daily-row strong{color:var(--ink)}.panel .daily-row small{color:var(--muted)}.panel .daily-row{color:var(--ink)}
 .hmrc-meter .track{background:var(--line)!important}.hmrc-meter .track>span.green{background:var(--accent)}
+/* ---------- Pip Island ---------- */
+:root{--spring:cubic-bezier(.34,1.56,.64,1);--spring-soft:cubic-bezier(.22,1.2,.36,1)}
+@supports (transition-timing-function:linear(0,1)){:root{
+  --spring:linear(0,.009,.035 2.1%,.141,.281 6.7%,.723 12.9%,.938 16.7%,1.017,1.077,1.121,1.149 24.3%,1.159,1.163,1.161,1.154 29.9%,1.129 32.8%,1.051 39.6%,1.017 43.1%,.991,.977 51%,.974 53.8%,.975 57.1%,.997 69.8%,1.003 76.9%,1.004 83.8%,1);
+  --spring-soft:linear(0,.02 1.6%,.088 3.5%,.33 8.4%,.586 13.2%,.794 18%,.94 23%,1.034 28.4%,1.072 32.6%,1.083 36.9%,1.072 42%,1.02 52.8%,.997 62.7%,.993 70.5%,1)}}
+.island{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 10px);z-index:2147483000;width:var(--iw,36px);height:var(--ih,36px);transform:translateX(-50%);
+  border-radius:calc(var(--ih,36px)/2);background:#000;box-shadow:0 0 0 1px rgba(255,255,255,.07),0 12px 40px -8px rgba(0,0,0,.7),0 0 0 0 rgba(155,140,255,0);
+  transition:width .62s var(--spring),height .62s var(--spring),border-radius .62s var(--spring),opacity .3s ease,transform .62s var(--spring),box-shadow .5s ease;
+  overflow:hidden;pointer-events:auto;will-change:width,height}
+.island[data-state=gone]{opacity:0;transform:translateX(-50%) translateY(-6px) scale(.6);pointer-events:none;transition:width .38s var(--spring-soft),height .38s var(--spring-soft),opacity .25s ease .08s,transform .4s var(--spring-soft)}
+.island[data-mood=think]{box-shadow:0 0 0 1px rgba(155,140,255,.25),0 12px 40px -8px rgba(0,0,0,.7),0 0 28px -4px rgba(155,140,255,.55)}
+.island[data-mood=happy]{box-shadow:0 0 0 1px rgba(76,217,130,.25),0 12px 40px -8px rgba(0,0,0,.7),0 0 24px -6px rgba(76,217,130,.45)}
+.island[data-mood=sad]{animation:islandShake .45s cubic-bezier(.36,.07,.19,.97) .1s}
+.island[data-mood=alert]{box-shadow:0 0 0 1px rgba(255,176,72,.3),0 12px 40px -8px rgba(0,0,0,.7),0 0 26px -6px rgba(255,176,72,.5)}
+@keyframes islandShake{10%,90%{translate:-1px}20%,80%{translate:2px}30%,50%,70%{translate:-3px}40%,60%{translate:3px}}
+.island-inner{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:10px;width:100%;height:100%;padding:0 8px 0 7px;color:#fff;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.island-inner:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:inherit}
+.island-pip{flex-shrink:0;display:grid;place-items:center;transition:transform .6s var(--spring)}
+.island[data-state=gone] .island-pip{transform:scale(.4)}
+.island-copy{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px;opacity:1;filter:blur(0);transform:none;transition:opacity .3s ease .12s,filter .35s ease .1s,transform .5s var(--spring) .08s}
+.island[data-state=gone] .island-copy,.island[data-state=think] .island-copy small{opacity:0;filter:blur(6px);transform:scale(.92)}
+.island-copy b{font-size:13px;font-weight:600;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#fff}
+.island-copy small{font-size:11.5px;color:rgba(255,255,255,.62);line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.island[data-state=compact] .island-copy small{display:none}
+.island-trail{flex-shrink:0;display:grid;place-items:center;min-width:22px}
+.island-check{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:rgba(76,217,130,.16);animation:islandPop .55s var(--spring)}
+.island-check path{fill:none;stroke:#4cd982;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:16;stroke-dashoffset:16;animation:islandDraw .4s ease .15s forwards}
+.island-x{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:rgba(255,95,95,.18);color:#ff6b6b;font-weight:700;font-size:13px;animation:islandPop .5s var(--spring)}
+.island-parcel{font-size:17px;animation:islandBob 1.6s ease-in-out infinite}
+@keyframes islandPop{from{transform:scale(.2);opacity:0}}
+@keyframes islandDraw{to{stroke-dashoffset:0}}
+@keyframes islandBob{50%{transform:translateY(-2px) rotate(-6deg)}}
+.island-wave{display:flex;gap:3px;align-items:center;height:16px}
+.island-wave i{width:3px;height:6px;border-radius:2px;background:linear-gradient(#c9c0ff,#7f6cff);animation:islandWave 1s ease-in-out infinite}
+.island-wave i:nth-child(2){animation-delay:.15s}.island-wave i:nth-child(3){animation-delay:.3s}
+@keyframes islandWave{50%{height:15px}}
+.island[data-mood=think] .island-copy b{background:linear-gradient(90deg,rgba(255,255,255,.55) 0,#fff 40%,rgba(255,255,255,.55) 80%);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:islandShimmer 1.8s linear infinite}
+@keyframes islandShimmer{from{background-position:150% 0}to{background-position:-50% 0}}
+
+/* ---------- Pip's face ---------- */
+.pipface{overflow:visible}
+.pf-body{transform-origin:20px 20px;animation:pfBreathe 3.6s ease-in-out infinite}
+@keyframes pfBreathe{50%{transform:scale(1.04)}}
+.pf-eyes{transform-origin:20px 20px;transition:transform .5s var(--spring),opacity .2s}
+.pf-eye{fill:#1b1240;transform-box:fill-box;transform-origin:center;animation:pfBlink 4.2s infinite}
+.pf-eye+.pf-eye{animation-delay:.04s}
+@keyframes pfBlink{0%,93%,100%{transform:scaleY(1)}96%{transform:scaleY(.1)}}
+.pf-joy path,.pf-oh path{fill:none;stroke:#1b1240;stroke-width:2.2;stroke-linecap:round}
+.pf-joy,.pf-oh{opacity:0;transition:opacity .2s}
+.pf-orbit{fill:#c9c0ff;opacity:0;transform-origin:20px 20px;transition:opacity .3s}
+[data-mood=think] .pf-orbit{opacity:1;animation:pfSpin 1.4s linear infinite}
+[data-mood=think] .pf-eyes{transform:translate(1.8px,-2.4px)}
+[data-mood=think] .pf-eye{animation:pfScan 1.4s ease-in-out infinite}
+@keyframes pfScan{0%,100%{transform:translateX(-1.2px)}50%{transform:translateX(1.2px)}}
+@keyframes pfSpin{to{transform:rotate(360deg)}}
+[data-mood=happy] .pf-eyes{opacity:0}
+[data-mood=happy] .pf-joy{opacity:1}
+[data-mood=happy] .pf-body{animation:pfHop .7s var(--spring) 1}
+@keyframes pfHop{0%{transform:translateY(0) scale(1)}30%{transform:translateY(-3px) scale(1.06,.96)}60%{transform:translateY(0) scale(.97,1.04)}100%{transform:none}}
+[data-mood=sad] .pf-eyes{transform:translateY(1.4px) scaleY(.7)}
+[data-mood=sad] .pf-oh{opacity:1}
+[data-mood=alert] .pf-eyes{transform:scale(1.15)}
+[data-mood=alert] .pf-body{animation:pfPing 1.2s ease-in-out infinite}
+@keyframes pfPing{50%{transform:scale(1.08)}}
+
+/* The old toast is replaced by the island */
+#toast{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+@media (prefers-reduced-motion:reduce){
+  .island,.island[data-state=gone],.island-copy,.island-pip{transition:opacity .2s ease!important}
+  .pf-body,.pf-eye,.pf-orbit,.island-wave i,.island-parcel,.island[data-mood=think] .island-copy b,.island[data-mood=sad]{animation:none!important}
+}
