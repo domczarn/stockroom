@@ -101,8 +101,48 @@ function auApply(event, item, data) {
       Object.assign(current, {status: 'Refunded', refund: current.cost, refundedAt: date, stage: ''});
       return {next, line: {icon: '↩', tone: 'warn', title: 'Refunded · ' + gbp(item.cost), body: '#' + item.id + ' ' + item.name + ' · purchase cancelled. Check the amount.'}};
     }
-    case 'label':
-      return {next: data, line: {icon: '🏷', tone: 'info', title: 'Label ready', body: '#' + item.id + ' ' + item.name + ' · post it within 5 days'}};
+    case 'label': {
+      if (!event.tracking && !event.labelMedia) return {next: data, line: {icon: '🏷', tone: 'info', title: 'Label ready', body: '#' + item.id + ' ' + item.name + ' · post it within 5 days'}};
+      const next = cloneWorkspace(data), current = next.items.find(row => row.id === item.id);
+      if (event.tracking && !next.items.some(row => row.id !== item.id && row.shipTracking === event.tracking)) Object.assign(current, {shipTracking: event.tracking, shipCarrier: auCarrier(event.tracking)});
+      if (event.deadline) current.shipDeadline = event.deadline;
+      if (event.labelMedia) current.shipLabel = event.labelMedia;
+      return {next, line: {icon: '🏷', tone: 'info', title: 'Label ready · ' + (current.shipCarrier || 'Vinted'), body: '#' + item.id + ' ' + item.name + ' · label saved to the item'}};
+    }
+  }
+  return null;
+}
+
+// Courier emails (InPost, Evri, Royal Mail…) are matched by tracking number only, never by guessing.
+const auCarrier = t => /^JJD/.test(t) ? 'InPost' : /^H\d/.test(t) ? 'Evri' : /GB$/.test(t) ? 'Royal Mail' : '';
+function auTrackingApply(event, data) {
+  const item = data.items.find(row => !row.deletedAt && row.shipTracking && row.shipTracking === event.tracking);
+  if (!item) return null;
+  const trade = lastTrade(data, item.id);
+  if (!trade) return null;
+  const today = todayUK(), date = event.date && event.date <= today ? event.date : today;
+  const next = cloneWorkspace(data), current = next.items.find(row => row.id === item.id);
+  if (event.carrier && !current.shipCarrier) current.shipCarrier = event.carrier;
+  if (event.type === 'qr') {
+    if (!event.qrMedia || current.shipQr) return null;
+    Object.assign(current, {shipQr: event.qrMedia, shipQrAt: date, ...(event.code ? {shipCode: event.code.slice(0, 40)} : {})});
+    return {next, line: {icon: '▦', tone: 'info', title: 'QR code added', body: '#' + item.id + ' ' + item.name + ' · ready to scan at the drop-off'}};
+  }
+  if (event.type === 'posted') {
+    if (trade.postedAt || current.shipPostedAt) return null;
+    const when = date < trade.soldAt ? trade.soldAt : date;
+    const posted = advanceOrder(next, item.id, 'Posted', when);
+    const row = posted.items.find(r => r.id === item.id);
+    row.shipPostedAt = when;
+    return {next: posted, line: {icon: '📮', tone: 'go', title: 'Posted · ' + (current.shipCarrier || 'parcel'), body: '#' + item.id + ' ' + item.name + ' · ' + (current.shipCarrier || 'the courier') + ' has it'}};
+  }
+  if (event.type === 'parcel-delivered') {
+    if (current.shipDeliveredAt) return null;
+    let out = next;
+    if (!trade.postedAt) { try { out = advanceOrder(next, item.id, 'Posted', date < trade.soldAt ? trade.soldAt : date); } catch {} }
+    const row = out.items.find(r => r.id === item.id);
+    row.shipDeliveredAt = date; if (!row.shipPostedAt) row.shipPostedAt = lastTrade(out, item.id)?.postedAt || date;
+    return {next: out, line: {icon: '✓', tone: 'go', title: 'Delivered to buyer', body: '#' + item.id + ' ' + item.name + ' · waiting for them to confirm'}};
   }
   return null;
 }
@@ -111,7 +151,7 @@ function auApply(event, item, data) {
 async function auRun() {
   if (auBusy || !db || !account || isReadOnly() || document.getElementById('pipUpdates')) return;
   const receipts = (typeof personalGmail !== 'undefined' ? personalGmail?.connection?.receipts : null) || [];
-  const events = receipts.filter(r => r.event && !auDone.has(r.id)).map(r => ({...r.event, id: r.id}))
+  const events = receipts.filter(r => r.event && !auDone.has(r.id + (r.event.type === 'label' && r.event.tracking ? ':t' : ''))).map(r => ({...r.event, id: r.id + (r.event.type === 'label' && r.event.tracking ? ':t' : '')}))
     .sort((a, b) => String(a.date).localeCompare(String(b.date)));
   const signature = events.map(e => e.id).join(',') + '|' + (db.items.length) + '|' + ((db.trades || []).length);
   if (!events.length || signature === auSignature) return;
@@ -124,6 +164,14 @@ async function auRun() {
   try {
     for (const event of events) {
       if (auAlreadyDone(event, next)) { auDone.add(event.id); continue; }
+      if (['qr', 'posted', 'parcel-delivered'].includes(event.type)) {
+        let result = null;
+        try { result = auTrackingApply(event, next); } catch {}
+        if (result) { next = result.next; lines.push(result.line); applied.push(event); auDone.add(event.id); }
+        // No match yet: the label email may not be in yet. Keep trying for 3 days, then leave it (it's probably a parcel coming to you).
+        else if (auDays(event.date, todayUK()) > 3 || next.items.some(row => row.shipTracking === event.tracking)) auDone.add(event.id);
+        continue;
+      }
       const ranked = auRank(event.title, auCandidates(event, next),
         item => event.type !== 'sold' ? 0 : (Number.isFinite(item.price) && Math.abs(item.price - event.amount) < 0.01 ? 0.15 : 0) - ((typeof stockWorkflow === 'function' ? stockWorkflow(item) === 'arriving' : !item.receivedAt && !item.listedAt) ? 0.2 : 0));
       // Only act when Pip is sure. Anything else is skipped quietly and never asked about.
@@ -152,6 +200,8 @@ function auPanel(lines, undoFrom, events = [], skipped = 0) {
     count('completed').length && ['Paid out', String(count('completed').length), 'sales completed'],
     count('delivered').length && ['Arrived', String(count('delivered').length), 'marked received'],
     count('refund').length && ['Refunds', String(count('refund').length), 'purchases cancelled'],
+    count('posted').length && ['Posted', String(count('posted').length), 'parcels on their way'],
+    count('parcel-delivered').length && ['Delivered', String(count('parcel-delivered').length), 'to your buyers'],
   ].filter(Boolean);
   const panel = document.createElement('section');
   panel.id = 'pipUpdates';

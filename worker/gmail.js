@@ -108,12 +108,16 @@ export function receiptUpdate(message,days,now=Date.now()){
   const headers=message.payload?.headers;
   if(!Array.isArray(headers))return null;
   const header=name=>headers.find(h=>h.name?.toLowerCase()===name)?.value||'';
-  if(!/^(?:[^<>]*<no-reply@vinted\.co\.uk>|no-reply@vinted\.co\.uk)$/i.test(header('from').trim()))return null;
-  const auth=header('authentication-results');
-  if(!/^mx\.google\.com\s*;/i.test(auth)||!/(?:^|[;\s])dmarc=pass\b[^;]*\bheader\.from=vinted\.co\.uk(?:\s|;|$)/i.test(auth))return null;
+  const sender=verifiedSender(header('from'),header('authentication-results'));
+  if(!sender)return null;
   const received=Number(message.internalDate);
   if(!Number.isFinite(received)||received<now-days*dayMs||received>now+60000)return null;
   const subject=header('subject').replace(/\s+/g,' ').trim().slice(0,230);
+  // Courier emails (InPost via Vinted, Evri, Royal Mail…) are read in full later and matched by tracking number.
+  if(sender!=='vinted.co.uk'){
+    if(!/(drop|locker|posted|ready|collect|deliver|on its way|heading|qr code|received your parcel|in transit|label)/i.test(subject))return null;
+    return {id:message.id,subject,category:'Delivery',receivedAt:new Date(received).toISOString(),reviewed:true,quiet:true,courier:sender,needsBody:true};
+  }
   let category, quiet=false;
   // Only the steps that move money or stock: bought, sold, posted/delivered, refunds. Confirmation and reminder emails are ignored.
   if(/offer|favou?rite|password|sign.in|new message|verification code|reminder|review|rate your|feedback|promo|newsletter|tips?\b|survey/i.test(subject))return null;
@@ -126,7 +130,82 @@ export function receiptUpdate(message,days,now=Date.now()){
   else return null;
   const receivedAt=new Date(received).toISOString();
   const event=vintedEvent(subject,message.snippet,receivedAt);
-  return {id:message.id,subject,category,receivedAt,reviewed:quiet,...(quiet?{quiet:true}:{}),...(event?{event}:{})};
+  return {id:message.id,subject,category,receivedAt,reviewed:quiet,...(quiet?{quiet:true}:{}),...(event?{event}:{}),...(event?.type==='label'?{needsBody:true}:{})};
+}
+
+// Who sent it, but only if Gmail confirms the sender's domain (DMARC pass). Vinted and the couriers Vinted uses in the UK.
+export const COURIER_DOMAINS=['relay.vinted.com','evri.com','royalmail.com','inpost.co.uk','yodel.co.uk','dpd.co.uk','dpdlocal.co.uk','parcelforce.com','ups.com'];
+export function verifiedSender(from,auth){
+  const address=(String(from).match(/<([^<>\s]+@[^<>\s]+)>\s*$/)||String(from).trim().match(/^([^<>\s]+@[^<>\s]+)$/)||[])[1]?.toLowerCase();
+  if(!address)return null;
+  const domain=address.split('@')[1];
+  if(!(domain==='vinted.co.uk'&&address==='no-reply@vinted.co.uk')&&!COURIER_DOMAINS.includes(domain))return null;
+  if(!/^mx\.google\.com\s*;/i.test(auth||''))return null;
+  const passed=[...String(auth).matchAll(/(?:^|[;\s])dmarc=pass\b[^;]*\bheader\.from=([a-z0-9.-]+)/gi)].map(m=>m[1].toLowerCase());
+  return passed.some(d=>d===domain||domain.endsWith('.'+d))?domain:null;
+}
+
+// Tracking numbers: InPost JJD…, Evri H…, Royal Mail AB123456789GB, or anything labelled as a tracking/parcel number.
+export function trackingFrom(text){
+  const t=String(text||'');
+  const m=t.match(/\b(JJD\d{10,24})\b/)||t.match(/\b(H\d{2}[A-Z0-9]{11,15})\b/)||t.match(/\b([A-Z]{2}\d{9}GB)\b/)||t.match(/(?:tracking (?:code|number)|parcel number|reference)[:\s]+([A-Z0-9]{8,30})\b/i);
+  return m?m[1].toUpperCase():'';
+}
+// Courier email → a step in the parcel's journey.
+export function courierEvent(subject,text,receivedAt,courier){
+  const tracking=trackingFrom(text);
+  if(!tracking)return null;
+  const s=subject+' '+String(text).slice(0,1200), date=ukDate(receivedAt);
+  const carrier=courier==='relay.vinted.com'?(/inpost/i.test(text)?'InPost':'Vinted'):courier.split('.')[0].replace(/^./,c=>c.toUpperCase());
+  if(/qr code is ready|your qr code/i.test(subject)){const code=(String(text).match(/enter this code instead\s*([\d ]{6,20}\d)/i)||[])[1]?.trim()||'';return {type:'qr',tracking,code,carrier,date};}
+  if(/ready for them to collect|been collected|picked up by your buyer|delivered to (?:your )?buyer/i.test(s))return {type:'parcel-delivered',tracking,carrier,date};
+  if(/locker-?ed up|thanks for dropping off|drop.?off confirmation|dropped off your parcel|heading their way|on its way to your buyer|picked up from the drop-off/i.test(s))return {type:'posted',tracking,carrier,date};
+  return null;
+}
+// Plain text of a full Gmail message, and its attachments.
+export function messageParts(payload){
+  const out={text:'',html:'',files:[]};
+  const walk=part=>{
+    if(!part)return;
+    const data=part.body?.data;
+    if(part.filename&&part.body?.attachmentId)out.files.push({name:part.filename,type:part.mimeType,id:part.body.attachmentId,size:part.body.size||0});
+    else if(data&&part.mimeType==='text/plain'&&!out.text)out.text=b64urlText(data);
+    else if(data&&part.mimeType==='text/html'&&!out.html)out.html=b64urlText(data);
+    (part.parts||[]).forEach(walk);
+  };
+  walk(payload);
+  if(!out.text&&out.html)out.text=out.html.replace(/<style[\s\S]*?<\/style>/gi,' ').replace(/<[^>]+>/g,' ').replace(/&nbsp;/g,' ').replace(/\s+/g,' ');
+  return out;
+}
+const b64urlText=data=>{try{return new TextDecoder().decode(Uint8Array.from(atob(data.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0)));}catch{return '';}};
+async function saveAttachment(env,owner,access_token,messageId,file){
+  if(!file||file.size>2_000_000||!['application/pdf','image/png','image/jpeg'].includes(file.type))return '';
+  const body=await getGmail('messages/'+messageId+'/attachments/'+file.id,access_token);
+  if(typeof body?.data!=='string')return '';
+  const bytes=Uint8Array.from(atob(body.data.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0));
+  const pdf=bytes[0]===37&&bytes[1]===80&&bytes[2]===68&&bytes[3]===70, png=bytes[0]===137&&bytes[1]===80, jpeg=bytes[0]===255&&bytes[1]===216;
+  if(!((file.type==='application/pdf'&&pdf)||(file.type==='image/png'&&png)||(file.type==='image/jpeg'&&jpeg)))return '';
+  const id=crypto.randomUUID();
+  await env.BUCKET.put('users/'+owner+'/'+id,bytes,{httpMetadata:{contentType:file.type}});
+  return '/api/media/'+encodeURIComponent(owner)+'/'+id;
+}
+// Read the full email for label and courier messages: tracking number, label PDF, InPost QR code.
+async function enrichReceipt(env,owner,access_token,receipt){
+  const full=await getGmail('messages/'+receipt.id,access_token,{format:'full'});
+  const {text,files}=messageParts(full.payload);
+  if(receipt.courier){
+    const event=courierEvent(receipt.subject,text,receipt.receivedAt,receipt.courier);
+    if(event?.type==='qr'){const qr=files.find(f=>/^image\//.test(f.type)&&/qr/i.test(f.name))||files.find(f=>/^image\//.test(f.type));event.qrMedia=await saveAttachment(env,owner,access_token,receipt.id,qr);}
+    return {...receipt,needsBody:undefined,...(event?{event}:{})};
+  }
+  if(receipt.event?.type==='label'){
+    const tracking=(text.match(/tracking code:?\s*\|?\s*([A-Z0-9]{8,30})/i)||[])[1]?.toUpperCase()||trackingFrom(text);
+    const deadline=(receipt.subject.match(/use by (\d{2})\/(\d{2})\/(\d{4})/)||[]);
+    const pdf=files.find(f=>f.type==='application/pdf');
+    const labelMedia=pdf?await saveAttachment(env,owner,access_token,receipt.id,pdf):'';
+    return {...receipt,needsBody:undefined,event:{...receipt.event,tracking,...(deadline[0]?{deadline:deadline[3]+'-'+deadline[2]+'-'+deadline[1]}:{}),...(labelMedia?{labelMedia}:{})}};
+  }
+  return {...receipt,needsBody:undefined};
 }
 
 // Turn a Vinted email (subject + Gmail's text preview) into a stock update Stockroom can apply.
@@ -161,8 +240,8 @@ export async function check(env,user,context,row){
     if(current?.connection_id!==row.connection_id||current.lease!==lease)return false;
     const before=JSON.parse(current.receipts);
     const merged=new Map(before.map(receipt=>[receipt.id,receipt]));
-    for(const receipt of receipts){const known=merged.get(receipt.id);if(!known)merged.set(receipt.id,receipt);else if(receipt.event&&!known.event)merged.set(receipt.id,{...known,event:receipt.event});}
-    const recent=[...merged.values()].sort((a,b)=>b.receivedAt.localeCompare(a.receivedAt)).slice(0,75);
+    for(const receipt of receipts){const known=merged.get(receipt.id);if(!known)merged.set(receipt.id,receipt);else if(receipt.event&&(!known.event||(receipt.event.tracking&&!known.event.tracking)))merged.set(receipt.id,{...known,event:receipt.event,...(receipt.courier?{courier:receipt.courier}:{})});}
+    const recent=[...merged.values()].sort((a,b)=>b.receivedAt.localeCompare(a.receivedAt)).slice(0,120);
     const result=await env.DB.prepare('UPDATE gmail_connections SET state=?,checked_at=?,receipts=?,lease=0 WHERE owner_id=? AND connection_id=? AND lease=? AND enabled=1 AND receipts=?')
       .bind(state,new Date().toISOString(),JSON.stringify(recent),user.id,row.connection_id,lease,current.receipts).run();
     const added=recent.filter(receipt=>!before.some(existing=>existing.id===receipt.id)).length;
@@ -172,8 +251,10 @@ export async function check(env,user,context,row){
   try{
     const token=await unprotect(env,user.id,row.token);
     const {access_token}=await googleToken(env,{refresh_token:token,grant_type:'refresh_token'});
-    const list=await getGmail('messages',access_token,{q:'from:no-reply@vinted.co.uk newer_than:'+row.days+'d',maxResults:'24',fields:'messages(id)'});
-    const ids=(list.messages||[]).filter(m=>messageId.test(m.id)).slice(0,24);
+    const senders=['no-reply@vinted.co.uk',...COURIER_DOMAINS.map(d=>'@'+d)].map(f=>'from:'+f).join(' OR ');
+    const list=await getGmail('messages',access_token,{q:'('+senders+') newer_than:'+row.days+'d',maxResults:'40',fields:'messages(id)'});
+    const ids=(list.messages||[]).filter(m=>messageId.test(m.id)).slice(0,40);
+    const knownReceipts=new Map(JSON.parse(row.receipts||'[]').map(r=>[r.id,r]));
     const results=[];
     for(let i=0;i<ids.length;i+=6){
       const batch=await Promise.all(ids.slice(i,i+6).map(({id})=>getGmail('messages/'+id,access_token,{
@@ -181,6 +262,16 @@ export async function check(env,user,context,row){
       })));
       results.push(...batch.map(message=>receiptUpdate(message,row.days,now)).filter(Boolean));
     }
+    // Full read only for emails not seen before (or labels saved before tracking numbers were read).
+    let fullReads=0;
+    for(let i=0;i<results.length;i++){
+      const r=results[i], known=knownReceipts.get(r.id);
+      if(!r.needsBody)continue;
+      if(known&&(known.event?.tracking||known.courier))results[i]={...known};
+      else if(++fullReads>12)results[i]=null; // the rest are picked up on the next check
+      else try{results[i]=await enrichReceipt(env,user.id,access_token,r);}catch{results[i]={...r,needsBody:undefined};}
+    }
+    for(let i=results.length-1;i>=0;i--)if(!results[i])results.splice(i,1);
     if(user.admin){
       const bought=await importPurchases(env,access_token,results.filter(receipt=>receipt.category==='Purchase'));
       if(bought.length)notifyAccount(context,env,user.id,'purchase',null,bought.length===1

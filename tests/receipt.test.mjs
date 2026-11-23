@@ -60,3 +60,37 @@ console.log('vinted events ok');
   assert.equal(arrived.quiet, true); assert.equal(arrived.event.type, 'delivered');
   console.log('gmail filter ok');
 }
+
+// Courier emails: posted / delivered / QR, matched by tracking number.
+{
+  const {verifiedSender, trackingFrom, courierEvent, messageParts} = await import('../worker/gmail.js');
+  const auth = d => 'mx.google.com; dkim=pass; dmarc=pass (p=REJECT) header.from=' + d;
+  assert.equal(verifiedSender('InPost via Vinted <shipping@relay.vinted.com>', auth('relay.vinted.com')), 'relay.vinted.com');
+  assert.equal(verifiedSender('Evri <do-not-reply@evri.com>', auth('evri.com')), 'evri.com');
+  assert.equal(verifiedSender('Royal Mail <no-reply@royalmail.com>', auth('royalmail.com')), 'royalmail.com');
+  assert.equal(verifiedSender('Evri <do-not-reply@evri.com>', 'mx.google.com; dmarc=fail header.from=evri.com'), null, 'spoofed courier rejected');
+  assert.equal(verifiedSender('Evri <do-not-reply@evri.com.evil.io>', auth('evri.com.evil.io')), null, 'look-alike domain rejected');
+  assert.equal(verifiedSender('Someone <x@vinted.co.uk>', auth('vinted.co.uk')), null, 'only Vinted no-reply');
+  assert.equal(trackingFrom('Parcel number JJD0002212127199444 Drop-off'), 'JJD0002212127199444');
+  assert.equal(trackingFrom('Tracking number H00IAA3049598684'), 'H00IAA3049598684');
+  assert.equal(trackingFrom('tracking VU123456789GB'), 'VU123456789GB');
+  const posted = courierEvent('Your parcel is locker-ed up', 'Parcel number JJD0002212127199444 Drop-off time 20/11/2026 20:15 InPost', '2026-11-20T20:16:00Z', 'relay.vinted.com');
+  assert.deepEqual([posted.type, posted.tracking, posted.carrier, posted.date], ['posted', 'JJD0002212127199444', 'InPost', '2026-11-20']);
+  assert.equal(courierEvent('Thanks for dropping off your parcel', 'Tracking number H00IAA3049598684', '2026-11-21T10:00:00Z', 'evri.com').type, 'posted');
+  assert.equal(courierEvent('It’s been collected', 'Parcel JJD0002212127199444 InPost', '2026-11-22T10:00:00Z', 'relay.vinted.com').type, 'parcel-delivered');
+  const qr = courierEvent('Your QR code is ready', 'InPost. Or enter this code instead 245 824 706 Parcel number JJD0002212127199444', '2026-11-19T10:00:00Z', 'relay.vinted.com');
+  assert.deepEqual([qr.type, qr.code], ['qr', '245 824 706']);
+  assert.equal(courierEvent('Your parcel is locker-ed up', 'no tracking here', '2026-11-20T10:00:00Z', 'relay.vinted.com'), null);
+  const b = t => Buffer.from(t).toString('base64url');
+  const parts = messageParts({mimeType: 'multipart/mixed', parts: [{mimeType: 'text/html', body: {data: b('<p>Tracking code: <b>H00IAA3049598684</b></p>')}},
+    {mimeType: 'application/pdf', filename: 'Vinted-Digital-Label-1.pdf', body: {attachmentId: 'abc', size: 5000}}]});
+  assert.match(parts.text, /Tracking code: H00IAA3049598684/);
+  assert.equal(parts.files[0].type, 'application/pdf');
+  // Courier receipts are quiet (not listed) and flagged for a full read.
+  const courierMsg = {id: 'abcdef1234567', internalDate: String(Date.now()), snippet: '', payload: {headers: [
+    {name: 'From', value: 'Evri <do-not-reply@evri.com>'}, {name: 'Subject', value: 'Thanks for dropping off your parcel'},
+    {name: 'Authentication-Results', value: auth('evri.com')}]}};
+  const r = receiptUpdate(courierMsg, 7);
+  assert.equal(r.courier, 'evri.com'); assert.equal(r.quiet, true); assert.equal(r.needsBody, true);
+  console.log('courier emails ok');
+}

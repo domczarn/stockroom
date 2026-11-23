@@ -111,6 +111,23 @@ for (const viewport of [{width: 390, height: 844}, {width: 1440, height: 900}]) 
     const by = await page.evaluate(() => [shipDeadline('2026-11-20'), shipDeadline('2026-12-22')]);
     assert.deepEqual(by, ['2026-11-27', '2026-12-31'], 'Fri + 5 working days, and skipping Christmas bank holidays');
   });
+  await check('courier emails mark posted + delivered', viewport, async page => {
+    const out = await page.evaluate(() => {
+      const stock = db.items.find(i => i.status === 'In Stock' && !i.deletedAt);
+      let data = recordSale(db, stock.id, 20, todayUK());
+      const sold = data.items.find(i => i.id === stock.id);
+      const label = auApply({type: 'label', title: sold.name, tracking: 'JJD0002212127199444', labelMedia: '/api/media/x/123e4567-e89b-12d3-a456-426614174000', date: todayUK()}, sold, data);
+      data = label.next;
+      const qr = auTrackingApply({type: 'qr', tracking: 'JJD0002212127199444', qrMedia: '/api/media/x/223e4567-e89b-12d3-a456-426614174000', code: '245 824 706', date: todayUK()}, data); data = qr.next;
+      const posted = auTrackingApply({type: 'posted', tracking: 'JJD0002212127199444', carrier: 'InPost', date: todayUK()}, data); data = posted.next;
+      const stranger = auTrackingApply({type: 'posted', tracking: 'H00IAA0000000000', date: todayUK()}, data);
+      const delivered = auTrackingApply({type: 'parcel-delivered', tracking: 'JJD0002212127199444', date: todayUK()}, data); data = delivered.next;
+      const item = data.items.find(i => i.id === sold.id);
+      db = data; render();
+      return [item.shipCarrier, !!item.shipQr, item.shipCode, tradeStatus(lastTrade(data, sold.id)), !!item.shipDeliveredAt, stranger === null, !!document.querySelector('.ship-way-row')].join('|');
+    });
+    assert.equal(out, 'InPost|true|245 824 706|Posted|true|true|true', out);
+  });
   await check('editor measure + crosslist', viewport, async page => {
     await page.evaluate(() => openFullItem(db.items.find(i => i.status === 'In Stock')));
     await page.waitForSelector('#measureBtn', {state: 'attached'});

@@ -176,7 +176,7 @@ export default {
       if (url.pathname === '/api/avatar' && request.method === 'GET') {
         const seed=url.searchParams.get('seed') || '';
         if(!/^[a-f0-9-]{36}$/.test(seed))throw new HttpError(400,'Invalid avatar.');
-        return new Response(pipSvg(seed),{headers:{'content-type':'image/svg+xml','cache-control':'private, max-age=86400','x-content-type-options':'nosniff','content-security-policy':"default-src 'none'"}});
+        return new Response(pipSvg(seed),{headers:{'content-type':'image/svg+xml','cache-control':'private, max-age=86400','x-content-type-options':'nosniff',...(object.httpMetadata.contentType==='application/pdf'?{'content-disposition':'inline; filename="vinted-label.pdf"'}:{'content-security-policy':"default-src 'none'"})}});
       }
       if(url.pathname === '/api/profile' || url.pathname === '/api/profile/activity' || url.pathname === '/api/leaderboard' || url.pathname === '/api/friends' || url.pathname.startsWith('/api/friends/')){
         const result=await socialRoute(request,url,env,user,context);
@@ -216,7 +216,7 @@ export default {
         const owner=decodeURIComponent(media[1]);if(owner!==user.id)adminOnly(user);
         const object=await env.BUCKET.get('users/'+owner+'/'+media[2]);
         if(!object)throw new HttpError(404,'Photo unavailable');
-        return new Response(object.body,{headers:{'content-type':object.httpMetadata.contentType,'cache-control':'private, max-age=31536000, immutable','x-content-type-options':'nosniff','content-security-policy':"default-src 'none'"}});
+        return new Response(object.body,{headers:{'content-type':object.httpMetadata.contentType,'cache-control':'private, max-age=31536000, immutable','x-content-type-options':'nosniff',...(object.httpMetadata.contentType==='application/pdf'?{'content-disposition':'inline; filename="vinted-label.pdf"'}:{'content-security-policy':"default-src 'none'"})}});
       }
       if(url.pathname.startsWith('/api/admin/')&&!['/api/admin/members','/api/admin/audit'].includes(url.pathname))return json(await adminRoute(request,url,env,user));
       if(url.pathname==='/api/admin/members') {

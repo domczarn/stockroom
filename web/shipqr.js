@@ -19,12 +19,33 @@ function readyToPostHtml(where = 'home') {
       const photo = (item.photos || [])[0];
       return '<article class="ship-qr-row' + (item.shipQr ? ' has-qr' : '') + (ship.level ? ' ship-' + ship.level : '') + '">' +
         (photo ? '<img class="ship-qr-thumb" src="' + esc(photo) + '" alt="" loading="lazy">' : '<span class="ship-qr-thumb none" aria-hidden="true">📦</span>') +
-        '<span class="ship-qr-text"><b>' + esc(item.name) + '</b><small>' + esc(ship.label) + '</small></span>' +
+        '<span class="ship-qr-text"><b>' + esc(item.name) + '</b><small>' + esc([ship.label, item.shipCarrier].filter(Boolean).join(' · ')) + '</small></span>' +
+        (!item.shipQr && item.shipLabel ? '<a class="ship-qr-show label" href="' + esc(item.shipLabel) + '" target="_blank" rel="noopener">🏷 Label</a>' : '') +
         (item.shipQr
           ? '<button type="button" class="ship-qr-show" data-qr-show="' + esc(item.id) + '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 14h2M14 18h2v2M18 18h2v2"/></svg>Show QR</button>'
           : '<button type="button" class="ship-qr-add" data-qr-add="' + esc(item.id) + '">＋ Add QR</button>') +
         '</article>';
     }).join('') + '</div>' + (rows.length > 4 && where === 'home' ? '<button type="button" class="link ship-qr-more" data-tab="Stock">See all ' + rows.length + ' in Stock ↗</button>' : '') + '</section>';
+}
+
+// Parcels you've posted that the buyer hasn't confirmed yet, with where they are (from courier emails).
+function onTheWay() {
+  return db.items.filter(i => !i.deletedAt && i.status === 'Sold').map(item => ({item, trade: lastTrade(db, item.id)}))
+    .filter(({trade}) => trade && tradeStatus(trade) === 'Posted')
+    .sort((a, b) => String(b.trade.postedAt).localeCompare(String(a.trade.postedAt)));
+}
+function onTheWayHtml(where = 'home') {
+  if (isReadOnly()) return '';
+  const rows = onTheWay();
+  if (!rows.length) return '';
+  const step = item => item.shipDeliveredAt ? 2 : 1;
+  return '<section class="ship-way-panel"><header><h2>On the way <span class="daily-count">' + rows.length + '</span></h2><p>Posted parcels. Updates come in from InPost, Evri and Royal Mail emails.</p></header><div class="ship-way-list">' +
+    rows.slice(0, where === 'home' ? 4 : 12).map(({item, trade}) => {
+      const s = step(item);
+      return '<article class="ship-way-row"><span class="ship-way-text"><b>' + esc(item.name) + '</b><small>' +
+        esc([item.shipCarrier, s === 2 ? 'Delivered ' + dateLabel(item.shipDeliveredAt) + ' · waiting for buyer to confirm' : 'Posted ' + dateLabel(trade.postedAt), item.shipTracking].filter(Boolean).join(' · ')) + '</small></span>' +
+        '<span class="ship-way-steps" aria-label="' + (s === 2 ? 'Delivered' : 'In transit') + '"><i class="on"></i><i class="' + (s === 2 ? 'on' : 'pulse') + '"></i><i class="' + (s === 2 ? 'pulse' : '') + '"></i></span></article>';
+    }).join('') + '</div></section>';
 }
 
 // Pick a screenshot of the QR/label, shrink it a little (keeping it sharp enough to scan) and save it to the item.
@@ -78,7 +99,8 @@ function showQr(id) {
     (rows.length > 1 ? '<span class="qr-count">' + (index + 1) + ' of ' + rows.length + '</span>' : '<span></span>') + '<span></span></div>' +
     '<div class="qr-item"><b>' + esc(item.name) + '</b><small>' + esc([item.size && 'Size ' + item.size, ship?.label].filter(Boolean).join(' · ')) + '</small></div>' +
     '<div class="qr-image"><img src="' + esc(item.shipQr) + '" alt="Shipping QR code"></div>' +
-    '<p class="qr-tip">Turn your screen brightness up if it won’t scan.</p>' +
+    '<p class="qr-tip">' + (item.shipCode ? 'No scanner? Enter code <b>' + esc(item.shipCode) + '</b> at the locker. ' : '') + 'Turn your screen brightness up if it won’t scan.</p>' +
+    (item.shipLabel ? '<p class="qr-tip"><a href="' + esc(item.shipLabel) + '" target="_blank" rel="noopener">Open the shipping label PDF</a></p>' : '') +
     '<div class="qr-actions">' + (rows.length > 1 ? '<button type="button" class="qr-nav" data-qr-step="-1" aria-label="Previous parcel">‹</button>' : '') +
       '<button type="button" class="qr-posted" data-trade="post" data-stock-id="' + esc(item.id) + '">Mark as posted</button>' +
       (rows.length > 1 ? '<button type="button" class="qr-nav" data-qr-step="1" aria-label="Next parcel">›</button>' : '') + '</div>' +
@@ -128,13 +150,14 @@ if (typeof render === 'function') {
   render = function (...args) {
     const out = baseRenderQr.apply(this, args);
     const view = document.getElementById('view');
-    if (view && !view.querySelector('.ship-qr-panel')) {
+    if (view && !view.querySelector('.ship-qr-panel, .ship-way-panel')) {
       if (tab === 'Dashboard') {
-        const html = readyToPostHtml('home');
-        const anchor = view.querySelector('.mh-stats') || view.querySelector('.welcome');
+        const html = readyToPostHtml('home') + onTheWayHtml('home');
+        const anchor = view.querySelector('.mh-stats') || view.querySelector('.welcome') || view.querySelector('.home-chart');
         if (html && anchor) anchor.insertAdjacentHTML(anchor.classList.contains('welcome') ? 'afterend' : 'beforebegin', html);
+        else if (html) view.insertAdjacentHTML('afterbegin', html);
       } else if (tab === 'Stock') {
-        const html = readyToPostHtml('stock');
+        const html = readyToPostHtml('stock') + onTheWayHtml('stock');
         if (html) view.insertAdjacentHTML('afterbegin', html);
       }
     }

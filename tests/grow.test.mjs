@@ -84,3 +84,11 @@ test('shipping QR codes must be an image or this account’s stored media', () =
   assert.throws(() => validateWorkspace(base('/api/media/someone-else/123e4567-e89b-12d3-a456-426614174000'), 'owner'), /Invalid shipping QR/);
   assert.throws(() => validateWorkspace(base('https://evil.example/qr.png'), 'owner'), /Invalid shipping QR/);
 });
+
+test('tracking, label and courier fields are validated', () => {
+  const base = extra => ({items: [{id: '1', name: 'Jacket', cost: 5, status: 'In Stock', price: null, sale: null, refund: null, ...extra}], sales: [], expenses: [], sources: [], research: []});
+  assert.ok(validateWorkspace(base({shipTracking: 'JJD0002212127199444', shipCarrier: 'InPost', shipCode: '245 824 706', shipLabel: '/api/media/owner/123e4567-e89b-12d3-a456-426614174000', shipPostedAt: '2026-11-20', shipDeliveredAt: '2026-11-22', shipDeadline: '2026-11-25'}), 'owner'));
+  assert.throws(() => validateWorkspace(base({shipTracking: 'jjd<script>'}), 'owner'), /tracking/);
+  assert.throws(() => validateWorkspace(base({shipLabel: 'https://evil.example/l.pdf'}), 'owner'), /label/);
+  assert.throws(() => validateWorkspace(base({shipPostedAt: 'yesterday'}), 'owner'), /shipping date/);
+});
