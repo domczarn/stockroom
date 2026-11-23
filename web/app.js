@@ -848,14 +848,14 @@ $('pipWriteListing').onclick = async () => {
   try {
     const cover = (item.photos || [])[0];
     const image = await listingPhotoData(typeof cover === 'string' ? cover : cover?.url || '');
-    const {listing} = await api('/api/vision/write-listing', {method: 'POST', body: JSON.stringify({image, item: {
+    const {listing, tips = []} = await api('/api/vision/write-listing', {method: 'POST', body: JSON.stringify({image, item: {
       name: item.name, brand: item.brand, garment: item.garment, size: item.size, color: item.color, condition: item.condition,
       flaws: item.flaws, material: item.material, measurements: item.measurements, notes: item.notes}})});
     liveDraftFields = new Set();
     form.elements.listingTitle.value = listing.title;
     form.elements.listingDescription.value = listing.description + (listing.hashtags.length ? '\n\n' + listing.hashtags.join(' ') : '');
     ['listingTitle', 'listingDescription'].forEach(name => { const el = form.elements[name]; el.classList.remove('pw-flash'); void el.offsetWidth; el.classList.add('pw-flash'); });
-    note.textContent = 'Written by Pip' + (image ? ' from your photo and details' : ' from your details') + '. Check it, then copy into Vinted. Tap again for a different version.';
+    note.textContent = 'Written by Pip' + (image ? ' from your photo and details' : ' from your details') + '. Check it, then copy into Vinted. Tap again for a different version.' + (tips.length ? ' To make it even stronger, add ' + (tips.length < 2 ? tips[0] : tips.slice(0, -1).join(', ') + ' and ' + tips[tips.length - 1]) + '.' : '');
     updateListingChecks();
   } catch (error) {
     note.textContent = (error.message || 'Pip could not write this one.') + ' “Refresh from details” still works.';

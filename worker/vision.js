@@ -1,5 +1,5 @@
 import {readBody,HttpError} from './security.js';
-import {ask, imageFromDataUrl, aiAllowance} from './llm.js';
+import {ask, imageFromDataUrl, aiAllowance, jsonFrom} from './llm.js';
 
 // Reads a Vinted listing screenshot with Workers AI and returns the fields for Add stock.
 const MODEL = '@cf/meta/llama-3.2-11b-vision-instruct';
@@ -57,21 +57,36 @@ export async function visionRoute(request, env, user) {
 }
 
 // ---------- Write a Vinted listing from the item's details (+ cover photo) ----------
-const LISTING_PROMPT = facts => `You write second-hand clothing listings for Vinted UK that sell fast. ${facts.photo ? 'The image is the seller\'s photo of the item.' : ''}
-Item details from the seller (trust these over the photo):
+const LISTING_PROMPT = facts => `You are the UK's best Vinted seller. You write clothing listings that rank in Vinted search and convert browsers into buyers. ${facts.photo ? 'The image is the seller\'s cover photo of the item: use it for visible details (logo type and placement, collar, zip, pockets, cuffs, pattern, fit, colour shade).' : 'There is no photo, so only use the details below.'}
+
+Seller's details (these are facts, they beat the photo):
 ${Object.entries(facts.details).filter(([, v]) => v).map(([k, v]) => `- ${k}: ${v}`).join('\n')}
 
-Write the listing and reply with ONLY a JSON object, no other text:
-{"title": string, "description": string, "hashtags": [string]}
-Rules:
-- title: max 60 characters. Format: Brand + item type + key feature + colour + "Size X". No emojis, no ALL CAPS, no hype words like "rare" unless given.
-- description: British English, friendly and honest, 50-110 words. Structure:
-  1. One short opening line about the item.
-  2. A few lines starting with "• " covering: brand, size (and fit if known), colour, condition, and visible features from the photo (e.g. logo, hood, zip, pockets, cuffs).
-  3. Flaws: state the given flaws exactly; if none were given write "No major flaws, see photos."
-  4. End with: "Posted within 1–2 working days. Bundle for a discount."
-- Never invent material, measurements, flaws or authenticity claims that were not given. Do not include a price.
-- hashtags: 6-8 lowercase search tags without spaces, starting with #, e.g. #nike #windbreaker #mensjacket.`;
+TITLE (max 70 characters, this is what Vinted search matches on):
+- Front-load search words in this order: Brand, product line or model if known (e.g. "Windrunner", "Pique", "Harrington"), item type, one standout detail (e.g. "Embroidered Logo", "Half Zip", "Vintage 90s" only if the photo clearly shows it is vintage), colour, "Size M".
+- Title Case, no emojis, no symbols like | or ~, no "rare", "grail", "L@@K", "bnwt" unless new with tags was given.
+
+DESCRIPTION (British English, 70-130 words, scannable on a phone):
+1. Hook line: what it is and why it's good, in plain words (e.g. "Classic Ralph Lauren quarter zip in navy, an easy everyday layer.").
+2. A blank line, then bullet lines starting with "• ":
+   • Brand: …
+   • Size: … (add "fits true to size" only if the seller said so; otherwise add "check measurements" when measurements are given)
+   • Colour: …
+   • Condition: … (use the seller's condition wording)
+   • Measurements: … (only if given, exactly as given)
+   • Material: … (only if given)
+   • Details: 2-4 visible features from the photo or details
+3. Flaws line: state the given flaws exactly and plainly. If none were given: "No flaws noted, see photos for condition."
+4. Search line: "Great for: " then 2-3 natural style or use words a buyer would search (e.g. "smart casual, golf, layering"), only if they genuinely fit.
+5. Final line: "Posted within 1–2 working days. Bundle for a discount."
+- Honest, confident, no hype, no exclamation marks, no emojis. Never invent material, measurements, flaws, era, authenticity or rarity. Never include a price.
+
+HASHTAGS: 6-8 lowercase tags, no spaces, starting with #: brand, item type, colour+item, style, and gender if obvious (e.g. #ralphlauren #quarterzip #navyjumper #mensknitwear #preppy).
+
+MISSING: list up to 3 details the seller should add to make this listing sell better, chosen from: "size", "condition", "colour", "item type", "measurements", "material", "flaws", "brand", "photo". Only list ones that are actually missing above.
+
+Reply with ONLY this JSON object and nothing else, no code fences:
+{"title": string, "description": string, "hashtags": [string], "missing": [string]}`;
 
 const field = (v, max) => typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, max) : '';
 export async function writeListingRoute(request, env, user) {
@@ -87,20 +102,48 @@ export async function writeListingRoute(request, env, user) {
   if (!details.Name && !details.Brand) throw new HttpError(400, 'Add a name or brand first.');
   const image = imageFromDataUrl(body.image);
   await aiAllowance(env, user);
-  let result;
-  try { result = await run(env, image, LISTING_PROMPT({details, photo: !!image}), 700, 0.5); }
-  catch (error) {
-    console.log(JSON.stringify({listing: 'error', message: String(error?.message || error).slice(0, 300)}));
-    throw error instanceof HttpError ? error : new HttpError(502, 'Pip is busy. Try again in a moment.');
+  const prompt = LISTING_PROMPT({details, photo: !!image});
+  let data = null, why = '';
+  for (let attempt = 0; attempt < 2 && !data; attempt++) {
+    let raw;
+    try { raw = await run(env, attempt ? null : image, attempt ? prompt + '\n\nYour last reply could not be read. Reply with the JSON object only, starting with { and ending with }.' : prompt, 900); }
+    catch (error) {
+      console.log(JSON.stringify({listing: 'error', message: String(error?.message || error).slice(0, 300)}));
+      throw error instanceof HttpError ? error : new HttpError(502, 'Pip is busy. Try again in a moment.');
+    }
+    const text = String(raw?.response ?? raw ?? '');
+    try {
+      const parsed = jsonFrom(text);
+      const t = field(parsed.title, 90), d = typeof parsed.description === 'string' ? parsed.description.trim() : '';
+      if (t && d.length > 40) data = parsed;
+      else why = !t ? 'it left out the title' : 'the description came back too short';
+    } catch {
+      why = !text.trim() ? 'the reply came back empty (usually the AI service being slow)' : /can.?t|unable|sorry/i.test(text.slice(0, 200)) ? 'it wasn’t sure what the item is' : 'the reply was in the wrong format';
+      await env.DB?.prepare('INSERT INTO error_events (id, at, path, status, message) VALUES (?, ?, ?, ?, ?)')
+        .bind(crypto.randomUUID(), new Date().toISOString(), '/ai/listing-unreadable', 200, text.slice(0, 280) || '(empty)').run().catch(() => {});
+    }
   }
-  const raw = String(result?.response ?? result ?? '');
-  const json = raw.match(/\{[\s\S]*\}/);
-  let data;
-  try { data = JSON.parse(json?.[0] || ''); } catch { throw new HttpError(502, 'Pip wrote something unusable. Try again.'); }
+  const missing = listingGaps(details, !!image);
+  if (!data) {
+    const advice = missing.length ? ' Adding ' + joinWords(missing) + ' gives Pip more to work with.' : ' Try again, or use “Refresh from details” for a quick version.';
+    throw new HttpError(502, 'Pip couldn’t write this one because ' + why + '.' + advice);
+  }
   const tags = (Array.isArray(data.hashtags) ? data.hashtags : String(data.hashtags || '').split(/\s+/))
     .map(t => '#' + String(t).toLowerCase().replace(/[^a-z0-9]/g, '')).filter(t => t.length > 2).slice(0, 8);
-  const description = typeof data.description === 'string' ? data.description.replace(/\r/g, '').replace(/\n{3,}/g, '\n\n').trim().slice(0, 1500) : '';
-  const title = field(data.title, 80);
-  if (!title || !description) throw new HttpError(502, 'Pip wrote something unusable. Try again.');
-  return {listing: {title, description, hashtags: [...new Set(tags)]}};
+  const description = data.description.replace(/\r/g, '').replace(/#[a-z0-9]+/gi, '').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim().slice(0, 1800);
+  const title = field(data.title, 90).replace(/[|~]/g, ' ').replace(/\s{2,}/g, ' ');
+  return {listing: {title, description, hashtags: [...new Set(tags)]}, tips: missing};
+}
+const joinWords = list => list.length < 2 ? list.join('') : list.slice(0, -1).join(', ') + ' and ' + list[list.length - 1];
+// What the seller could add for a stronger listing, worked out from the facts rather than trusting the model.
+export function listingGaps(details, hasPhoto) {
+  const gaps = [];
+  if (!details.Size) gaps.push('the size');
+  if (!details.Condition) gaps.push('the condition');
+  if (!hasPhoto) gaps.push('a cover photo');
+  if (!details['Item type'] && !/hood|zip|jacket|coat|shirt|tee|jumper|sweat|jeans|trousers|shorts|fleece|gilet|polo|trainers|boots/i.test(details.Name)) gaps.push('the item type');
+  if (!details.Colour) gaps.push('the colour');
+  if (!details.Measurements) gaps.push('measurements');
+  if (!details.Brand) gaps.push('the brand');
+  return gaps.slice(0, 3);
 }

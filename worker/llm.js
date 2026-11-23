@@ -34,7 +34,7 @@ export async function ask(env, {system = '', prompt, image = null, maxTokens = 6
       return (env.ANTHROPIC_FETCH || fetch)('https://api.anthropic.com/v1/messages', {
         method: 'POST', signal: AbortSignal.timeout(40000),
         headers: {'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json'},
-        body: JSON.stringify({model: env.ANTHROPIC_MODEL || 'claude-haiku-5-5', max_tokens: maxTokens, ...(system ? {system} : {}),
+        body: JSON.stringify({model: env.ANTHROPIC_MODEL || 'claude-haiku-5-5', max_tokens: Math.max(1024, maxTokens * 2), ...(system ? {system} : {}),
           messages: [...history, {role: 'user', content}]}),
       }).then(async r => ({ok: r.ok, status: r.status, body: r.ok ? await r.json() : (await r.text().catch(() => '')).slice(0, 400)}),
         e => ({ok: false, status: 0, body: String(e?.name === 'TimeoutError' ? 'timeout' : e?.message || e).slice(0, 200)}));
@@ -42,7 +42,12 @@ export async function ask(env, {system = '', prompt, image = null, maxTokens = 6
     let r = await call(!!image);
     if (!r.ok && [0, 429, 500, 502, 503, 529].includes(r.status)) { await new Promise(x => setTimeout(x, 1200)); r = await call(!!image); }
     if (!r.ok && image && r.status === 400) r = await call(false); // photo rejected: write from the details alone
-    if (r.ok) return (r.body.content || []).filter(b => b.type === 'text').map(b => b.text).join('').trim();
+    if (r.ok) {
+      const text = (r.body.content || []).filter(b => b.type === 'text').map(b => b.text).join('').trim();
+      if (!text || r.body.stop_reason === 'max_tokens') await env.DB?.prepare('INSERT INTO error_events (id, at, path, status, message) VALUES (?, ?, ?, ?, ?)')
+        .bind(crypto.randomUUID(), new Date().toISOString(), '/ai/anthropic-reply', 200, ('stop=' + r.body.stop_reason + ' blocks=' + (r.body.content || []).map(b => b.type).join(',') + ' text=' + text.slice(0, 200))).run().catch(() => {});
+      return text;
+    }
     console.log(JSON.stringify({ai: 'anthropic_error', status: r.status, body: r.body}));
     await env.DB?.prepare('INSERT INTO error_events (id, at, path, status, message) VALUES (?, ?, ?, ?, ?)')
       .bind(crypto.randomUUID(), new Date().toISOString(), '/ai/anthropic', r.status, String(r.body).slice(0, 300)).run().catch(() => {});

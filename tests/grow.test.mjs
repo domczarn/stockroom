@@ -43,3 +43,9 @@ test('validateWorkspace accepts sourcing trips and rejects bad links', () => {
   const badKind = base(); badKind.sourcingRuns[0].kind = 'Heist';
   assert.throws(() => validateWorkspace(badKind, 'owner'), /Invalid sourcing trip/);
 });
+
+test('listingGaps suggests what to add', async () => {
+  const {listingGaps} = await import('../worker/vision.js');
+  assert.deepEqual(listingGaps({Name: 'Nike hoodie', Brand: 'Nike'}, true), ['the size', 'the condition', 'the colour']);
+  assert.deepEqual(listingGaps({Name: 'Thing', Brand: 'Nike', Size: 'M', Condition: 'Good', Colour: 'Black', Measurements: 'x'}, false), ['a cover photo', 'the item type']);
+});
