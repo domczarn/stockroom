@@ -82,8 +82,8 @@ export async function rebuildPriceIndex(env, {force = false} = {}) {
 export async function priceIndexRoute(request, env, user) {
   if (!user) throw new HttpError(401, 'Sign in first.');
   await ensureTable(env);
-  let {results = []} = await env.DB.prepare('SELECT payload, updated_at FROM price_index').all();
-  if (!results.length && await rebuildPriceIndex(env)) ({results = []} = await env.DB.prepare('SELECT payload, updated_at FROM price_index').all());
+  // Built by the scheduled job only, so a user's request never pays for scanning every workspace.
+  const {results = []} = await env.DB.prepare('SELECT payload, updated_at FROM price_index').all();
   return {rows: results.map(r => JSON.parse(r.payload)), updatedAt: results[0]?.updated_at || null, minSales: MIN_SALES, minSellers: MIN_SELLERS};
 }
 export async function lookupIndex(env, brand, type) {

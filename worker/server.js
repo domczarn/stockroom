@@ -94,7 +94,7 @@ export default {
   async fetch(request, env, context) {
     const url = new URL(request.url);
     try {
-      // Mutations use same-origin JSON requests; identity is verified by Cloudflare Access.
+      // Mutations must be same-origin; identity comes from the Stockroom session cookie.
       if (!['GET','HEAD'].includes(request.method)) {
         if (request.headers.get('origin') && request.headers.get('origin') !== url.origin) throw new HttpError(403,'Invalid origin');
         if (request.headers.get('sec-fetch-site') === 'cross-site') throw new HttpError(403,'Cross-site write blocked');

@@ -19,6 +19,13 @@ export async function recentErrors(env, hours = 24) {
 // Cron: email the owner when 10+ errors happen within an hour (at most once every 6 hours). Keeps 30 days of history.
 export async function scheduledAlerts(env, now = Date.now()) {
   await env.DB.prepare('DELETE FROM error_events WHERE at < ?').bind(new Date(now - 30 * 86400000).toISOString()).run().catch(() => {});
+  // Housekeeping: keep the security log for 90 days and clear out expired sign-in data.
+  await env.DB.batch([
+    env.DB.prepare('DELETE FROM audit_events WHERE created_at < ?').bind(new Date(now - 90 * 86400000).toISOString()),
+    env.DB.prepare('DELETE FROM sessions WHERE expires_at < ?').bind(now),
+    env.DB.prepare('DELETE FROM login_codes WHERE expires_at < ?').bind(now - 86400000),
+    env.DB.prepare('DELETE FROM auth_challenges WHERE expires_at < ?').bind(now - 86400000)
+  ]).catch(() => {});
   if (!env.RESEND_API_KEY) return;
   const hour = new Date(now - 3600000).toISOString();
   const rows = (await env.DB.prepare('SELECT path, status, message FROM error_events WHERE at > ?').bind(hour).all().catch(() => ({results: []}))).results || [];

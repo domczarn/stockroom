@@ -83,7 +83,7 @@ const ISLAND_LABELS = [
   [/write-listing/, 'Writing your listing', 'Listing written'], [/\/api\/pip\/scan/, 'Pricing it up', 'Verdict ready'],
   [/\/api\/pip\/ask/, 'Pip is thinking', 'Answer ready'], [/\/api\/pip\/offer/, 'Weighing the offer', 'Reply ready'],
   [/\/api\/pip\/measure/, 'Measuring', 'Measured'], [/\/api\/pip\/crosslist/, 'Writing Depop & eBay', 'Both written'],
-  [/\/api\/studio/, 'Cutting out your photo', 'Photo ready'], [/\/api\/vision\//, 'Reading the screenshot', 'Read it']
+  [/\/api\/pip\/studio/, 'Cutting out your photo', 'Photo ready'], [/\/api\/vision\//, 'Reading the screenshot', 'Read it']
 ];
 const islandFetch = window.fetch.bind(window);
 window.fetch = async (input, init) => {
