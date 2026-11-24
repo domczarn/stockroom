@@ -1,7 +1,7 @@
 'use strict';
 // Offline: network first, last good copy when there is no signal.
 // Only plain same-origin GETs are kept: the app itself, your last workspace and photos. Sign-in redirects are never cached.
-const CACHE='stockroom-offline-v1';
+const CACHE='stockroom-offline-v2';
 const KEEP=/^\/(?:$|index\.html$|[\w.-]+\.(?:js|css|woff2|png|svg|webmanifest|json)$|api\/(?:me|workspace|gmail|purchases)$|api\/media\/)/;
 self.addEventListener('install',event=>event.waitUntil(self.skipWaiting()));
 self.addEventListener('activate',event=>event.waitUntil((async()=>{
@@ -14,6 +14,11 @@ self.addEventListener('fetch',event=>{
   event.respondWith((async()=>{
     const cache=await caches.open(CACHE);
     const key=request.mode==='navigate'?'/':url.pathname+url.search;
+    // Photos and images never change once uploaded: show the saved copy instantly.
+    if(/^\/api\/media\/|\.(?:png|svg|woff2)$/.test(url.pathname)){
+      const hit=await cache.match(key);
+      if(hit)return hit;
+    }
     try{
       const response=await fetch(request);
       if(response.ok&&response.type==='basic'&&!response.redirected)cache.put(key,response.clone()).catch(()=>{});

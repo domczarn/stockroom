@@ -75,6 +75,7 @@ async function overview(env) {
     neverUsed: rows.filter(r => !r.items).length, atLimit: rows.filter(r => r.plan === 'free' && r.addedThisMonth >= Number(settings.free_limit)).length,
     items: rows.reduce((s, r) => s + r.items, 0), revenue: Math.round(rows.reduce((s, r) => s + r.revenue, 0) * 100) / 100,
     signups, settings, errors: await recentErrors(env, 24),
+    usage: ((await env.DB.prepare("SELECT feature, SUM(count) AS n FROM usage_daily WHERE day >= ? GROUP BY feature ORDER BY n DESC LIMIT 12").bind(new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10)).all().catch(() => ({results: []}))).results || []),
   };
 }
 

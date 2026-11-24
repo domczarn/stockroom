@@ -67,7 +67,9 @@ function admOverview() {
      list('Invited, not joined yet', people.filter(m => !m.userId), () => 'Waiting') +
      list('Suspended', people.filter(m => m.status === 'suspended'), () => 'No access') ||
      '<p class="footnote">Nothing needs you right now.</p>') + '</section>' +
-    '<section class="panel"><div class="adm-panel-head"><h2>Server errors</h2><span class="footnote">Last 24 hours</span></div>' +
+    '<section class="panel"><div class="adm-panel-head"><h2>What people use</h2><span class="footnote">Last 7 days · screen opens, not people</span></div>' +
+      (o.usage?.length ? '<div class="adm-usage">' + o.usage.map(u => { const max = o.usage[0].n || 1; return '<div><span>' + esc(String(u.feature).replace(/^tab:/, '').replace(/^use:/, '⚡ ')) + '</span><i><b class="w' + Math.max(1, Math.round(u.n / max * 10)) + '"></b></i><em>' + u.n + '</em></div>'; }).join('') + '</div>' : '<p class="footnote">Nothing yet.</p>') + '</section>' +
+    '<section class="panel"><div class="adm-panel-head"><h2>Errors</h2><span class="footnote">Last 24 hours · server and phones</span></div>' +
       (o.errors?.count ? '<p><b class="err-count">' + o.errors.count + '</b> error' + (o.errors.count === 1 ? '' : 's') + '. You get an email if 10+ happen within an hour.</p><details class="adm-errors"><summary>Show latest</summary>' + o.errors.recent.slice(0, 15).map(e => '<div class="mini-stat"><span>' + esc(e.status + ' ' + e.path) + '<small>' + esc(e.message) + '</small></span><b>' + esc(ago(e.at)) + '</b></div>').join('') + '</details>'
         : '<p class="ai-status ok"><b>✓ No errors</b></p>') + '</section>' +
     '<section class="panel adm-status"><h2>App status</h2>' +

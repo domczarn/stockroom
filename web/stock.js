@@ -299,7 +299,8 @@ function initialiseStock() {
       selectedStock.delete(id);
       refreshStockSelection();
       closePanel(deleteDialog);
-      toast('Stock item deleted.');
+      const restore = async () => { await persist({...db,items:db.items.map(row=>row.id===id?{...row,deletedAt:undefined}:row)}); render(); toast('Item restored.'); };
+      if (typeof undoToast === 'function') undoToast('Item deleted.', restore); else toast('Stock item deleted.');
     }catch(error){toast(error.message);}
     finally{deleteButton.disabled=false;}
   };

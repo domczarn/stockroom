@@ -268,3 +268,89 @@ document.addEventListener('click', event => {
   if (!row || t.closest('button, a, input, select')) return;
   openRowSheet(row);
 });
+
+// ---------- Undo instead of "are you sure" ----------
+function undoToast(message, onUndo, ms = 6000) {
+  document.querySelector('.undo-toast')?.remove();
+  const el = document.createElement('div');
+  el.className = 'undo-toast'; el.setAttribute('role', 'status');
+  el.innerHTML = '<span>' + esc(message) + '</span><button type="button">Undo</button>';
+  document.body.appendChild(el);
+  requestAnimationFrame(() => el.classList.add('show'));
+  const done = () => { el.classList.remove('show'); setTimeout(() => el.remove(), 250); };
+  const timer = setTimeout(done, ms);
+  el.querySelector('button').onclick = async () => { clearTimeout(timer); done(); try { await onUndo(); } catch (error) { toast(error.message || 'Couldn’t undo'); } };
+}
+
+// ---------- Swipe a sheet down to close it (phone) ----------
+(() => {
+  let start = null;
+  const sheetOf = t => t.closest('dialog[open], .row-sheet-card');
+  document.addEventListener('touchstart', event => {
+    if (!navPhone() || event.touches.length !== 1) return;
+    const sheet = sheetOf(event.target);
+    if (!sheet || event.target.closest('input, textarea, select, [contenteditable], .mh-chart, .tell-examples, .subnav')) return;
+    const scroller = event.target.closest('dialog, .row-sheet-card');
+    if (scroller && scroller.scrollTop > 0) return; // only from the top, so normal scrolling still works
+    start = {sheet, y: event.touches[0].clientY, x: event.touches[0].clientX, dy: 0};
+  }, {passive: true});
+  document.addEventListener('touchmove', event => {
+    if (!start) return;
+    const dy = event.touches[0].clientY - start.y, dx = Math.abs(event.touches[0].clientX - start.x);
+    if (dx > Math.abs(dy) || dy < 0) { if (dy < -10 || dx > 30) { start.sheet.style.transform = ''; start = null; } return; }
+    start.dy = dy;
+    start.sheet.style.transition = 'none';
+    start.sheet.style.transform = 'translateY(' + Math.min(dy, 400) * .9 + 'px)';
+  }, {passive: true});
+  document.addEventListener('touchend', () => {
+    if (!start) return;
+    const {sheet, dy} = start; start = null;
+    sheet.style.transition = ''; sheet.style.transform = '';
+    if (dy < 110) return;
+    if (sheet.classList.contains('row-sheet-card')) closeRowSheet();
+    else if (typeof requestClose === 'function') requestClose(sheet); else sheet.close();
+  });
+})();
+
+// ---------- Offline: say so clearly ----------
+function navOnline() {
+  let bar = document.getElementById('offlineBar');
+  if (navigator.onLine) { bar?.remove(); return; }
+  if (!bar) {
+    bar = document.createElement('div'); bar.id = 'offlineBar'; bar.setAttribute('role', 'status');
+    bar.textContent = 'You’re offline · showing your last saved copy. Changes save when you’re back online.';
+    document.body.appendChild(bar);
+  }
+}
+addEventListener('online', navOnline); addEventListener('offline', navOnline); navOnline();
+
+// ---------- Light haptics on key actions (Android; iPhone ignores this) ----------
+document.addEventListener('click', event => {
+  if (!navigator.vibrate || !navPhone()) return;
+  if (event.target.closest('#add, .action, .qr-posted, [data-trade], .row-sheet-actions button, .tell-go, nav button')) try { navigator.vibrate(8); } catch {}
+}, true);
+
+// ---------- Know what breaks and what's used (no personal data) ----------
+(() => {
+  let sent = 0;
+  const report = (message, where) => {
+    if (sent++ > 5) return; // a few per visit is plenty
+    try { navigator.sendBeacon?.('/api/client-error', new Blob([JSON.stringify({message: String(message || '').slice(0, 300), where: String(where || '').slice(0, 120), tab: typeof tab === 'string' ? tab : ''})], {type: 'application/json'})); } catch {}
+  };
+  addEventListener('error', e => { if (e.message && !/ResizeObserver|Script error/.test(e.message)) report(e.message, (e.filename || '').split('/').pop() + ':' + e.lineno); });
+  addEventListener('unhandledrejection', e => { const m = e.reason?.message || String(e.reason || ''); if (m && !/abort|network|Failed to fetch|Load failed/i.test(m)) report(m, 'promise'); });
+  // Which screens get used: counted per day per screen, never tied to you.
+  const seen = new Set();
+  const count = name => {
+    if (!name || seen.has(name)) return; seen.add(name);
+    try { navigator.sendBeacon?.('/api/usage', new Blob([JSON.stringify({feature: name})], {type: 'application/json'})); } catch {}
+  };
+  if (typeof render === 'function') {
+    const baseRenderUsage = render;
+    render = function (...args) { const out = baseRenderUsage.apply(this, args); count('tab:' + tab); return out; };
+  }
+  document.addEventListener('click', event => {
+    const f = event.target.closest('[data-scan-open], [data-label-show], [data-qr-show], [data-tell-go], .tell-go, [data-write-pip], #writeWithPip, [data-snap], [data-me-share]');
+    if (f) count('use:' + (f.dataset.scanOpen !== undefined ? 'buy-or-pass' : f.dataset.labelShow ? 'label' : f.dataset.qrShow ? 'qr' : f.id || f.className.split(' ')[0]));
+  }, true);
+})();

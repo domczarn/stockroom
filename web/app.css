@@ -3152,3 +3152,25 @@ details.market-group[open]>summary{margin-bottom:10px}
   body.nav-phone.tab-settings #profileForm label:has(input[type=checkbox]):not(:has(+label input[type=checkbox])){border-radius:0 0 14px 14px}
 }
 .mh-range-note{margin:6px 0 0;font-size:11px;color:var(--muted);letter-spacing:.01em}
+
+/* ---------- Feel: tap feedback, hit areas, inputs, undo, offline ---------- */
+@media (max-width:800px){
+  body.nav-phone button:not(:disabled),body.nav-phone a.action,body.nav-phone .me-row,body.nav-phone summary{-webkit-tap-highlight-color:transparent;transition:transform .12s ease,opacity .12s ease,background-color .15s ease}
+  body.nav-phone button:not(:disabled):active,body.nav-phone a.action:active,body.nav-phone summary:active{transform:scale(.97);opacity:.85}
+  body.nav-phone .me-row:active,body.nav-phone tbody tr:active{transform:none}
+  /* small controls get a 44px touch area without looking bigger */
+  body.nav-phone .mh-range button,body.nav-phone .stock-filters button,body.nav-phone .tell-examples button,body.nav-phone .stock-view-switch button,body.nav-phone .ship-qr-show,body.nav-phone .ship-qr-add{position:relative}
+  body.nav-phone .mh-range button::after,body.nav-phone .stock-filters button::after,body.nav-phone .tell-examples button::after,body.nav-phone .stock-view-switch button::after,body.nav-phone .ship-qr-show::after,body.nav-phone .ship-qr-add::after{content:'';position:absolute;inset:-7px -2px}
+  /* iPhone zooms into inputs under 16px */
+  body.nav-phone input:not([type=checkbox]):not([type=radio]):not([type=range]),body.nav-phone select,body.nav-phone textarea{font-size:16px!important}
+  body.nav-phone dialog[open]{transition:transform .22s cubic-bezier(.2,.9,.3,1)}
+}
+.undo-toast{position:fixed;left:50%;bottom:calc(92px + env(safe-area-inset-bottom));transform:translate(-50%,20px);opacity:0;z-index:2147482500;display:flex;align-items:center;gap:14px;padding:10px 10px 10px 16px;border-radius:14px;background:#f4f2f8;color:#16151c;font-size:14px;font-weight:550;box-shadow:0 10px 30px -10px rgba(0,0,0,.6);transition:transform .25s cubic-bezier(.2,.9,.3,1),opacity .2s}
+.undo-toast.show{transform:translate(-50%,0);opacity:1}
+.undo-toast button{all:unset;cursor:pointer;padding:7px 12px;border-radius:10px;background:#16151c;color:#fff;font-weight:650;font-size:13px}
+#offlineBar{position:fixed;left:10px;right:10px;top:calc(8px + env(safe-area-inset-top));z-index:2147482300;padding:9px 13px;border-radius:12px;background:#3a2f12;border:1px solid #6b5520;color:#ffd98a;font-size:12.5px;line-height:1.4;text-align:center}
+@media (prefers-reduced-motion:reduce){.undo-toast,body.nav-phone dialog[open]{transition:none}body.nav-phone button:active{transform:none}}
+
+/* admin: what people use */
+.adm-usage{display:grid;gap:7px}.adm-usage>div{display:grid;grid-template-columns:120px 1fr 36px;align-items:center;gap:10px;font-size:13px}.adm-usage span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.adm-usage i{height:8px;border-radius:4px;background:rgba(255,255,255,.06);overflow:hidden}.adm-usage b{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,#7f9dff,#b9a9ff)}.adm-usage em{font-style:normal;text-align:right;color:var(--muted)}
+.adm-usage b.w1{width:10%}.adm-usage b.w2{width:20%}.adm-usage b.w3{width:30%}.adm-usage b.w4{width:40%}.adm-usage b.w5{width:50%}.adm-usage b.w6{width:60%}.adm-usage b.w7{width:70%}.adm-usage b.w8{width:80%}.adm-usage b.w9{width:90%}.adm-usage b.w10{width:100%}

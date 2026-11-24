@@ -116,7 +116,8 @@ export default {
       }
       const user = url.pathname.startsWith('/api/') && !(!rawUser&&await isStockroomService(request,env,url.pathname))
         ? await authorize(request,env) : rawUser;
-      if(url.pathname.startsWith('/api/')&&!['GET','HEAD'].includes(request.method))await rateLimit(env,user?.id||'stockroom-sync-service');
+      // Health beacons have their own limits and must never use up your allowance for real saves.
+      if(url.pathname.startsWith('/api/')&&!['GET','HEAD'].includes(request.method)&&!['/api/usage','/api/client-error'].includes(url.pathname))await rateLimit(env,user?.id||'stockroom-sync-service');
       // Emails Pip has already applied or you skipped, shared by all your devices.
       if(url.pathname==='/api/gmail/done'){
         if(!user)throw new HttpError(401,'Sign in first.');
@@ -137,6 +138,23 @@ export default {
       if(url.pathname==='/api/account/delete'){const r=await deleteOwnAccount(request,env,user);return new Response(JSON.stringify(r),{headers:{'content-type':'application/json','cache-control':'no-store','set-cookie':'sr_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0'}});}
       if(url.pathname==='/api/billing'||url.pathname.startsWith('/api/billing/'))return json(await billingRoute(request,url,env,user));
       if(['/api/gmail/connect','/api/gmail/check'].includes(url.pathname)&&request.method==='POST')await requirePro(env,user,'Gmail auto-updates');
+      // App health: errors from people's phones, and which screens get used (counted per day, never per person).
+      if(url.pathname==='/api/client-error'&&request.method==='POST'){
+        await rateLimit(env,'client-error:'+user.id);
+        const body=await readBody(request,4000).catch(()=>null)||{};
+        const message=String(body.message||'').slice(0,300);
+        if(message)await env.DB.prepare('INSERT INTO error_events (id, at, path, status, message) VALUES (?, ?, ?, ?, ?)')
+          .bind(crypto.randomUUID(),new Date().toISOString(),('/client/'+String(body.tab||'').replace(/[^\w &-]/g,'').slice(0,30)+' '+String(body.where||'').replace(/[^\w.:-]/g,'').slice(0,60)).trim(),0,message).run().catch(()=>{});
+        return new Response(null,{status:204});
+      }
+      if(url.pathname==='/api/usage'&&request.method==='POST'){
+        await rateLimit(env,'usage:'+user.id);
+        const body=await readBody(request,1000).catch(()=>null)||{};
+        const feature=String(body.feature||'');
+        if(/^(tab|use):[\w &-]{1,40}$/.test(feature))await env.DB.prepare('INSERT INTO usage_daily (day, feature, count) VALUES (?, ?, 1) ON CONFLICT(day, feature) DO UPDATE SET count = count + 1')
+          .bind(new Date().toISOString().slice(0,10),feature).run().catch(()=>{});
+        return new Response(null,{status:204});
+      }
       if(url.pathname==='/api/gmail'||url.pathname.startsWith('/api/gmail/')){
         const result=await gmailRoute(request,url,env,user,context);
         return result instanceof Response?result:json(result);

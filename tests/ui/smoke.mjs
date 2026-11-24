@@ -168,6 +168,19 @@ for (const viewport of [{width: 390, height: 844}, {width: 1440, height: 900}]) 
     }, viewport.width);
     assert.match(out.split(' dbg ')[0], /^Sold\|JJD0002212128\d{6}\|true\|true$/, out);
   });
+  await check('delete has undo, offline is explained', viewport, async page => {
+    await go(page, 'Stock');
+    const id = await page.evaluate(() => db.items.find(i => i.status === 'In Stock' && !i.deletedAt).id);
+    await page.evaluate(id => { const d = document.getElementById('stockDeleteDialog'); d.dataset.stockId = id; d.showModal(); }, id);
+    await page.click('#confirmStockDelete');
+    await page.waitForSelector('.undo-toast.show button');
+    await page.click('.undo-toast button');
+    await page.waitForFunction(id => !db.items.find(i => i.id === id).deletedAt, id);
+    await page.context().setOffline(true);
+    await page.waitForSelector('#offlineBar');
+    await page.context().setOffline(false);
+    await page.waitForFunction(() => !document.getElementById('offlineBar'));
+  });
   await check('stock number in Vinted titles', viewport, async page => {
     const out = await page.evaluate(() => {
       const item = db.items.find(i => i.status === 'In Stock');

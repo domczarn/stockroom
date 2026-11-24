@@ -763,12 +763,15 @@ $('backup').onclick=()=>fullBackup().catch(error=>toast(error.message));
 $('restore').onclick=()=>{if(isReadOnly())return; $('upload').click();};
 $('upload').onchange=async e=>{try{const file=e.target.files[0];if(!file)return;if(file.size>19000000)throw Error('Backup too large.');const data=JSON.parse(await file.text());if(!['items','sales','expenses','sources','research'].every(k=>Array.isArray(data[k])))throw Error('Choose a valid Stockroom backup.');if(confirm('Replace your cloud workspace with this backup on every device? Export a backup first if you need the current data.')){await persist(data);toast('Backup restored to your cloud account.');}}catch(error){toast(error.message);}e.target.value='';};
 (async()=>{
+  // Ask for your account and your workspace at the same time instead of one after the other.
+  const workspaceEarly=api('/api/workspace').then(value=>({value}),error=>({error}));
   try{
     const result=await api('/api/me');account=result.user;account.plan=result.plan||'free';account.announcement=result.announcement||null;workspaceOwner=account.id;if(typeof billingReturn==='function')setTimeout(()=>void billingReturn(),0);
     $('adminMenu').hidden=$('adminNav').hidden=account.role!=='admin';$('refreshImports').hidden=account.role!=='admin';
     applyProfile(result.profile);$('menuRole').textContent=account.role==='admin'?'Administrator':'Member';
     try{storage=await openStorage();}catch{storage=null;}
-    const remote=await api('/api/workspace');cloudRevision=remote.revision;
+    const early=await workspaceEarly;
+    const remote=early.value||await api('/api/workspace');cloudRevision=remote.revision;
     const held=await pendingRecord().catch(()=>null);
     if(held){db=remote.data||emptyData();pendingLocal=held.data;cloudConflict=held.revision!==remote.revision;tab='Account';}
     else if(remote.data)db=remote.data;
