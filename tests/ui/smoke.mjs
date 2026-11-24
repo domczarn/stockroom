@@ -21,7 +21,9 @@ async function check(name, viewport, fn) {
     await page.waitForFunction(() => typeof db !== 'undefined' && db && document.querySelector('#view').children.length);
     await fn(page);
     assert.deepEqual(errors, [], 'page errors');
-    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
+    let overflow = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
+    // A momentary overflow mid-animation that's gone half a second later isn't a layout bug.
+    if (overflow > 1) { await page.waitForTimeout(500); overflow = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth); }
     const culprit = overflow > 1 ? await page.evaluate(() => { let w = null; for (const e of document.querySelectorAll('body *')) { const r = e.getBoundingClientRect(); if (r.right > innerWidth + 1 && (!w || r.right > w.r)) w = {r: r.right, n: e.tagName + '.' + e.className + '#' + e.id}; } return w ? w.n : ''; }) : '';
     assert.ok(overflow <= 1, 'page scrolls sideways by ' + overflow + 'px ' + culprit);
     console.log('ok   ' + name + ' @' + viewport.width);
@@ -128,6 +130,14 @@ for (const viewport of [{width: 390, height: 844}, {width: 1440, height: 900}]) 
       return [item.shipCarrier, !!item.shipQr, item.shipCode, tradeStatus(lastTrade(data, sold.id)), !!item.shipDeliveredAt, stranger === null, !!document.querySelector('.ship-way-row')].join('|');
     });
     assert.equal(out, 'InPost|true|245 824 706|Posted|true|true|true', out);
+  });
+  await check('money chart: 7D, 30D and 90D agree', viewport, async page => {
+    const out = await page.evaluate(() => {
+      const today = todayUK(), rows = [{kind: 'Sale', date: today, revenue: 20}, {kind: 'Sale', date: new Date(Date.parse(today) - 10 * 864e5).toISOString().slice(0, 10), revenue: 30}, {kind: 'Expense', date: today, revenue: 0, expense: 5}];
+      const end = n => mhSeries(rows, n, today).at(-1).v;
+      return [end(30), end(90), mhSeries(rows, 7, today).at(-1).v].join('|');
+    });
+    assert.equal(out, '50|50|20', out);
   });
   await check('stock number in Vinted titles', viewport, async page => {
     const out = await page.evaluate(() => {

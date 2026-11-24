@@ -10,6 +10,9 @@ function mhSeries(rows, days, endIso) {
   const pts = Array.from({length: days}, (_, i) => ({date: new Date(end - (days - 1 - i) * day).toISOString().slice(0, 10), v: 0}));
   const index = new Map(pts.map((p, i) => [p.date, i]));
   for (const r of rows) if (r.kind === 'Sale' || r.kind === 'Sale refund') { const i = index.get(r.date); if (i != null) pts[i].v += Number(r.revenue) || 0; }
+  // Running total, so the line ends exactly on the Sales figure above it and 7D / 30D / 90D always agree.
+  let run = 0;
+  for (const p of pts) { run += p.v; p.v = Math.round(run * 100) / 100; }
   return pts;
 }
 function mhChart(points) {
@@ -17,21 +20,17 @@ function mhChart(points) {
   const max = Math.max(10, ...points.map(p => p.v));
   const nice = max <= 50 ? Math.ceil(max / 10) * 10 : max <= 200 ? Math.ceil(max / 50) * 50 : Math.ceil(max / 100) * 100;
   const x = i => points.length < 2 ? W / 2 : i * W / (points.length - 1), y = v => bottom - (bottom - top) * v / nice;
-  // Smooth curve through the points (Catmull-Rom → Bézier).
+  // Straight segments between days: honest, never overshoots, same shape at every range.
   const P = points.map((p, i) => [x(i), y(Math.max(0, p.v))]);
-  let d = 'M' + P[0][0].toFixed(1) + ' ' + P[0][1].toFixed(1);
-  for (let i = 0; i < P.length - 1; i++) {
-    const p0 = P[i - 1] || P[i], p1 = P[i], p2 = P[i + 1], p3 = P[i + 2] || p2, t = .18;
-    d += ' C' + (p1[0] + (p2[0] - p0[0]) * t).toFixed(1) + ' ' + Math.min(bottom, p1[1] + (p2[1] - p0[1]) * t).toFixed(1) + ' ' + (p2[0] - (p3[0] - p1[0]) * t).toFixed(1) + ' ' + Math.min(bottom, p2[1] - (p3[1] - p1[1]) * t).toFixed(1) + ' ' + p2[0].toFixed(1) + ' ' + p2[1].toFixed(1);
-  }
+  const d = P.map((p, i) => (i ? ' L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join('');
   const label = iso => new Date(iso + 'T12:00:00Z').toLocaleDateString('en-GB', {day: 'numeric', month: 'short', timeZone: 'UTC'});
   const mid = points[Math.floor(points.length / 2)];
-  return '<svg class="mh-chart" viewBox="-34 0 ' + (W + 40) + ' ' + H + '" preserveAspectRatio="none" role="img" aria-label="Sales over the last ' + points.length + ' days">' +
+  return '<svg class="mh-chart" viewBox="-34 0 ' + (W + 40) + ' ' + H + '" preserveAspectRatio="none" role="img" aria-label="Total sales over the last ' + points.length + ' days">' +
     '<defs><linearGradient id="mhLine" x1="0" x2="1"><stop offset="0" stop-color="#7f9dff"/><stop offset="1" stop-color="#b9a9ff"/></linearGradient><linearGradient id="mhFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#8fa6ff" stop-opacity=".28"/><stop offset="1" stop-color="#8fa6ff" stop-opacity="0"/></linearGradient>' +
     '<filter id="mhGlow" x="-10%" y="-30%" width="120%" height="160%"><feGaussianBlur stdDeviation="3.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>' +
     [nice, nice / 2, 0].map(v => '<line x1="0" x2="' + W + '" y1="' + y(v) + '" y2="' + y(v) + '" class="mh-grid"/><text x="-8" y="' + (y(v) + 3.5) + '" text-anchor="end" class="mh-axis">£' + (v >= 1000 ? (v / 1000) + 'k' : v) + '</text>').join('') +
     '<path d="' + d + ' L' + W + ' ' + bottom + ' L0 ' + bottom + 'Z" fill="url(#mhFill)" class="mh-area"/>' +
-    '<path d="' + d + '" fill="none" stroke="url(#mhLine)" stroke-width="2.4" stroke-linecap="round" filter="url(#mhGlow)" class="mh-line" pathLength="1"/>' +
+    '<path d="' + d + '" fill="none" stroke="url(#mhLine)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" filter="url(#mhGlow)" class="mh-line" pathLength="1"/>' +
     '<text x="0" y="' + (H - 2) + '" class="mh-axis">' + label(points[0].date) + '</text><text x="' + W / 2 + '" y="' + (H - 2) + '" text-anchor="middle" class="mh-axis">' + label(mid.date) + '</text><text x="' + W + '" y="' + (H - 2) + '" text-anchor="end" class="mh-axis">Today</text></svg>';
 }
 function mhPulses(today) {
@@ -77,6 +76,7 @@ function mobileHome() {
       '<div class="mh-stat"><small>Profit</small><b>' + gbp(tNow.profit) + '</b>' + delta(pct(tNow.profit, tBefore.profit)) + '</div>' +
       '<div class="mh-stat"><small>Sold</small><b>' + soldNow + '</b>' + delta(pct(soldNow, soldBefore)) + '</div>' +
     '</div>' +
+    '<p class="mh-range-note">Last ' + mhRange + ' days · % vs the ' + mhRange + ' days before</p>' +
     '<div class="mh-chart-wrap">' + mhChart(mhSeries(rows, mhRange, today)) + '</div>' +
     '<div class="mh-pills"><div class="mh-range" role="group" aria-label="Chart range">' + [7, 30, 90].map(r => '<button type="button" data-mh-range="' + r + '" aria-pressed="' + (r === mhRange) + '">' + r + 'D</button>').join('') + '</div>' +
       '<button type="button" class="mh-pill" data-tab="Reports"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h10l4 4v12H5z"/><path d="M9 13h6M9 17h4"/></svg>View report</button></div>' +
