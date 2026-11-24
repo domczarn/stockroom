@@ -148,6 +148,26 @@ for (const viewport of [{width: 390, height: 844}, {width: 1440, height: 900}]) 
     });
     assert.equal(out[0], out[1], 'profit 30D ' + out[0] + ' vs 90D ' + out[1]);
   });
+  await check('sold + label + QR in the same minute all apply', viewport, async page => {
+    const out = await page.evaluate(async w => {
+      const item = db.items.find(i => i.status === 'In Stock' && !i.deletedAt);
+      const day = todayUK(), t = n => day + 'T16:3' + n + ':00.000Z', title = 'Light Blue Jeans | Size W32 #' + item.id, tr = 'JJD0002212128' + String(w).padStart(6, '0');
+      // Newest first, like the server sends them; label and QR share a timestamp.
+      personalGmail = {connection: {receipts: [
+        {id: 'lbl' + w, receivedAt: t(8), event: {type: 'label', title, tracking: tr, labelMedia: '/api/media/' + encodeURIComponent(account.id) + '/123e4567-e89b-12d3-a456-426614174000', date: day}},
+        {id: 'qr' + w, receivedAt: t(8), courier: 'relay.vinted.com', event: {type: 'qr', tracking: tr, qrMedia: '/api/media/' + encodeURIComponent(account.id) + '/223e4567-e89b-12d3-a456-426614174000', code: '1 2 3', carrier: 'InPost', date: day}},
+        {id: 'sold' + w, receivedAt: t(7), event: {type: 'sold', title, amount: 5.75, date: day}}]}};
+      auDone.clear(); auSignature = '';
+      window.__dbg = [!!account, isReadOnly(), !!document.getElementById('pipUpdates'), auBusy, JSON.stringify(auRank(title, auCandidates({type: 'sold', title, amount: 5.75}, db)).slice(0, 2).map(r => [r.item.id, r.score]))];
+      const warn = console.warn; let warned = ''; console.warn = (...a) => { warned += a.map(String).join(' '); };
+      await auRun();
+      console.warn = warn; window.__dbg.push('warn:' + warned, 'sig:' + auSignature);
+      document.getElementById('pipUpdates')?.remove();
+      const now = db.items.find(i => i.id === item.id);
+      return [now.status, now.shipTracking, !!now.shipQr, !!now.shipLabel].join('|') + ' dbg ' + window.__dbg.join(',');
+    }, viewport.width);
+    assert.match(out.split(' dbg ')[0], /^Sold\|JJD0002212128\d{6}\|true\|true$/, out);
+  });
   await check('stock number in Vinted titles', viewport, async page => {
     const out = await page.evaluate(() => {
       const item = db.items.find(i => i.status === 'In Stock');

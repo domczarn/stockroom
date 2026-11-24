@@ -72,6 +72,8 @@ function auCandidates(event, data) {
 function auAlreadyDone(event, data) {
   const trades = data.trades || [];
   if (trades.some(t => t.emailId === event.id)) return true;
+  const tag = (String(event.title || '').match(/#([A-Za-z0-9]{2,12})\s*$/) || [])[1];
+  if (event.type === 'sold' && tag && data.items.some(item => item.id === tag)) return data.items.some(item => item.id === tag && item.status === 'Sold' && item.soldAt && auDays(item.soldAt, event.date) <= 4);
   if (event.type === 'sold') return data.items.some(item => item.status === 'Sold' && Math.abs((item.sale || 0) - event.amount) < 0.01 &&
     item.soldAt && auDays(item.soldAt, event.date) <= 4 && auScore(event.title, item) >= 0.3);
   if (event.type === 'completed') return trades.some(t => (event.transactionId && t.orderId === event.transactionId && (t.completedAt || t.paidAt)));
@@ -156,9 +158,12 @@ async function auRun() {
   if (auBusy || !db || !account || isReadOnly() || document.getElementById('pipUpdates')) return;
   const receipts = (typeof personalGmail !== 'undefined' ? personalGmail?.connection?.receipts : null) || [];
   // Tracking-based updates use a fresh key so emails read properly after the fix get one more go.
-  const auKey = r => r.id + (['label', 'qr', 'posted', 'parcel-delivered'].includes(r.event.type) && r.event.tracking ? ':t2' : '');
-  const events = receipts.filter(r => r.event && !auDone.has(auKey(r))).map(r => ({...r.event, id: auKey(r)}))
-    .sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  const auKey = r => r.id + (['label', 'qr', 'posted', 'parcel-delivered'].includes(r.event.type) && r.event.tracking ? ':t3' : '');
+  // Exact email time order (several emails often land in the same minute), and for ties the natural order:
+  // sold → label → QR → posted → delivered → completed.
+  const stage = {sold: 0, label: 1, qr: 2, posted: 3, 'parcel-delivered': 4, delivered: 5, completed: 6, paid: 7, refund: 8};
+  const events = receipts.filter(r => r.event && !auDone.has(auKey(r))).map(r => ({...r.event, id: auKey(r), at: r.receivedAt || r.event.date}))
+    .sort((a, b) => String(a.at).localeCompare(String(b.at)) || (stage[a.type] ?? 9) - (stage[b.type] ?? 9));
   const signature = events.map(e => e.id).join(',') + '|' + (db.items.length) + '|' + ((db.trades || []).length);
   if (!events.length || signature === auSignature) return;
   auSignature = signature;
@@ -184,7 +189,10 @@ async function auRun() {
       if (ranked.length && auConfident(ranked)) {
         try { const result = auApply(event, ranked[0].item, next); next = result.next; lines.push(result.line); applied.push(event); }
         catch { skipped++; }
-      } else if (event.type !== 'label') skipped++;
+      } else if (event.type === 'label') {
+        // The sale may not be recorded yet (Vinted sends the label within a minute of the sale). Keep trying for 10 days.
+        if (auDays(event.date, todayUK()) <= 10) continue;
+      } else skipped++;
       auDone.add(event.id);
     }
     const changed = next !== before;
