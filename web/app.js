@@ -633,7 +633,7 @@ form.onsubmit = async event => {
     material: fields.material.trim(),
     measurements: fields.measurements.trim(),
     flaws: fields.flaws.trim(),
-    listingTitle: fields.listingTitle.trim(),
+    listingTitle: fields.listingTitle.trim() ? withStockNo(fields.listingTitle.trim(), edit ?? String(Math.max(0,...db.items.map(item=>Number(item.id)||0))+1).padStart(4,'0'), 100) : '',
     listingDescription: fields.listingDescription.trim(),
     listingUrl: fields.listingUrl.trim(),
     purchasedAt: fields.purchasedAt,receivedAt:fields.receivedAt,listedAt:fields.listedAt,stage:fields.stage,
@@ -799,7 +799,7 @@ function referenceUrl(url) {
 }
 function editorItem() {
   const values = Object.fromEntries(new FormData(form));
-  return {...values,photos:draftPhotos};
+  return {...values,photos:draftPhotos,id:edit ?? String(Math.max(0,...db.items.map(item=>Number(item.id)||0))+1).padStart(4,'0')};
 }
 function updateListingChecks() {
   const item = editorItem();
@@ -853,7 +853,7 @@ $('pipWriteListing').onclick = async () => {
       name: item.name, brand: item.brand, garment: item.garment, size: item.size, color: item.color, condition: item.condition,
       flaws: item.flaws, material: item.material, measurements: item.measurements, notes: item.notes}})});
     liveDraftFields = new Set();
-    form.elements.listingTitle.value = listing.title;
+    form.elements.listingTitle.value = withStockNo(listing.title, item.id);
     form.elements.listingDescription.value = listing.description + (listing.hashtags.length ? '\n\n' + listing.hashtags.join(' ') : '');
     ['listingTitle', 'listingDescription'].forEach(name => { const el = form.elements[name]; el.classList.remove('pw-flash'); void el.offsetWidth; el.classList.add('pw-flash'); });
     note.textContent = 'Written by Pip' + (image ? ' from your photo and details' : ' from your details') + '. Check it, then copy into Vinted. Tap again for a different version.' + (tips.length ? ' To make it even stronger, add ' + (tips.length < 2 ? tips[0] : tips.slice(0, -1).join(', ') + ' and ' + tips[tips.length - 1]) + '.' : '');

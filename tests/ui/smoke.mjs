@@ -129,6 +129,17 @@ for (const viewport of [{width: 390, height: 844}, {width: 1440, height: 900}]) 
     });
     assert.equal(out, 'InPost|true|245 824 706|Posted|true|true|true', out);
   });
+  await check('stock number in Vinted titles', viewport, async page => {
+    const out = await page.evaluate(() => {
+      const item = db.items.find(i => i.status === 'In Stock');
+      const a = buildListing(item).title;
+      const b = withStockNo('Ralph Lauren Navy Quarter Zip Jumper Knit Cotton Pullover Mens Medium Size M Very Long', '0012');
+      const c = withStockNo('Nike Hoodie #0012', '0012');
+      const ranked = auRank('Grey Hoodie #' + item.id, db.items.filter(i => !i.deletedAt));
+      return [a.endsWith(' #' + item.id), b.length <= 70 && b.endsWith(' #0012'), c, ranked[0]?.item.id === item.id && ranked[0].score === 1].join('|');
+    });
+    assert.equal(out, 'true|true|Nike Hoodie #0012|true', out);
+  });
   await check('avatars load', viewport, async page => {
     await page.waitForFunction(() => { const img = document.querySelector('#navAvatar img'); return img && img.complete; });
     assert.ok(await page.evaluate(() => document.querySelector('#navAvatar img').naturalWidth > 0), 'profile avatar is broken');

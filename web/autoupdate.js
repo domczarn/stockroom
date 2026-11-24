@@ -46,6 +46,10 @@ function auScore(title, item) {
   return best;
 }
 function auRank(title, items, bonus = () => 0) {
+  // A stock number in the Vinted title (from our listings, e.g. "#0012") is an exact match.
+  const tag = (String(title || '').match(/#([A-Za-z0-9]{2,12})\s*$/) || [])[1];
+  const exact = tag && items.find(item => String(item.id) === tag);
+  if (exact) return [{item: exact, score: 1}];
   return items.map(item => ({item, score: Math.min(1, auScore(title, item) + bonus(item))})).filter(r => r.score > 0.4).sort((x, y) => y.score - x.score);
 }
 const auConfident = ranked => { const [a, b] = ranked; if (!a) return false; const gap = b ? a.score - b.score : 1; return (a.score >= 0.6 && gap >= 0.2) || (a.score >= 0.85 && gap >= 0.12); };

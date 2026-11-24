@@ -18,6 +18,13 @@ function listingFacts(item) {
   const size = item.size || name.match(/^\s*(XXL|XL|XS|S|M|L)\s*-/i)?.[1] || name.match(/\(\s*(XXL|XL|XS|S|M|L)\s*\)/i)?.[1] || '';
   return {garment,color:color ? color[0].toUpperCase()+color.slice(1).toLowerCase() : '',size};
 }
+// Your stock number on the end of every Vinted title (e.g. "… #0012") so you know which item it is.
+function withStockNo(title, id, max = 70) {
+  const base = String(title || '').replace(/\s*#[A-Za-z0-9]{2,12}\s*$/, '').trim();
+  if (!id) return base;
+  const tag = ' #' + String(id).trim();
+  return (base.length + tag.length > max ? base.slice(0, max - tag.length).replace(/[\s·,-]+$/, '') : base) + tag;
+}
 function buildListing(item) {
   const clean = value => String(value || '').trim().replace(/\s+/g,' ');
   const facts = listingFacts(item);
@@ -33,6 +40,7 @@ function buildListing(item) {
   const sizeLabel = size ? 'Size '+size : '';
   const title = [core, facts.color && !includes(core,facts.color) ? facts.color : '', sizeLabel && !includes(core,sizeLabel) ? sizeLabel : '']
     .filter(Boolean).join(' · ').slice(0,150).trim();
+  const titled = withStockNo(title, item.id, 100);
   const lines = [
     core,
     sizeLabel,
@@ -42,7 +50,7 @@ function buildListing(item) {
     item.measurements ? 'Measurements: '+clean(item.measurements) : '',
     item.material ? 'Material: '+clean(item.material) : ''
   ].filter(Boolean);
-  return {title,description:lines.join('\n')};
+  return {title: titled, description:lines.join('\n')};
 }
 function listingChecks(item, title, description) {
   const facts = listingFacts(item);
