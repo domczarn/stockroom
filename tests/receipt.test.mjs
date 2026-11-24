@@ -104,3 +104,17 @@ console.log('vinted events ok');
   assert.deepEqual([e.type, e.tracking, e.carrier], ['posted', 'H00IAA3049598684', 'Evri']);
   console.log('evri html ok');
 }
+
+// Relay and Evri digital labels: the scan code is pulled out of the PDF as a PNG.
+{
+  const {pdfCodeImage} = await import('../worker/gmail.js');
+  const zlib = await import('node:zlib');
+  const rows = []; for (let y = 0; y < 300; y++) { const r = Buffer.alloc(301); r[0] = 0; for (let x = 0; x < 300; x++) r[1 + x] = (x ^ y) & 16 ? 0 : 255; rows.push(r); }
+  const data = zlib.deflateSync(Buffer.concat(rows));
+  const pdf = Buffer.concat([Buffer.from('%PDF-1.7\n16 0 obj\n<</Type/XObject/Subtype/Image/Width 300/Height 300/BitsPerComponent 8/ColorSpace/DeviceGray/Filter/FlateDecode/DecodeParms<</Predictor 15/Colors 1/BitsPerComponent 8/Columns 300>>/Length ' + data.length + '>>stream\n'), data, Buffer.from('\nendstream\nendobj\n')]);
+  const png = pdfCodeImage(new Uint8Array(pdf));
+  assert.ok(png && png[0] === 137 && png[1] === 80, 'makes a PNG');
+  assert.equal(Buffer.from(png.slice(16, 24)).readUInt32BE(0), 300, 'keeps the width');
+  assert.equal(pdfCodeImage(new Uint8Array(Buffer.from('%PDF-1.7 no images'))), null);
+  console.log('label code ok');
+}

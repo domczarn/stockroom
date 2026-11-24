@@ -3174,3 +3174,18 @@ details.market-group[open]>summary{margin-bottom:10px}
 /* admin: what people use */
 .adm-usage{display:grid;gap:7px}.adm-usage>div{display:grid;grid-template-columns:120px 1fr 36px;align-items:center;gap:10px;font-size:13px}.adm-usage span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.adm-usage i{height:8px;border-radius:4px;background:rgba(255,255,255,.06);overflow:hidden}.adm-usage b{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,#7f9dff,#b9a9ff)}.adm-usage em{font-style:normal;text-align:right;color:var(--muted)}
 .adm-usage b.w1{width:10%}.adm-usage b.w2{width:20%}.adm-usage b.w3{width:30%}.adm-usage b.w4{width:40%}.adm-usage b.w5{width:50%}.adm-usage b.w6{width:60%}.adm-usage b.w7{width:70%}.adm-usage b.w8{width:80%}.adm-usage b.w9{width:90%}.adm-usage b.w10{width:100%}
+
+/* ---------- Add stock: tap, don't type ---------- */
+.qa-pick{flex-direction:column!important;align-items:stretch!important;gap:8px!important;padding:12px 16px!important}
+.qa-pick>span:first-child{font-size:13px;color:var(--muted);font-weight:550}
+.qa-pick>span small{font-weight:400;opacity:.8}
+.qa-pick .qa-chips{display:flex;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:0 -16px;padding:0 16px 2px;-webkit-overflow-scrolling:touch}
+.qa-pick .qa-chips::-webkit-scrollbar{display:none}
+.qa-pick .qa-chips button{flex-shrink:0;min-height:34px!important;font-size:13.5px!important;white-space:nowrap}
+.qa-pick[data-qa-pick="color"] .qa-chips{flex-wrap:wrap;overflow:visible}
+.qa-chip-other{border-style:dashed!important;opacity:.85}
+.qa-pick .qa-other,.qa-pick .qa-money,.qa-pick .qa-date{width:100%;box-sizing:border-box}
+.qa-pick .qa-money{display:flex;align-items:center;gap:6px;color:var(--muted)}
+.qa-pick .qa-money input{flex:1;min-width:0;background:var(--bg-2);border:1px solid var(--line-2);border-radius:10px;padding:8px 10px;color:var(--ink)}
+.qa-pick .qa-other{background:var(--bg-2);border:1px solid var(--line-2);border-radius:10px;padding:9px 11px;color:var(--ink)}
+.qa-field span small{font-weight:400;color:var(--muted);font-size:11.5px}

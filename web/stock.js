@@ -65,7 +65,7 @@ function stockNextAction(item) {
     case 'returns': return editAction(item.status==='Refunded'?'View refund':'Review return');
     default: {
       const order=lastTrade(db,item.id);
-      return order ? tradeAction(tradeStatus(order)==='Sold'?'post':'order',tradeStatus(order)==='Sold'?'Record postage':'View order')
+      return order ? tradeAction(tradeStatus(order)==='Sold'?'post':'order',tradeStatus(order)==='Sold'?'Mark posted':'View order')
         : tradeAction('sale','Date sale');
     }
   }

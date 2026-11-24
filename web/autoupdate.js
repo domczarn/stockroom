@@ -113,6 +113,8 @@ function auApply(event, item, data) {
       if (event.tracking && !next.items.some(row => row.id !== item.id && row.shipTracking === event.tracking)) Object.assign(current, {shipTracking: event.tracking, shipCarrier: auCarrier(event.tracking)});
       if (event.deadline) current.shipDeadline = event.deadline;
       if (event.labelMedia) current.shipLabel = event.labelMedia;
+      // Relay / Evri labels: the scan code comes out of the label PDF itself.
+      if (event.qrMedia && !current.shipQr) Object.assign(current, {shipQr: event.qrMedia, shipQrAt: todayUK()});
       return {next, line: {icon: '🏷', tone: 'info', title: 'Label ready · ' + (current.shipCarrier || 'Vinted'), body: '#' + item.id + ' ' + item.name + ' · label saved to the item'}};
     }
   }
@@ -158,7 +160,7 @@ async function auRun() {
   if (auBusy || !db || !account || isReadOnly() || document.getElementById('pipUpdates')) return;
   const receipts = (typeof personalGmail !== 'undefined' ? personalGmail?.connection?.receipts : null) || [];
   // Tracking-based updates use a fresh key so emails read properly after the fix get one more go.
-  const auKey = r => r.id + (['label', 'qr', 'posted', 'parcel-delivered'].includes(r.event.type) && r.event.tracking ? ':t3' : '');
+  const auKey = r => r.id + (['label', 'qr', 'posted', 'parcel-delivered'].includes(r.event.type) && r.event.tracking ? ':t3' + (r.event.type === 'label' && r.event.qrMedia ? 'q' : '') : '');
   // Exact email time order (several emails often land in the same minute), and for ties the natural order:
   // sold → label → QR → posted → delivered → completed.
   const stage = {sold: 0, label: 1, qr: 2, posted: 3, 'parcel-delivered': 4, delivered: 5, completed: 6, paid: 7, refund: 8};
@@ -175,6 +177,17 @@ async function auRun() {
   try {
     for (const event of events) {
       if (auAlreadyDone(event, next)) { auDone.add(event.id); continue; }
+      // A label for an item that already has its tracking number: just add the code from the PDF.
+      if (event.type === 'label' && event.tracking && next.items.some(row => !row.deletedAt && row.shipTracking === event.tracking)) {
+        const row = next.items.find(r => !r.deletedAt && r.shipTracking === event.tracking);
+        if (event.qrMedia && !row.shipQr) {
+          let result = null;
+          try { result = auTrackingApply({type: 'qr', tracking: event.tracking, qrMedia: event.qrMedia, date: event.date}, next); } catch {}
+          if (result) { if (event.labelMedia) result.next.items.find(r => r.id === row.id).shipLabel ||= event.labelMedia; next = result.next; lines.push(result.line); applied.push(event); }
+        }
+        auDone.add(event.id);
+        continue;
+      }
       if (['qr', 'posted', 'parcel-delivered'].includes(event.type)) {
         let result = null;
         try { result = auTrackingApply(event, next); } catch {}

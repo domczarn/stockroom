@@ -12,6 +12,64 @@ function recentValues(field, limit = 12) {
   return [...new Set(db.items.filter(row => !row.deletedAt && row[field]).slice().reverse().map(row => String(row[field]).trim()))].slice(0, limit);
 }
 
+const QA_COMMON = {
+  brand: ['Nike', 'Ralph Lauren', 'The North Face', 'Adidas', 'Carhartt', 'Stone Island', 'Lacoste', 'Tommy Hilfiger', 'Levi\'s', 'Patagonia', 'Berghaus', 'Columbia'],
+  garment: ['Hoodie', 'Sweatshirt', 'Jumper', 'Quarter Zip', 'Zip Up', 'Jacket', 'Coat', 'Windbreaker', 'Fleece', 'T-Shirt', 'Polo Shirt', 'Shirt', 'Jeans', 'Joggers', 'Trousers', 'Shorts', 'Trainers'],
+  size: ['XS', 'S', 'M', 'L', 'XL', 'XXL'],
+  color: ['Black', 'White', 'Grey', 'Navy', 'Blue', 'Green', 'Red', 'Beige', 'Brown', 'Pink', 'Multi']
+};
+// One row of tap-to-choose chips: your recent picks first, then common ones, then "Other".
+function qaPick(field, label) {
+  return '<div class="qa-row qa-pick" data-qa-pick="' + field + '"><span>' + label + '</span><div class="qa-chips"></div>' +
+    '<input name="' + field + '" class="qa-other" placeholder="Type ' + label.toLowerCase() + '" autocomplete="off" hidden></div>';
+}
+function qaFillPicks(form) {
+  for (const row of form.querySelectorAll('[data-qa-pick]')) {
+    const field = row.dataset.qaPick, recent = recentValues(field, 6);
+    const seen = new Set(), list = [...recent, ...QA_COMMON[field]].filter(v => { const k = v.toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; }).slice(0, field === 'size' ? 9 : 10);
+    if (field === 'size') list.sort((a, b) => (QA_COMMON.size.indexOf(a) + 1 || 99) - (QA_COMMON.size.indexOf(b) + 1 || 99));
+    row.querySelector('.qa-chips').innerHTML = list.map(v => '<button type="button" data-v="' + esc(v) + '">' + esc(v) + '</button>').join('') + '<button type="button" class="qa-chip-other" data-other>Other…</button>';
+  }
+  qaSyncPicks(form);
+}
+function qaSyncPicks(form) {
+  for (const row of form.querySelectorAll('[data-qa-pick]')) {
+    const input = row.querySelector('input'), value = input.value.trim().toLowerCase();
+    let matched = false;
+    row.querySelectorAll('[data-v]').forEach(b => { const on = !!value && b.dataset.v.toLowerCase() === value; matched ||= on; b.setAttribute('aria-pressed', String(on)); });
+    if (value && !matched) input.hidden = false;
+    row.querySelector('[data-other]').setAttribute('aria-pressed', String(!input.hidden));
+  }
+  for (const box of form.querySelectorAll('[data-qa-money]')) {
+    const v = Number(form.elements[box.dataset.qaMoney].value);
+    box.querySelectorAll('[data-v]').forEach(b => b.setAttribute('aria-pressed', String(form.elements[box.dataset.qaMoney].value !== '' && Number(b.dataset.v) === v)));
+  }
+  const d = form.elements.purchasedAt.value, t = todayUK(), y = new Date(Date.parse(t) - 864e5).toISOString().slice(0, 10);
+  form.querySelectorAll('[data-qa-date] [data-d]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.d === '0' ? d === t : b.dataset.d === '1' ? d === y : !form.elements.purchasedAt.hidden)));
+}
+document.addEventListener('click', event => {
+  const form = event.target.closest('#quickAddForm');
+  if (!form) return;
+  const pick = event.target.closest('[data-qa-pick] [data-v]');
+  if (pick) {
+    const input = pick.closest('[data-qa-pick]').querySelector('input');
+    input.value = pick.getAttribute('aria-pressed') === 'true' ? '' : pick.dataset.v; input.hidden = true;
+    qaSyncPicks(form); if (typeof pgRefresh === 'function') pgRefresh(form); return;
+  }
+  const other = event.target.closest('[data-qa-pick] [data-other]');
+  if (other) { const input = other.closest('[data-qa-pick]').querySelector('input'); input.hidden = false; input.value = ''; qaSyncPicks(form); input.focus(); return; }
+  const money = event.target.closest('[data-qa-money] [data-v]');
+  if (money) { const input = form.elements[money.closest('[data-qa-money]').dataset.qaMoney]; input.value = money.getAttribute('aria-pressed') === 'true' ? '' : Number(money.dataset.v).toFixed(2); qaSyncPicks(form); if (typeof pgRefresh === 'function') pgRefresh(form); return; }
+  const day = event.target.closest('[data-qa-date] [data-d]');
+  if (day) {
+    const input = form.elements.purchasedAt;
+    if (day.dataset.d === 'pick') { input.hidden = false; try { input.showPicker?.(); } catch { input.focus(); } }
+    else { input.hidden = true; input.value = new Date(Date.parse(todayUK()) - Number(day.dataset.d) * 864e5).toISOString().slice(0, 10); }
+    qaSyncPicks(form);
+  }
+});
+document.addEventListener('input', event => { const form = event.target.closest('#quickAddForm'); if (form && event.target.matches('[name=cost],[name=price],[name=purchasedAt]')) qaSyncPicks(form); });
+
 function quickSheet() {
   let dialog = document.getElementById('quickAdd');
   if (dialog) return dialog;
@@ -26,26 +84,23 @@ function quickSheet() {
     '<div class="qa-reading" id="qaReading" hidden><span class="qa-pip"></span><div><strong>Pip is reading your screenshot…</strong><small>Title, brand, size, condition, colour and price</small></div></div></section>' +
     '<section class="qa-group qa-link"><label class="qa-field"><span>Vinted link <small>optional · fills the title and brand</small></span>' +
       '<input name="vintedUrl" type="url" inputmode="url" placeholder="Paste the listing link" autocomplete="off"></label></section>' +
+    // Tap, don't type: every detail has one-tap choices, with "Other" for anything unusual.
     '<section class="qa-group">' +
-      '<label class="qa-field"><span>Title</span><input name="name" required maxlength="120" placeholder="e.g. Nike running jacket" autocomplete="off"></label>' +
-      '<label class="qa-field"><span>Describe your item</span><textarea name="notes" rows="2" placeholder="e.g. worn once, no flaws"></textarea></label>' +
-    '</section>' +
-    '<section class="qa-group">' +
-      '<label class="qa-row"><span>Brand</span><input name="brand" list="qaBrands" placeholder="Choose" autocomplete="off"></label>' +
-      '<label class="qa-row"><span>Category</span><input name="garment" list="qaGarments" placeholder="e.g. Jacket" autocomplete="off"></label>' +
-      '<label class="qa-row"><span>Size</span><input name="size" list="qaSizes" placeholder="e.g. M" autocomplete="off"></label>' +
-      '<label class="qa-row"><span>Colour</span><input name="color" list="qaColours" placeholder="e.g. Black" autocomplete="off"></label>' +
+      qaPick('brand', 'Brand') + qaPick('garment', 'Category') + qaPick('size', 'Size') + qaPick('color', 'Colour') +
       '<div class="qa-row qa-cond"><span>Condition</span><div class="qa-chips" id="qaCondition">' +
         CONDITIONS.map(c => '<button type="button" data-qa-cond="' + c + '">' + c + '</button>').join('') + '</div></div>' +
     '</section>' +
     '<section class="qa-group">' +
-      '<label class="qa-row"><span>Price paid</span><span class="qa-money">£<input name="cost" inputmode="decimal" placeholder="0.00" autocomplete="off"></span></label>' +
-      '<label class="qa-row"><span>Selling for</span><span class="qa-money">£<input name="price" inputmode="decimal" placeholder="optional" autocomplete="off"></span></label>' +
+      '<div class="qa-row qa-pick"><span>Price paid</span><div class="qa-chips" data-qa-money="cost">' + [0, 3, 5, 8, 10, 12, 15, 20].map(v => '<button type="button" data-v="' + v + '">' + (v ? '£' + v : 'Free') + '</button>').join('') + '</div><span class="qa-money">£<input name="cost" inputmode="decimal" placeholder="other amount" autocomplete="off"></span></div>' +
+      '<div class="qa-row qa-pick"><span>Selling for <small>optional</small></span><div class="qa-chips" data-qa-money="price">' + [10, 15, 20, 25, 30, 40, 50].map(v => '<button type="button" data-v="' + v + '">£' + v + '</button>').join('') + '</div><span class="qa-money">£<input name="price" inputmode="decimal" placeholder="other amount" autocomplete="off"></span></div>' +
       '<div class="pg-hint qa-pg" aria-live="polite"></div>' +
-      '<label class="qa-row"><span>Bought on</span><input type="date" name="purchasedAt"></label>' +
+      '<div class="qa-row qa-pick"><span>Bought</span><div class="qa-chips" data-qa-date><button type="button" data-d="0">Today</button><button type="button" data-d="1">Yesterday</button><button type="button" data-d="pick">Pick a date</button></div><input type="date" name="purchasedAt" class="qa-date" hidden></div>' +
       '<div class="qa-row"><span>Delivery</span><div class="qa-seg" role="group"><button type="button" data-qa-arrived="false">On its way</button><button type="button" data-qa-arrived="true">Got it</button></div></div>' +
     '</section>' +
-    '<datalist id="qaBrands"></datalist><datalist id="qaGarments"></datalist><datalist id="qaSizes"></datalist><datalist id="qaColours"></datalist>' +
+    '<section class="qa-group">' +
+      '<label class="qa-field"><span>Title <small>optional · we build it from your choices</small></span><input name="name" maxlength="120" placeholder="e.g. Black Nike Windbreaker" autocomplete="off"></label>' +
+      '<label class="qa-field"><span>Notes <small>optional</small></span><textarea name="notes" rows="2" placeholder="e.g. worn once, no flaws"></textarea></label>' +
+    '</section>' +
     '<p id="qaError" class="qa-error" role="alert"></p>' +
     '<div class="qa-links"><button type="button" class="link qa-more" data-scan-receipt>Scan a receipt instead</button><button type="button" class="link qa-more" data-qa-more>Full editor</button></div>' +
     '<footer class="qa-foot"><button type="submit" class="action" id="qaSave">Add to stock</button></footer>' +
@@ -66,6 +121,7 @@ function syncQuick() {
   document.querySelectorAll('[data-qa-cond]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.qaCond === quick.condition)));
   document.querySelectorAll('[data-qa-arrived]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.qaArrived === String(quick.arrived))));
   document.getElementById('qaSave').disabled = quick.busy;
+  const form = document.getElementById('quickAddForm'); if (form) qaSyncPicks(form);
 }
 
 function openQuickAdd() {
@@ -77,8 +133,9 @@ function openQuickAdd() {
   document.getElementById('qaReading').hidden = true;
   form.elements.purchasedAt.value = todayUK();
   form.elements.purchasedAt.max = todayUK();
-  const fill = (id, field) => { document.getElementById(id).innerHTML = recentValues(field).map(v => '<option value="' + esc(v) + '"></option>').join(''); };
-  fill('qaBrands', 'brand'); fill('qaGarments', 'garment'); fill('qaSizes', 'size'); fill('qaColours', 'color');
+  form.querySelectorAll('[data-qa-pick] input').forEach(i => { i.hidden = true; });
+  form.elements.purchasedAt.hidden = true;
+  qaFillPicks(form);
   document.getElementById('qaError').textContent = '';
   syncQuick();
   if (typeof pgRefresh === 'function') pgRefresh(form);
@@ -127,6 +184,7 @@ function fillFromVintedLink(value) {
   if (size && !form.elements.size.value.trim()) form.elements.size.value = ({small: 'S', medium: 'M', large: 'L'})[size.toLowerCase()] || size.toUpperCase();
   if (!form.elements.notes.value.includes(url.origin + url.pathname)) form.elements.notes.value = (form.elements.notes.value ? form.elements.notes.value + '\n' : '') + 'Bought from: ' + url.origin + url.pathname;
   document.getElementById('qaError').textContent = 'Filled from the link. Add photos and what you paid.';
+  qaSyncPicks(form);
   form.querySelectorAll('[name=name],[name=brand],[name=size]').forEach(el => { if (el.value) { el.closest('.qa-field,.qa-row')?.classList.remove('qa-flash'); void el.offsetWidth; el.closest('.qa-field,.qa-row')?.classList.add('qa-flash'); } });
 }
 
@@ -157,6 +215,7 @@ async function readListing(file) {
     filled.forEach(el => { const row = el.closest('.qa-field,.qa-row'); row?.classList.remove('qa-flash'); void row?.offsetWidth; row?.classList.add('qa-flash'); });
     panel.classList.add('done');
     if (typeof pgRefresh === 'function') pgRefresh(form);
+    qaSyncPicks(form);
     panel.querySelector('strong').textContent = filled.length || listing.condition ? 'Pip filled in the details' : 'Pip could not find listing details';
     panel.querySelector('small').textContent = listing.price ? 'Price paid uses the listing price. Add buyer protection and postage if you want them counted.' : 'Check everything before saving.';
   } catch (e) {
@@ -173,7 +232,8 @@ async function saveQuick() {
   const error = document.getElementById('qaError');
   const f = Object.fromEntries(new FormData(form));
   const cost = money(f.cost), price = money(f.price);
-  if (!f.name.trim()) { error.textContent = 'Add a title.'; form.elements.name.focus(); return; }
+  if (!f.name.trim()) f.name = [f.color, f.brand, f.garment].map(v => (v || '').trim()).filter(Boolean).join(' ');
+  if (!f.name.trim()) { error.textContent = 'Pick a brand or category, or add a title.'; return; }
   if (cost === null || !Number.isFinite(cost) || cost < 0) { error.textContent = 'Enter what you paid.'; form.elements.cost.focus(); return; }
   if (price !== null && (!Number.isFinite(price) || price < 0)) { error.textContent = 'Selling price must be a number.'; form.elements.price.focus(); return; }
   const today = todayUK();

@@ -354,3 +354,21 @@ document.addEventListener('click', event => {
     if (f) count('use:' + (f.dataset.scanOpen !== undefined ? 'buy-or-pass' : f.dataset.labelShow ? 'label' : f.dataset.qrShow ? 'qr' : f.id || f.className.split(' ')[0]));
   }, true);
 })();
+
+// ---------- One-tap "Mark as posted": no form, no new page, undo if it was a mis-tap ----------
+document.addEventListener('click', async event => {
+  const button = event.target.closest('[data-trade="post"]');
+  if (!button || button.disabled || isReadOnly()) return;
+  event.preventDefault(); event.stopImmediatePropagation();
+  const id = button.dataset.stockId, item = db.items.find(i => i.id === id), trade = item && lastTrade(db, id);
+  if (!trade || tradeStatus(trade) !== 'Sold') return;
+  const before = db, today = todayUK();
+  button.disabled = true;
+  try {
+    const next = advanceOrder(db, id, 'Posted', today < trade.soldAt ? trade.soldAt : today);
+    const row = next.items.find(i => i.id === id); if (row && !row.shipPostedAt) row.shipPostedAt = today;
+    closeLabel(); if (document.querySelector('.qr-view')) closeQr();
+    await persist(next); render();
+    undoToast('Posted · ' + item.name, async () => { await persist(before); render(); });
+  } catch (error) { toast(error.message); } finally { button.disabled = false; }
+}, true);

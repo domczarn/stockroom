@@ -181,6 +181,24 @@ for (const viewport of [{width: 390, height: 844}, {width: 1440, height: 900}]) 
     await page.context().setOffline(false);
     await page.waitForFunction(() => !document.getElementById('offlineBar'));
   });
+  await check('add stock with taps only', viewport, async page => {
+    await page.evaluate(() => openQuickAdd());
+    const count = await page.evaluate(() => db.items.length);
+    for (const sel of ['[data-qa-pick="brand"] [data-v="Nike"]', '[data-qa-pick="garment"] [data-v="Windbreaker"]', '[data-qa-pick="size"] [data-v="M"]', '[data-qa-pick="color"] [data-v="Black"]', '[data-qa-money="cost"] [data-v="8"]', '[data-qa-date] [data-d="1"]']) await page.click('#quickAdd ' + sel);
+    await page.click('#qaSave');
+    await page.waitForFunction(c => db.items.length === c + 1, count);
+    const it = await page.evaluate(() => { const i = db.items.at(-1); return [i.name, i.cost, i.size].join('|'); });
+    assert.equal(it, 'Black Nike Windbreaker|8|M');
+  });
+  await check('mark as posted is one tap with undo', viewport, async page => {
+    const id = await page.evaluate(() => { const item = db.items.find(i => i.status === 'In Stock' && !i.deletedAt); db = recordSale(db, item.id, 20, todayUK()); render(); return item.id; });
+    await page.evaluate(id => { const b = document.createElement('button'); b.dataset.trade = 'post'; b.dataset.stockId = id; b.id = 'testPost'; document.body.append(b); }, id);
+    await page.evaluate(() => document.getElementById('testPost').click());
+    await page.waitForFunction(id => tradeStatus(lastTrade(db, id)) === 'Posted', id);
+    assert.equal(await page.evaluate(() => !!document.getElementById('tradeDialog')?.open), false, 'no order form opened');
+    await page.click('.undo-toast button');
+    await page.waitForFunction(id => tradeStatus(lastTrade(db, id)) === 'Sold', id);
+  });
   await check('stock number in Vinted titles', viewport, async page => {
     const out = await page.evaluate(() => {
       const item = db.items.find(i => i.status === 'In Stock');
@@ -221,12 +239,14 @@ for (const viewport of [{width: 390, height: 844}, {width: 1440, height: 900}]) 
     assert.ok(widths[0] <= widths[1] + 1, 'On the way row sticks out past the page: ' + widths.join(','));
   });
   await check('label viewer + back', viewport, async page => {
-    await page.evaluate(() => { const id = db.items.find(i => i.status === 'In Stock').id; let d = recordSale(db, id, 30, todayUK()); d.items.find(i => i.id === id).shipLabel = '/favicon.svg'; db = d; render(); });
-    await page.click('[data-label-show]');
+    // Only this item awaits posting, so it's always on screen however many earlier tests ran.
+    const lid = await page.evaluate(() => { const id = db.items.find(i => i.status === 'In Stock').id; let d = recordSale(db, id, 30, todayUK()); for (const t of d.trades) if (t.itemId !== id && !t.postedAt && tradeStatus(t) === 'Sold') t.postedAt = t.soldAt; d.items.find(i => i.id === id).shipLabel = '/favicon.svg'; db = d; render(); return id; });
+    const show = '[data-label-show="' + lid + '"]';
+    await page.click(show);
     await page.waitForSelector('.label-view .label-frame');
     await page.click('.label-view [data-label-close]');
     assert.equal(await page.$('.label-view'), null, 'label closes with its button');
-    await page.click('[data-label-show]');
+    await page.click(show);
     await page.waitForSelector('.label-view');
     await page.goBack(); await page.waitForTimeout(300);
     assert.equal(await page.$('.label-view'), null, 'phone back closes the label');

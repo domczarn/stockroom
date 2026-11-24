@@ -11,7 +11,7 @@ const messageId=/^[a-f0-9]{10,40}$/;
 const dayMs=86400000;
 const BACKFILL_DAYS=45;
 // Label and courier emails need one full read; older saved ones that already have a tracking number count as read.
-const needsFullRead=r=>!r.read&&(r.courier||(r.event?.type==='label'&&!r.event.tracking));
+const needsFullRead=r=>(!r.read&&(r.courier||(r.event?.type==='label'&&!r.event.tracking)))||(r.event?.type==='label'&&(r.read||0)<2&&!r.event.qrMedia);
 const b64=bytes=>btoa(String.fromCharCode(...bytes));
 const b64url=bytes=>b64(bytes).replaceAll('+','-').replaceAll('/','_').replace(/=+$/,'');
 const decode=value=>Uint8Array.from(atob(value),c=>c.charCodeAt(0));
@@ -181,7 +181,7 @@ export function messageParts(payload){
   return out;
 }
 const b64urlText=data=>{try{return new TextDecoder().decode(Uint8Array.from(atob(data.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0)));}catch{return '';}};
-async function saveAttachment(env,owner,access_token,messageId,file){
+async function saveAttachment(env,owner,access_token,messageId,file,onQr){
   if(!file||file.size>2_000_000||!['application/pdf','image/png','image/jpeg'].includes(file.type))return '';
   const body=await getGmail('messages/'+messageId+'/attachments/'+file.id,access_token);
   if(typeof body?.data!=='string')return '';
@@ -190,7 +190,36 @@ async function saveAttachment(env,owner,access_token,messageId,file){
   if(!((file.type==='application/pdf'&&pdf)||(file.type==='image/png'&&png)||(file.type==='image/jpeg'&&jpeg)))return '';
   const id=crypto.randomUUID();
   await env.BUCKET.put('users/'+owner+'/'+id,bytes,{httpMetadata:{contentType:file.type}});
-  return '/api/media/'+encodeURIComponent(owner)+'/'+id;
+  const path='/api/media/'+encodeURIComponent(owner)+'/'+id;
+  // Relay / Vinted Go labels carry the scan code inside the PDF: save it as its own picture too.
+  if(pdf&&onQr){const png=pdfCodeImage(bytes);if(png){const qid=crypto.randomUUID();await env.BUCKET.put('users/'+owner+'/'+qid,png,{httpMetadata:{contentType:'image/png'}});onQr('/api/media/'+encodeURIComponent(owner)+'/'+qid);}}
+  return path;
+}
+
+// The scan code in a Vinted digital label PDF is one greyscale picture stored with PNG row filters
+// (FlateDecode + Predictor 15), which is exactly PNG's own format: wrap it in a PNG, no decoding needed.
+export function pdfCodeImage(bytes){
+  const text=new TextDecoder('latin1').decode(bytes);
+  const re=/\d+\s+\d+\s+obj\s*<<((?:(?!endobj)[\s\S]){0,1500}?)>>\s*stream\r?\n/g;
+  let best=null,m;
+  while((m=re.exec(text))){
+    const dict=m[1];
+    if(!/\/Subtype\s*\/Image/.test(dict))continue;
+    const num=k=>Number((dict.match(new RegExp('/'+k+'\\s+(\\d+)'))||[])[1]);
+    const w=num('Width'),h=num('Height'),len=num('Length');
+    if(!/\/DeviceGray/.test(dict)||!/\/FlateDecode/.test(dict)||!/\/Predictor\s+1[0-5]/.test(dict)||![1,8].includes(num('BitsPerComponent'))||/\/SMask|\/Decode\s*\[/.test(dict))continue;
+    if(!(w>=200&&h>=200&&w<=3000&&h<=3000&&len>100))continue;
+    const start=m.index+m[0].length;
+    if(!best||w*h>best.w*best.h)best={w,h,bits:num('BitsPerComponent'),data:bytes.slice(start,start+len)};
+  }
+  if(!best)return null;
+  const crcTable=pdfCodeImage.table||=Array.from({length:256},(_,n)=>{let c=n;for(let k=0;k<8;k++)c=c&1?0xedb88320^(c>>>1):c>>>1;return c>>>0;});
+  const crc=buf=>{let c=0xffffffff;for(const b of buf)c=crcTable[(c^b)&255]^(c>>>8);return (c^0xffffffff)>>>0;};
+  const chunk=(type,data)=>{const out=new Uint8Array(12+data.length),dv=new DataView(out.buffer);dv.setUint32(0,data.length);const t=new TextEncoder().encode(type);out.set(t,4);out.set(data,8);dv.setUint32(8+data.length,crc(out.subarray(4,8+data.length)));return out;};
+  const ihdr=new Uint8Array(13),dv=new DataView(ihdr.buffer);dv.setUint32(0,best.w);dv.setUint32(4,best.h);ihdr.set([best.bits,0,0,0,0],8);
+  const parts=[new Uint8Array([137,80,78,71,13,10,26,10]),chunk('IHDR',ihdr),chunk('IDAT',best.data),chunk('IEND',new Uint8Array(0))];
+  const png=new Uint8Array(parts.reduce((n,p)=>n+p.length,0));let o=0;for(const p of parts){png.set(p,o);o+=p.length;}
+  return png;
 }
 // Read the full email for label and courier messages: tracking number, label PDF, InPost QR code.
 async function enrichReceipt(env,owner,access_token,receipt){
@@ -205,8 +234,9 @@ async function enrichReceipt(env,owner,access_token,receipt){
     const tracking=(text.match(/tracking code:?\s*\|?\s*([A-Z0-9]{8,30})/i)||[])[1]?.toUpperCase()||trackingFrom(text);
     const deadline=(receipt.subject.match(/use by (\d{2})\/(\d{2})\/(\d{4})/)||[]);
     const pdf=files.find(f=>f.type==='application/pdf');
-    const labelMedia=pdf?await saveAttachment(env,owner,access_token,receipt.id,pdf):'';
-    return {...receipt,needsBody:undefined,event:{...receipt.event,tracking,...(deadline[0]?{deadline:deadline[3]+'-'+deadline[2]+'-'+deadline[1]}:{}),...(labelMedia?{labelMedia}:{})}};
+    let qrMedia='';
+    const labelMedia=pdf?await saveAttachment(env,owner,access_token,receipt.id,pdf,path=>{qrMedia=path;}):'';
+    return {...receipt,needsBody:undefined,event:{...receipt.event,tracking,...(deadline[0]?{deadline:deadline[3]+'-'+deadline[2]+'-'+deadline[1]}:{}),...(labelMedia?{labelMedia}:{}),...(qrMedia?{qrMedia}:{})}};
   }
   return {...receipt,needsBody:undefined};
 }
@@ -243,7 +273,7 @@ export async function check(env,user,context,row){
     if(current?.connection_id!==row.connection_id||current.lease!==lease)return false;
     const before=JSON.parse(current.receipts);
     const merged=new Map(before.map(receipt=>[receipt.id,receipt]));
-    for(const receipt of receipts){const known=merged.get(receipt.id);if(!known)merged.set(receipt.id,receipt);else if((receipt.read&&!known.read)||(receipt.event&&(!known.event||(receipt.event.tracking&&!known.event.tracking))))merged.set(receipt.id,{...known,...receipt});}
+    for(const receipt of receipts){const known=merged.get(receipt.id);if(!known)merged.set(receipt.id,receipt);else if(((receipt.read||0)>(known.read||0))||(receipt.event&&(!known.event||(receipt.event.tracking&&!known.event.tracking))))merged.set(receipt.id,{...known,...receipt});}
     const recent=[...merged.values()].sort((a,b)=>b.receivedAt.localeCompare(a.receivedAt)).slice(0,220);
     const result=await env.DB.prepare('UPDATE gmail_connections SET state=?,checked_at=?,receipts=?,lease=0 WHERE owner_id=? AND connection_id=? AND lease=? AND enabled=1 AND receipts=?')
       .bind(state,new Date().toISOString(),JSON.stringify(recent),user.id,row.connection_id,lease,current.receipts).run();
@@ -280,7 +310,7 @@ export async function check(env,user,context,row){
       if(!needsFullRead(r))continue;
       if(budget<3)break; // the rest are picked up on the next check
       budget-=2;
-      try{results[i]={...(await enrichReceipt(env,user.id,access_token,{...r,needsBody:true})),read:true};}catch{results[i]={...r,needsBody:undefined};}
+      try{results[i]={...(await enrichReceipt(env,user.id,access_token,{...r,needsBody:true})),read:2};}catch{results[i]={...r,needsBody:undefined};}
     }
     for(let i=results.length-1;i>=0;i--)if(!results[i])results.splice(i,1);
     if(user.admin){
