@@ -38,8 +38,10 @@ function buildListing(item) {
   const core = [brand && !includes(name,brand) ? brand : '',name || facts.garment].filter(Boolean).join(' ');
   const size = clean(facts.size);
   const sizeLabel = size ? 'Size '+size : '';
-  const title = [core, facts.color && !includes(core,facts.color) ? facts.color : '', sizeLabel && !includes(core,sizeLabel) ? sizeLabel : '']
-    .filter(Boolean).join(' · ').slice(0,150).trim();
+  // Same shape as Pip: Colour Brand Product | Size X
+  const colour = facts.color;
+  const front = [colour, core.replace(new RegExp('\\b'+(colour||'@@')+'\\b','i'),' ').replace(/\b(mens|men's|womens|women's)\b/ig,' ').replace(/\s+/g,' ').trim()].filter(Boolean).join(' ');
+  const title = (front + (size ? ' | Size '+(/^(xxs|xs|s|m|l|xl|xxl)$/i.test(size) ? size.toUpperCase() : size) : '')).slice(0,150).trim();
   const titled = withStockNo(title, item.id, 100);
   const lines = [
     core,

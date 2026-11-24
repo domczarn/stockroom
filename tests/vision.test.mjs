@@ -33,7 +33,7 @@ test('writes a listing and cleans the hashtags', async () => {
   const env = {AI: {run: async (model, input) => { prompt = input.messages[0].content;
     return {response: '{"title":"Nike Windbreaker Jacket Black Size M","description":"Lightweight Nike windbreaker.\\n• Size M\\n\\n\\n\\nPosted within 1–2 working days.","hashtags":["#Nike","windbreaker","#mens jacket"]}'}; }}};
   const {listing} = await visionRoute.length >= 0 && await writeListingRoute(req({item: {name: 'Nike Windbreaker', brand: 'Nike', size: 'M', flaws: 'Small mark on cuff'}}), env, {id: 'u1'});
-  assert.equal(listing.title, 'Nike Windbreaker Jacket Black Size M');
+  assert.equal(listing.title, 'Black Nike Windbreaker Jacket | Size M');
   assert.deepEqual(listing.hashtags, ['#nike', '#windbreaker', '#mensjacket']);
   assert.ok(!listing.description.includes('\n\n\n'));
   assert.match(prompt, /Flaws: Small mark on cuff/);
@@ -141,4 +141,12 @@ test('Ask Pip copes with plain text, broken JSON and follow-up lists', () => {
   assert.equal(r.suggestions.length, 2);
   assert.ok(!r.answer.includes('{'));
   assert.deepEqual(jsonFrom('```json\n{"a": "line1\nline2",}\n```'), {a: 'line1\nline2'});
+});
+
+import {tidyTitle} from '../worker/vision.js';
+test('Pip titles: Colour Brand Product | Size X', () => {
+  assert.equal(tidyTitle({colour: 'black', brand: 'Ralph Lauren', product: 'Quarter Zip', size: 's'}), 'Black Ralph Lauren Quarter Zip | Size S');
+  assert.equal(tidyTitle({colour: 'Navy', brand: 'Nike', product: 'Navy Nike Windrunner Jacket Mens', size: 'Size L'}), 'Navy Nike Windrunner Jacket | Size L');
+  assert.equal(tidyTitle({product: 'Half Zip'}, {Colour: 'Grey', Brand: 'Ralph Lauren', Size: 'm'}), 'Grey Ralph Lauren Half Zip | Size M');
+  assert.ok(tidyTitle({colour: 'Black', brand: 'The North Face', product: 'Nuptse 1996 Retro Puffer Down Jacket Very Long Name Here', size: 'XL'}).length <= 63);
 });

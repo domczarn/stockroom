@@ -62,9 +62,12 @@ const LISTING_PROMPT = facts => `You are the UK's best Vinted seller. You write 
 Seller's details (these are facts, they beat the photo):
 ${Object.entries(facts.details).filter(([, v]) => v).map(([k, v]) => `- ${k}: ${v}`).join('\n')}
 
-TITLE (max 70 characters, this is what Vinted search matches on):
-- Front-load search words in this order: Brand, product line or model if known (e.g. "Windrunner", "Pique", "Harrington"), item type, one standout detail (e.g. "Embroidered Logo", "Half Zip", "Vintage 90s" only if the photo clearly shows it is vintage), colour, "Size M".
-- Title Case, no emojis, no symbols like | or ~, no "rare", "grail", "L@@K", "bnwt" unless new with tags was given.
+TITLE PARTS (the app builds the title as: Colour Brand Product | Size X, e.g. "Black Ralph Lauren Quarter Zip | Size S"):
+- colour: the main colour in one or two words (e.g. "Black", "Navy", "Light Blue"). Use the seller's colour if given.
+- brand: the brand as it's written on the label, Title Case (e.g. "Ralph Lauren", "Nike", "The North Face").
+- product: 2-4 words: product line or model if known, then item type (e.g. "Quarter Zip", "Windrunner Jacket", "Pique Polo Shirt", "Fleece Hoodie"). No colour, brand or size here. No "Mens", no adjectives like "rare", "vintage" unless clearly vintage.
+- size: just the size as written on the label (e.g. "S", "M", "UK 10", "W32 L30").
+- Title Case, no emojis or symbols.
 
 DESCRIPTION (British English, 70-130 words, scannable on a phone):
 1. Hook line: what it is and why it's good, in plain words (e.g. "Classic Ralph Lauren quarter zip in navy, an easy everyday layer.").
@@ -86,7 +89,7 @@ HASHTAGS: 6-8 lowercase tags, no spaces, starting with #: brand, item type, colo
 MISSING: list up to 3 details the seller should add to make this listing sell better, chosen from: "size", "condition", "colour", "item type", "measurements", "material", "flaws", "brand", "photo". Only list ones that are actually missing above.
 
 Reply with ONLY this JSON object and nothing else, no code fences:
-{"title": string, "description": string, "hashtags": [string], "missing": [string]}`;
+{"colour": string, "brand": string, "product": string, "size": string, "description": string, "hashtags": [string], "missing": [string]}`;
 
 const field = (v, max) => typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, max) : '';
 export async function writeListingRoute(request, env, user) {
@@ -114,7 +117,7 @@ export async function writeListingRoute(request, env, user) {
     const text = String(raw?.response ?? raw ?? '');
     try {
       const parsed = jsonFrom(text);
-      const t = field(parsed.title, 90), d = typeof parsed.description === 'string' ? parsed.description.trim() : '';
+      const t = field(parsed.product, 60) || field(parsed.title, 90), d = typeof parsed.description === 'string' ? parsed.description.trim() : '';
       if (t && d.length > 40) data = parsed;
       else why = !t ? 'it left out the title' : 'the description came back too short';
     } catch {
@@ -131,8 +134,31 @@ export async function writeListingRoute(request, env, user) {
   const tags = (Array.isArray(data.hashtags) ? data.hashtags : String(data.hashtags || '').split(/\s+/))
     .map(t => '#' + String(t).toLowerCase().replace(/[^a-z0-9]/g, '')).filter(t => t.length > 2).slice(0, 8);
   const description = data.description.replace(/\r/g, '').replace(/#[a-z0-9]+/gi, '').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim().slice(0, 1800);
-  const title = field(data.title, 90).replace(/[|~]/g, ' ').replace(/\s{2,}/g, ' ');
+  const title = tidyTitle(data, details);
   return {listing: {title, description, hashtags: [...new Set(tags)]}, tips: missing};
+}
+// One clean title shape every time: Colour Brand Product | Size X (the stock number goes on the end in the app).
+const titleCase = t => String(t || '').toLowerCase().replace(/(^|[\s/-])([a-z])/g, (m, a, b) => a + b.toUpperCase()).replace(/\b(Uk|Us|Eu)\b/g, w => w.toUpperCase());
+export function tidyTitle(data, details = {}) {
+  const words = t => String(t || '').replace(/[|~#]/g, ' ').replace(/\s+/g, ' ').trim();
+  let colour = titleCase(words(details.Colour || data.colour).split(/[,/&]| and /i)[0].trim());
+  const brand = words(details.Brand || data.brand);
+  let size = words(details.Size || data.size || (words(data.title).match(/\bsize\s+([a-z0-9]{1,6})\b/i) || [])[1]).replace(/^size\s*/i, '');
+  if (/^(xxs|xs|s|m|l|xl|xxl|xxxl|\d?xl)$/i.test(size)) size = size.toUpperCase();
+  let product = words(data.product);
+  if (!product) { // older reply shape: take the title and strip the parts we place ourselves
+    product = words(data.title).replace(/\bsize\s+\S+/ig, '');
+  }
+  if (!colour) { // no colour given: lift a colour word out of the product so it still leads
+    const found = (product.match(/\b(black|white|navy|grey|gray|blue|red|green|beige|cream|brown|pink|purple|yellow|orange|khaki|olive|burgundy|maroon)\b/i) || [])[1];
+    if (found) colour = titleCase(found);
+  }
+  const drop = [colour, brand, size && 'size ' + size].filter(Boolean);
+  for (const part of drop) product = product.replace(new RegExp('\\b' + part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'ig'), ' ');
+  product = titleCase(product.replace(/\b(mens|men's|womens|women's)\b/ig, ' ').replace(/\s+/g, ' ').trim());
+  const front = [colour, brand && (brand === brand.toLowerCase() ? titleCase(brand) : brand), product].filter(Boolean).join(' ').replace(/\s+/g, ' ');
+  const tail = size ? ' | Size ' + size : '';
+  return (front.slice(0, 63 - tail.length).trim() + tail).trim();
 }
 const joinWords = list => list.length < 2 ? list.join('') : list.slice(0, -1).join(', ') + ' and ' + list[list.length - 1];
 // What the seller could add for a stronger listing, worked out from the facts rather than trusting the model.
