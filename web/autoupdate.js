@@ -24,7 +24,7 @@ async function auLoadServerDone() {
     if ([...auDone].some(id => !auSynced.has(id))) auSaveDone();
   } catch {}
 }
-let auBusy = false, auSignature = '';
+let auBusy = false, auSignature = '', auTimesFilled = false;
 
 const AU_SYNONYMS = {qzip: 'quarter zip', '1/4': 'quarter', hoody: 'hoodie', tee: 't shirt', tshirt: 't shirt', windcheater: 'windbreaker', quaterzip: 'quarter zip', quarterzip: 'quarter zip'};
 const AU_STOP = new Set(['the', 'and', 'with', 'a', 'of', 'for', 'in', 'size', 'mens', 'men', 'womens', 'women', 'ladies', 'uk', 's', 'new', 'vintage']);
@@ -85,7 +85,7 @@ function auApply(event, item, data) {
   const date = event.date && event.date <= today ? event.date : today;
   switch (event.type) {
     case 'sold': {
-      const next = recordSale(data, item.id, event.amount, date < (item.purchasedAt || '') ? item.purchasedAt : date);
+      const next = recordSale(data, item.id, event.amount, date < (item.purchasedAt || '') ? item.purchasedAt : date, event.at ? {at: event.at} : undefined);
       const trade = next.trades.at(-1); trade.emailId = event.id;
       return {next, line: {icon: '£', tone: 'go', title: 'Sold · ' + gbp(event.amount), body: '#' + item.id + ' ' + item.name + (event.buyer ? ' to ' + event.buyer : '')}};
     }
@@ -166,6 +166,17 @@ async function auRun() {
   const stage = {sold: 0, label: 1, qr: 2, posted: 3, 'parcel-delivered': 4, delivered: 5, completed: 6, paid: 7, refund: 8};
   const events = receipts.filter(r => r.event && !auDone.has(auKey(r))).map(r => ({...r.event, id: auKey(r), at: r.receivedAt || r.event.date}))
     .sort((a, b) => String(a.at).localeCompare(String(b.at)) || (stage[a.type] ?? 9) - (stage[b.type] ?? 9));
+  // Older sales recorded from emails get their exact time from the email (once), for the 24H chart.
+  if (!auTimesFilled && receipts.length && !isReadOnly()) {
+    auTimesFilled = true;
+    const times = new Map(receipts.filter(r => r.event?.type === 'sold' && r.receivedAt).map(r => [r.id, r.receivedAt]));
+    const missing = (db.trades || []).filter(t => !t.soldTime && t.emailId && times.has(t.emailId) && times.get(t.emailId).slice(0, 10) <= t.soldAt);
+    if (missing.length) {
+      const fixed = cloneWorkspace(db);
+      for (const t of fixed.trades) if (!t.soldTime && t.emailId && times.has(t.emailId) && times.get(t.emailId).slice(0, 10) <= t.soldAt) t.soldTime = new Date(times.get(t.emailId)).toISOString();
+      try { await persist(fixed); } catch {}
+    }
+  }
   const signature = events.map(e => e.id).join(',') + '|' + (db.items.length) + '|' + ((db.trades || []).length);
   if (!events.length || signature === auSignature) return;
   auSignature = signature;

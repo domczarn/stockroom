@@ -61,7 +61,7 @@ function validateTrades(data, itemIds) {
       !paid(trade.amount)||trade.amount<=0||!paid(trade.cost)||!exactDate(trade.soldAt)||
       ![trade.postedAt,trade.completedAt,trade.paidAt,trade.listedAt].every(value=>value==null||value===''||exactDate(value))||
       (trade.paidAt&&!paid(trade.paidAmount))||(trade.orderId&&(!tx(trade.orderId)||orders.has(trade.orderId)))||
-      (trade.batchId&&!uuid(trade.batchId))||(trade.extraCost!=null&&(!paid(trade.extraCost)||trade.extraCost<0))||!Array.isArray(trade.refunds)||trade.refunds.length>60)
+      (trade.batchId&&!uuid(trade.batchId))||(trade.soldTime!=null&&trade.soldTime!==''&&(typeof trade.soldTime!=='string'||!/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d{1,3})?Z$/.test(trade.soldTime)))||(trade.extraCost!=null&&(!paid(trade.extraCost)||trade.extraCost<0))||!Array.isArray(trade.refunds)||trade.refunds.length>60)
       throw new HttpError(400,'Invalid order details.');
     ids.add(trade.id);
     if(trade.orderId)orders.add(trade.orderId);

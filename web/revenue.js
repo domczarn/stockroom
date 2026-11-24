@@ -1,7 +1,7 @@
 'use strict';
 // Revenue studio: the Home chart. Range, metric, grain, comparison, running total, tap-for-detail.
 
-const RC_RANGES = [['1W', 7], ['1M', 30], ['3M', 91], ['6M', 182], ['1Y', 365], ['All', 0]];
+const RC_RANGES = [['24H', 1], ['1W', 7], ['1M', 30], ['3M', 91], ['6M', 182], ['1Y', 365], ['All', 0]];
 const RC_ICON_CAL = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>';
 const RC_METRICS = {
   revenue: {label: 'Revenue', color: '#3987e5', kind: 'money', additive: true},
@@ -11,6 +11,11 @@ const RC_METRICS = {
   avg: {label: 'Avg sale', color: '#3987e5', kind: 'money', additive: false}
 };
 const RC_GRAINS = {day: 'Daily', week: 'Weekly', month: 'Monthly'};
+const rcHour = 3600000;
+// A sale's time to the minute where known (from the Vinted email or when recorded), else midday that day.
+const rcRowTime = (row, now) => { const t = row.time ? Date.parse(row.time) : NaN; return Number.isFinite(t) ? t : row.date ? Math.min(Date.parse(row.date + 'T12:00:00Z'), now - 60000) : NaN; };
+const rcHourFmt = t => new Date(t).toLocaleString('en-GB', {timeZone: 'Europe/London', hour: '2-digit', minute: '2-digit'});
+const rcHourLong = t => new Date(t).toLocaleString('en-GB', {timeZone: 'Europe/London', weekday: 'short', hour: '2-digit', minute: '2-digit'});
 const rc = {range: '1M', metric: 'revenue', grain: '', compare: true, running: false, selected: -1};
 try { Object.assign(rc, JSON.parse(localStorage.getItem('stockroom-chart') || '{}'), {selected: -1}); } catch {}
 const rcSave = () => { try { localStorage.setItem('stockroom-chart', JSON.stringify({range: rc.range, metric: rc.metric, grain: rc.grain, compare: rc.compare, running: rc.running, from: rc.from, to: rc.to})); } catch {} };
@@ -34,6 +39,7 @@ function rcStats(rows) {
 
 const rcFirstDate = (rows, today) => rows.map(row => row.date).filter(Boolean).sort()[0] || today;
 function rcWindow(rows, today) {
+  if (rc.range === '24H') { const end = Date.now(); return {start: end - 24 * rcHour, end, days: 1, grain: 'hour', auto: 'hour', custom: false, comparable: true, hourly: true}; }
   const custom = rc.range === 'Custom' && rc.from && rc.to;
   const span = RC_RANGES.find(([key]) => key === rc.range)?.[1];
   let end = rcT(today), start;
@@ -64,6 +70,7 @@ function rcBuckets(start, end, grain) {
 }
 
 function rcLabel(bucket, grain, long = false) {
+  if (grain === 'hour') return long ? rcHourLong(bucket.fromMs) + '–' + rcHourFmt(Math.min(bucket.toMs, bucket.fromMs + rcHour)) : rcHourFmt(bucket.fromMs);
   if (grain === 'day') return (long ? rcLongFmt : rcDayFmt).format(rcT(bucket.from));
   if (grain === 'month') return long ? rcMonthLong.format(rcT(bucket.from)) : rcMonFmt.format(rcT(bucket.from));
   return bucket.from === bucket.to ? rcDayFmt.format(rcT(bucket.from)) : rcDayFmt.format(rcT(bucket.from)) + ' – ' + rcDayFmt.format(rcT(bucket.to));
@@ -97,6 +104,7 @@ function rcDelta(now, before, kind) {
 function rcModel(rows, today) {
   const win = rcWindow(rows, today);
   const meta = RC_METRICS[rc.metric];
+  if (win.hourly) return rcHourModel(rows, win, meta);
   const inRange = (from, to) => rows.filter(row => row.date && row.date >= from && row.date <= to);
   const buckets = rcBuckets(win.start, win.end, win.grain).map(b => ({...b, rows: inRange(b.from, b.to)}));
   buckets.forEach(b => { b.stats = rcStats(b.rows); });
@@ -115,6 +123,25 @@ function rcModel(rows, today) {
     const acc = list => { let sum = 0; return list.map(v => (sum += v || 0)); };
     series = acc(series); prevSeries = acc(prevSeries);
   }
+  return {win, meta, buckets, series, prevSeries, total, prevTotal, running};
+}
+
+// Last 24 hours, hour by hour (uses each sale's time).
+function rcHourModel(rows, win, meta) {
+  const now = win.end, timed = rows.map(row => ({row, t: rcRowTime(row, now)})).filter(x => Number.isFinite(x.t));
+  const within = (from, to) => timed.filter(x => x.t > from && x.t <= to).map(x => x.row);
+  const last = Math.floor(now / rcHour) * rcHour;
+  const buckets = Array.from({length: 24}, (_, i) => {
+    const fromMs = Math.max(last - (23 - i) * rcHour, win.start), toMs = i === 23 ? now : last - (22 - i) * rcHour;
+    const d = rcD(fromMs);
+    return {fromMs, toMs, from: d, to: d, rows: within(fromMs, toMs)};
+  });
+  buckets.forEach(b => { b.stats = rcStats(b.rows); });
+  const prevBuckets = buckets.map(b => rcStats(within(b.fromMs - 24 * rcHour, b.toMs - 24 * rcHour)));
+  const total = rcStats(within(win.start, now)), prevTotal = rcStats(within(win.start - 24 * rcHour, win.start));
+  let series = buckets.map(b => b.stats[rc.metric]), prevSeries = prevBuckets.map(x => x[rc.metric]);
+  const running = rc.running && meta.additive;
+  if (running) { const acc = list => { let sum = 0; return list.map(v => (sum += v || 0)); }; series = acc(series); prevSeries = acc(prevSeries); }
   return {win, meta, buckets, series, prevSeries, total, prevTotal, running};
 }
 
@@ -237,20 +264,20 @@ function rcDetail(model) {
       ? (sales.length ? '<p class="rc-detail-sub">Sales · ' + sales.length + '</p><ul class="rc-list">' + sales.slice(0, rc.all ? 999 : 6).map(line).join('') + '</ul>' : '') +
         (sales.length > 6 ? '<button type="button" class="link rc-more" data-rc-all>' + (rc.all ? 'Show fewer' : 'Show all ' + sales.length + ' sales') + '</button>' : '') +
         (costs.length ? '<p class="rc-detail-sub">Expenses · ' + costs.length + '</p><ul class="rc-list">' + costs.slice(0, rc.all ? 999 : 4).map(line).join('') + '</ul>' : '')
-      : '<p class="rc-empty">Nothing sold or spent ' + (sel ? 'in this ' + esc(RC_GRAINS[model.win.grain].replace('ly', '').replace('Dai', 'day').toLowerCase()) : 'in this period') + '.</p>') +
+      : '<p class="rc-empty">Nothing sold or spent ' + (sel ? 'in this ' + esc((RC_GRAINS[model.win.grain] || 'Hourly').replace('ly', '').replace('Dai', 'day').toLowerCase()) : 'in this period') + '.</p>') +
     '</div>';
 }
 
 function rcInsights(model) {
   const {buckets, total, win} = model;
-  const grainWord = {day: 'day', week: 'week', month: 'month'}[win.grain];
+  const grainWord = {hour: 'hour', day: 'day', week: 'week', month: 'month'}[win.grain];
   const best = buckets.reduce((top, b, i) => b.stats.revenue > (top ? buckets[top.i].stats.revenue : 0) ? {i} : top, null);
   const active = buckets.filter(b => b.stats.sold > 0).length;
   const perDay = total.revenue / win.days;
   const cell = (label, value, sub) => '<div><span>' + label + '</span><strong>' + value + '</strong>' + (sub ? '<small>' + sub + '</small>' : '') + '</div>';
   return '<div class="rc-insights">' +
     cell('Best ' + grainWord, best ? gbp(buckets[best.i].stats.revenue) : '—', best ? esc(rcLabel(buckets[best.i], win.grain)) : 'No sales yet') +
-    cell('Revenue per day', gbp(perDay), win.days + ' days') +
+    (win.hourly ? cell('Revenue per hour', gbp(total.revenue / 24), '24 hours') : cell('Revenue per day', gbp(perDay), win.days + ' days')) +
     cell(grainWord[0].toUpperCase() + grainWord.slice(1) + 's with sales', active + ' / ' + buckets.length, buckets.length ? Math.round(100 * active / buckets.length) + '% hit rate' : '') +
     cell('Expenses', gbp(total.expense), total.missing ? total.missing + ' sale cost' + (total.missing === 1 ? '' : 's') + ' missing' : 'Included in net profit') +
     '</div>';
@@ -262,7 +289,7 @@ function revenueChart(rows, today) {
   const host = document.getElementById('financeChart');
   const width = Math.round(host?.querySelector('.rc-plot')?.clientWidth || host?.clientWidth || Math.min(window.innerWidth - 64, 1100)) || 640;
   const span = rcLongFmt.format(win.start) + ' – ' + rcLongFmt.format(win.end);
-  const rangeText = win.custom ? span + ' · ' + win.days + ' days' : rc.range === 'All' ? 'All time · since ' + rcLongFmt.format(win.start) : 'Last ' + win.days + ' days';
+  const rangeText = win.hourly ? 'Last 24 hours' : win.custom ? span + ' · ' + win.days + ' days' : rc.range === 'All' ? 'All time · since ' + rcLongFmt.format(win.start) : 'Last ' + win.days + ' days';
   const tabs = Object.entries(RC_METRICS).map(([key, m]) => {
     const v = total[key];
     return '<button type="button" class="rc-metric" data-rc-metric="' + key + '" aria-pressed="' + (rc.metric === key) + '">' +
@@ -270,7 +297,7 @@ function revenueChart(rows, today) {
       (prevTotal ? rcDelta(v, prevTotal[key], m.kind) : '') + '</button>';
   }).join('');
   const customLabel = win.custom ? rcDayFmt.format(win.start) + ' – ' + rcDayFmt.format(win.end) : 'Custom';
-  const sub = '<span class="rc-hero-label">' + esc(meta.label) + '</span>' + (prevTotal ? ' ' + rcDelta(total[rc.metric], prevTotal[rc.metric], meta.kind) + ' <span class="rc-vs">vs previous ' + win.days + ' days</span>' : '');
+  const sub = '<span class="rc-hero-label">' + esc(meta.label) + '</span>' + (prevTotal ? ' ' + rcDelta(total[rc.metric], prevTotal[rc.metric], meta.kind) + ' <span class="rc-vs">vs previous ' + (win.hourly ? '24 hours' : win.days + ' days') + '</span>' : '');
   return '<section class="revenue-studio" aria-label="Revenue chart" data-accent="' + rc.metric + '">' +
     '<header class="rc-head"><div class="rc-hero-wrap"><p class="rc-eyebrow" data-base="' + esc(rangeText) + '">' + esc(rangeText) + '</p>' +
       '<h2 class="rc-hero" data-base="' + esc(rcValue(total[rc.metric], meta.kind)) + '">' + rcValue(total[rc.metric], meta.kind) + '</h2>' +
@@ -284,7 +311,7 @@ function revenueChart(rows, today) {
           '<div class="rc-pop-foot"><button type="button" class="secondary" data-rc-pop-close>Cancel</button><button type="button" class="action" data-rc-apply>Apply</button></div></div></div>' +
     '</header>' +
     '<div class="rc-metrics" role="group" aria-label="Chart metric">' + tabs + '</div>' +
-    '<div class="rc-toolbar"><div class="rc-grains" role="group" aria-label="Group by">' +
+    '<div class="rc-toolbar"><div class="rc-grains" role="group" aria-label="Group by"' + (win.hourly ? ' hidden' : '') + '>' +
       Object.entries(RC_GRAINS).map(([key, label]) => '<button type="button" data-rc-grain="' + key + '" aria-pressed="' + (win.grain === key) + '"' + (key === 'day' && win.days > 400 ? ' disabled' : '') + '>' + label + '</button>').join('') + '</div>' +
       '<div class="rc-toggles">' +
         (win.comparable ? '<button type="button" class="rc-toggle" data-rc-compare aria-pressed="' + rc.compare + '"><i class="rc-key prev"></i>Previous period</button>' : '') +

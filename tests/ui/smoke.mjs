@@ -199,6 +199,31 @@ for (const viewport of [{width: 390, height: 844}, {width: 1440, height: 900}]) 
     await page.click('.undo-toast button');
     await page.waitForFunction(id => tradeStatus(lastTrade(db, id)) === 'Sold', id);
   });
+  await check('24H chart: hourly, with touch details', viewport, async page => {
+    const out = await page.evaluate(() => {
+      const now = Date.now(), rows = [{kind: 'Sale', date: todayUK(), time: new Date(now - 5 * 36e5).toISOString(), revenue: 40, cost: 10}, {kind: 'Sale', date: '2001-01-01', time: '2001-01-01T10:00:00Z', revenue: 99, cost: 1}];
+      const pts = mhSeries(rows, 1, todayUK(), now);
+      const hit = pts.findIndex(p => p.rev === 40);
+      return [pts.length, hit, pts.at(-1).v, pts[hit].n].join('|');
+    });
+    assert.equal(out, '24|18|40|1', out);
+    if (viewport.width < 500) {
+      await go(page, 'Dashboard');
+      await page.evaluate(() => { mhRange = 1; render(); });
+      assert.match(await page.textContent('.mh-range-note'), /Last 24 hours/);
+      await page.locator('.mh-chart-wrap').scrollIntoViewIfNeeded();
+      const box = await page.locator('.mh-chart-wrap').boundingBox();
+      await page.mouse.move(box.x + box.width / 2, box.y + 60); await page.mouse.down();
+      await page.waitForSelector('.mh-tip:not([hidden])');
+      assert.match(await page.textContent('.mh-tip'), /Revenue.*Profit.*Sales/s);
+      await page.mouse.up();
+      await page.evaluate(() => { mhRange = 30; render(); });
+    } else {
+      await page.evaluate(() => { rc.range = '24H'; render(); });
+      assert.match(await page.textContent('.rc-eyebrow'), /Last 24 hours/);
+      await page.evaluate(() => { rc.range = '1M'; render(); });
+    }
+  });
   await check('stock number in Vinted titles', viewport, async page => {
     const out = await page.evaluate(() => {
       const item = db.items.find(i => i.status === 'In Stock');

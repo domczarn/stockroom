@@ -19,7 +19,7 @@ function accountingRows(data) {
   const rows = [];
   for (const trade of trades) {
     const name = items.get(trade.itemId)?.name || trade.name;
-    rows.push({kind:'Sale',name,date:trade.soldAt,revenue:trade.amount,cost:trade.cost,expense:trade.extraCost||0});
+    rows.push({kind:'Sale',name,date:trade.soldAt,time:trade.soldTime||'',revenue:trade.amount,cost:trade.cost,expense:trade.extraCost||0});
     for (const refund of trade.refunds) rows.push({kind:'Sale refund',name,date:refund.date,revenue:-refund.amount,cost:refund.restock?-trade.cost:0,expense:refund.postage});
   }
   for (const item of data.items) {
@@ -67,6 +67,10 @@ function recordSale(data, itemId, amount, soldAt, receipt, extraCost = 0) {
   const current = next.items.find(row=>row.id===itemId);
   const trade = {id:newId(),itemId,name:item.name,cost:item.cost,amount,soldAt,listedAt:item.listedAt||'',refunds:[],orderId:receipt?.transactionId||''};
   if (Number.isFinite(extraCost) && extraCost > 0) trade.extraCost = Math.round(extraCost * 100) / 100;
+  // When it sold, to the minute: the Vinted email's time, or now if you're recording it today. Powers the 24H chart.
+  const today = typeof todayUK === 'function' ? todayUK() : new Date().toISOString().slice(0, 10);
+  const at = receipt?.at && /^\d{4}-\d\d-\d\dT/.test(receipt.at) ? receipt.at : soldAt === today ? new Date().toISOString() : '';
+  if (at && at.slice(0, 10) <= soldAt) trade.soldTime = new Date(at).toISOString();
   (next.trades ||= []).push(trade);
   Object.assign(current,{status:'Sold',sale:amount,soldAt,stage:''});
   return next;

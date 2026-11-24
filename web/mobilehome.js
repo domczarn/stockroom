@@ -5,34 +5,98 @@ const phoneHome = () => matchMedia('(max-width: 800px)').matches;
 let mhRange = (() => { try { return Number(localStorage.getItem('mh-range')) || 30; } catch { return 30; } })();
 let mhPulse = 0;
 
-function mhSeries(rows, days, endIso) {
-  const end = Date.parse(endIso + 'T00:00:00Z'), day = 864e5;
-  const pts = Array.from({length: days}, (_, i) => ({date: new Date(end - (days - 1 - i) * day).toISOString().slice(0, 10), v: 0}));
-  const index = new Map(pts.map((p, i) => [p.date, i]));
-  for (const r of rows) if (r.kind === 'Sale' || r.kind === 'Sale refund') { const i = index.get(r.date); if (i != null) pts[i].v += Number(r.revenue) || 0; }
-  // Running total, so the line ends exactly on the Sales figure above it and 7D / 30D / 90D always agree.
+// When a row happened, to the hour where we know it (sales recorded from Vinted emails or on the day).
+// Older sales only have a date: they count at midday, or just before now if that's later than now.
+function mhRowTime(r, now = Date.now()) {
+  if (r.time) { const t = Date.parse(r.time); if (Number.isFinite(t)) return t; }
+  if (!r.date) return NaN;
+  return Math.min(Date.parse(r.date + 'T12:00:00Z'), now - 60000);
+}
+const mhHour = 36e5, mhDayMs = 864e5;
+// Buckets for the chart: days for 7D/30D/90D, hours for 24H. Each knows its own revenue, profit and sales,
+// and v is the running total so the line ends on the Sales figure above it.
+function mhSeries(rows, days, endIso, now = Date.now()) {
+  const sales = rows.filter(r => r.kind === 'Sale' || r.kind === 'Sale refund');
+  let pts;
+  if (days === 1) {
+    const last = Math.floor(now / mhHour) * mhHour;
+    pts = Array.from({length: 24}, (_, i) => ({from: last - (23 - i) * mhHour, to: last - (22 - i) * mhHour, hourly: true}));
+    pts[23].to = now + 1;
+    const start = now - 24 * mhHour;
+    for (const p of pts) p.from = Math.max(p.from, start);
+    for (const r of sales) { const t = mhRowTime(r, now); const p = pts.find(p => t >= p.from && t < p.to); if (p) (p.rows ||= []).push(r); }
+  } else {
+    const end = Date.parse(endIso + 'T00:00:00Z');
+    pts = Array.from({length: days}, (_, i) => ({date: new Date(end - (days - 1 - i) * mhDayMs).toISOString().slice(0, 10)}));
+    const index = new Map(pts.map((p, i) => [p.date, i]));
+    for (const r of sales) { const i = index.get(r.date); if (i != null) (pts[i].rows ||= []).push(r); }
+  }
   let run = 0;
-  for (const p of pts) { run += p.v; p.v = Math.round(run * 100) / 100; }
+  for (const p of pts) {
+    const t = reportTotals(p.rows || []);
+    p.rev = t.revenue; p.profit = t.profit; p.n = (p.rows || []).filter(r => r.kind === 'Sale').length;
+    run += t.revenue; p.v = Math.round(run * 100) / 100;
+    delete p.rows;
+  }
   return pts;
 }
+const mhUk = (t, opts) => new Date(t).toLocaleString('en-GB', {timeZone: 'Europe/London', ...opts});
+function mhPointLabel(p) {
+  return p.hourly ? mhUk(p.from, {weekday: 'short', hour: '2-digit', minute: '2-digit'}) + '–' + mhUk(Math.min(p.to, p.from + mhHour), {hour: '2-digit', minute: '2-digit'})
+    : new Date(p.date + 'T12:00:00Z').toLocaleDateString('en-GB', {weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC'});
+}
+let mhPoints = [];
 function mhChart(points) {
+  mhPoints = points;
   const W = 340, H = 150, top = 14, bottom = 128;
   const max = Math.max(10, ...points.map(p => p.v));
   const nice = max <= 50 ? Math.ceil(max / 10) * 10 : max <= 200 ? Math.ceil(max / 50) * 50 : Math.ceil(max / 100) * 100;
   const x = i => points.length < 2 ? W / 2 : i * W / (points.length - 1), y = v => bottom - (bottom - top) * v / nice;
-  // Straight segments between days: honest, never overshoots, same shape at every range.
+  // Straight segments between points: honest, never overshoots, same shape at every range.
   const P = points.map((p, i) => [x(i), y(Math.max(0, p.v))]);
   const d = P.map((p, i) => (i ? ' L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join('');
-  const label = iso => new Date(iso + 'T12:00:00Z').toLocaleDateString('en-GB', {day: 'numeric', month: 'short', timeZone: 'UTC'});
+  const hourly = points[0]?.hourly;
+  const label = p => hourly ? mhUk(p.from, {hour: '2-digit', minute: '2-digit'}) : new Date(p.date + 'T12:00:00Z').toLocaleDateString('en-GB', {day: 'numeric', month: 'short', timeZone: 'UTC'});
   const mid = points[Math.floor(points.length / 2)];
-  return '<svg class="mh-chart" viewBox="-34 0 ' + (W + 40) + ' ' + H + '" preserveAspectRatio="none" role="img" aria-label="Total sales over the last ' + points.length + ' days">' +
+  return '<svg class="mh-chart" viewBox="-34 0 ' + (W + 40) + ' ' + H + '" preserveAspectRatio="none" role="img" aria-label="Total sales over the last ' + (hourly ? '24 hours' : points.length + ' days') + '. Touch and drag for each ' + (hourly ? 'hour' : 'day') + '.">' +
     '<defs><linearGradient id="mhLine" x1="0" x2="1"><stop offset="0" stop-color="#7f9dff"/><stop offset="1" stop-color="#b9a9ff"/></linearGradient><linearGradient id="mhFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#8fa6ff" stop-opacity=".28"/><stop offset="1" stop-color="#8fa6ff" stop-opacity="0"/></linearGradient>' +
     '<filter id="mhGlow" x="-10%" y="-30%" width="120%" height="160%"><feGaussianBlur stdDeviation="3.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>' +
     [nice, nice / 2, 0].map(v => '<line x1="0" x2="' + W + '" y1="' + y(v) + '" y2="' + y(v) + '" class="mh-grid"/><text x="-8" y="' + (y(v) + 3.5) + '" text-anchor="end" class="mh-axis">£' + (v >= 1000 ? (v / 1000) + 'k' : v) + '</text>').join('') +
     '<path d="' + d + ' L' + W + ' ' + bottom + ' L0 ' + bottom + 'Z" fill="url(#mhFill)" class="mh-area"/>' +
     '<path d="' + d + '" fill="none" stroke="url(#mhLine)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" filter="url(#mhGlow)" class="mh-line" pathLength="1"/>' +
-    '<text x="0" y="' + (H - 2) + '" class="mh-axis">' + label(points[0].date) + '</text><text x="' + W / 2 + '" y="' + (H - 2) + '" text-anchor="middle" class="mh-axis">' + label(mid.date) + '</text><text x="' + W + '" y="' + (H - 2) + '" text-anchor="end" class="mh-axis">Today</text></svg>';
+    '<line class="mh-cursor" x1="0" x2="0" y1="' + top + '" y2="' + bottom + '" visibility="hidden"/><circle class="mh-dot" r="4.5" cx="0" cy="0" visibility="hidden"/>' +
+    '<text x="0" y="' + (H - 2) + '" class="mh-axis">' + label(points[0]) + '</text><text x="' + W / 2 + '" y="' + (H - 2) + '" text-anchor="middle" class="mh-axis">' + label(mid) + '</text><text x="' + W + '" y="' + (H - 2) + '" text-anchor="end" class="mh-axis">' + (hourly ? 'Now' : 'Today') + '</text></svg>' +
+    '<div class="mh-tip" role="status" hidden></div>';
 }
+// Touch (or hover) the chart: a line follows your finger with that hour or day's revenue, profit and sales.
+(() => {
+  let active = null;
+  const show = (wrap, clientX) => {
+    const svg = wrap.querySelector('.mh-chart'), tip = wrap.querySelector('.mh-tip');
+    if (!svg || !tip || !mhPoints.length) return;
+    const r = svg.getBoundingClientRect(), vbW = 380, W = 340, top = 14, bottom = 128;
+    const fx = (clientX - r.left) / r.width * vbW - 34;
+    const i = Math.max(0, Math.min(mhPoints.length - 1, Math.round(fx / (W / Math.max(1, mhPoints.length - 1)))));
+    const p = mhPoints[i], max = Math.max(10, ...mhPoints.map(q => q.v));
+    const nice = max <= 50 ? Math.ceil(max / 10) * 10 : max <= 200 ? Math.ceil(max / 50) * 50 : Math.ceil(max / 100) * 100;
+    const x = mhPoints.length < 2 ? W / 2 : i * W / (mhPoints.length - 1), y = bottom - (bottom - top) * Math.max(0, p.v) / nice;
+    const cur = svg.querySelector('.mh-cursor'), dot = svg.querySelector('.mh-dot');
+    cur.setAttribute('x1', x); cur.setAttribute('x2', x); cur.setAttribute('visibility', 'visible');
+    dot.setAttribute('cx', x); dot.setAttribute('cy', y); dot.setAttribute('visibility', 'visible');
+    tip.innerHTML = '<b>' + esc(mhPointLabel(p)) + '</b><dl><div><dt><i class="rev"></i>Revenue</dt><dd>' + gbp(p.rev) + '</dd></div><div><dt><i class="pro"></i>Profit</dt><dd>' + gbp(p.profit) + '</dd></div><div><dt>Sales</dt><dd>' + p.n + '</dd></div><div class="run"><dt>Running total</dt><dd>' + gbp(p.v) + '</dd></div></dl>';
+    tip.hidden = false;
+    const left = r.left + (x + 34) / vbW * r.width - wrap.getBoundingClientRect().left;
+    tip.style.setProperty('--x', Math.max(8, Math.min(wrap.clientWidth - tip.offsetWidth - 8, left - tip.offsetWidth / 2)) + 'px');
+    tip.classList.toggle('on', true);
+    if (active !== i && navigator.vibrate) try { navigator.vibrate(3); } catch {}
+    active = i;
+  };
+  const hide = wrap => { const svg = wrap?.querySelector('.mh-chart'); wrap?.querySelector('.mh-tip')?.setAttribute('hidden', ''); svg?.querySelector('.mh-cursor')?.setAttribute('visibility', 'hidden'); svg?.querySelector('.mh-dot')?.setAttribute('visibility', 'hidden'); active = null; };
+  document.addEventListener('pointerdown', e => { const wrap = e.target.closest('.mh-chart-wrap'); if (wrap) { wrap.setPointerCapture?.(e.pointerId); show(wrap, e.clientX); } });
+  document.addEventListener('pointermove', e => { const wrap = e.target.closest('.mh-chart-wrap'); if (wrap && (e.pointerType === 'mouse' || e.buttons)) show(wrap, e.clientX); });
+  document.addEventListener('pointerup', e => { const wrap = e.target.closest('.mh-chart-wrap'); if (wrap && e.pointerType !== 'mouse') setTimeout(() => hide(wrap), 1600); });
+  document.addEventListener('pointerleave', e => { if (e.target.closest?.('.mh-chart-wrap') && e.pointerType === 'mouse') hide(e.target.closest('.mh-chart-wrap')); }, true);
+})();
 function mhPulses(today) {
   const out = [];
   const items = db.items.filter(i => !i.deletedAt);
@@ -56,7 +120,10 @@ function mobileHome() {
   const today = todayUK(), rows = accountingRows(db), day = 864e5, end = Date.parse(today + 'T00:00:00Z');
   const iso = t => new Date(t).toISOString().slice(0, 10);
   const inRange = (from, to) => rows.filter(r => r.date >= iso(from) && r.date <= iso(to));
-  const now = inRange(end - (mhRange - 1) * day, end), before = inRange(end - (2 * mhRange - 1) * day, end - mhRange * day);
+  const nowMs = Date.now(), within = (from, to) => rows.filter(r => { const t = mhRowTime(r, nowMs); return t > from && t <= to; });
+  // 24H uses each sale's time; 7D/30D/90D use whole days.
+  const now = mhRange === 1 ? within(nowMs - day, nowMs) : inRange(end - (mhRange - 1) * day, end);
+  const before = mhRange === 1 ? within(nowMs - 2 * day, nowMs - day) : inRange(end - (2 * mhRange - 1) * day, end - mhRange * day);
   // Home profit is profit on sales (sale price − item cost − sale costs). Business expenses like packaging
   // are dated when you bought them, so they made profit jump between 7D/30D/90D; they stay in Money → Reports.
   const onSales = list => list.filter(r => r.kind === 'Sale' || r.kind === 'Sale refund');
@@ -79,9 +146,9 @@ function mobileHome() {
       '<div class="mh-stat"><small>Profit on sales</small><b>' + gbp(tNow.profit) + '</b>' + delta(pct(tNow.profit, tBefore.profit)) + '</div>' +
       '<div class="mh-stat"><small>Sold</small><b>' + soldNow + '</b>' + delta(pct(soldNow, soldBefore)) + '</div>' +
     '</div>' +
-    '<p class="mh-range-note">Last ' + mhRange + ' days · % vs the ' + mhRange + ' days before</p>' +
+    '<p class="mh-range-note">' + (mhRange === 1 ? 'Last 24 hours · % vs the 24 hours before' : 'Last ' + mhRange + ' days · % vs the ' + mhRange + ' days before') + '</p>' +
     '<div class="mh-chart-wrap">' + mhChart(mhSeries(rows, mhRange, today)) + '</div>' +
-    '<div class="mh-pills"><div class="mh-range" role="group" aria-label="Chart range">' + [7, 30, 90].map(r => '<button type="button" data-mh-range="' + r + '" aria-pressed="' + (r === mhRange) + '">' + r + 'D</button>').join('') + '</div>' +
+    '<div class="mh-pills"><div class="mh-range" role="group" aria-label="Chart range">' + [1, 7, 30, 90].map(r => '<button type="button" data-mh-range="' + r + '" aria-pressed="' + (r === mhRange) + '">' + (r === 1 ? '24H' : r + 'D') + '</button>').join('') + '</div>' +
       '<button type="button" class="mh-pill" data-tab="Reports"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h10l4 4v12H5z"/><path d="M9 13h6M9 17h4"/></svg>View report</button></div>' +
     '<div class="mh-sheet">' +
       '<h2>' + greeting + '! Here’s your activity</h2>' +
