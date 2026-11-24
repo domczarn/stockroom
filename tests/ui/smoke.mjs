@@ -22,7 +22,8 @@ async function check(name, viewport, fn) {
     await fn(page);
     assert.deepEqual(errors, [], 'page errors');
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
-    assert.ok(overflow <= 1, 'page scrolls sideways by ' + overflow + 'px');
+    const culprit = overflow > 1 ? await page.evaluate(() => { let w = null; for (const e of document.querySelectorAll('body *')) { const r = e.getBoundingClientRect(); if (r.right > innerWidth + 1 && (!w || r.right > w.r)) w = {r: r.right, n: e.tagName + '.' + e.className + '#' + e.id}; } return w ? w.n : ''; }) : '';
+    assert.ok(overflow <= 1, 'page scrolls sideways by ' + overflow + 'px ' + culprit);
     console.log('ok   ' + name + ' @' + viewport.width);
   } catch (error) {
     failures.push(name + ' @' + viewport.width + ': ' + error.message);
