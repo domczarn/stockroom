@@ -125,31 +125,72 @@ document.addEventListener('click', event => {
 addEventListener('keydown', event => { if (event.key === 'Escape' && document.querySelector('.label-view')) closeLabel(); });
 
 // ---------- Profile: everything lives here on your phone, like Vinted ----------
+const SETTINGS_TITLES = {account: 'Account & sign-in', plan: 'Plan & billing', privacy: 'Edit profile', connections: 'Connections', notifications: 'Notifications', data: 'Data & backups', advanced: 'Advanced'};
 function meHubHtml() {
-  const name = (typeof profile !== 'undefined' && profile?.username) ? '@' + profile.username : 'Choose your username';
+  const p = (typeof profile !== 'undefined' && profile) || {};
+  const name = p.username ? '@' + p.username : 'Choose your username';
   const admin = account?.role === 'admin';
+  const plan = admin ? 'Owner' : account?.plan === 'pro' ? 'Pro' : 'Free';
+  const live = (db?.items || []).filter(i => !i.deletedAt);
+  const inStock = live.filter(i => i.status === 'In Stock').length, sold = live.filter(i => i.status === 'Sold').length;
+  const friendCount = (typeof friends !== 'undefined' && Array.isArray(friends)) ? friends.filter(f => !f.status || f.status === 'accepted' || f.state === 'accepted').length : 0;
   const unread = Number(document.getElementById('mobileUnread')?.textContent) || 0;
-  const row = (attrs, icon, label, sub = '') => '<button type="button" class="me-row" ' + attrs + '><i aria-hidden="true">' + icon + '</i><span><b>' + label + '</b>' + (sub ? '<small>' + sub + '</small>' : '') + '</span><em aria-hidden="true">›</em></button>';
-  return '<section class="me-hub" aria-label="Your account"><h1 class="me-title">Profile</h1>' +
-    '<button type="button" class="me-card" data-settings-section="privacy"><span class="me-avatar">' + (typeof avatar === 'function' ? avatar(profile?.avatarSeed, 'small') : '') + '</span>' +
-      '<span><b>' + esc(name) + '</b><small>View and edit profile</small></span><em aria-hidden="true">›</em></button>' +
-    '<div class="me-group">' +
-      row('data-me-friends', '👥', 'Friends & messages', unread ? unread + ' unread' : 'Add by username or @instagram') +
-      row('data-tab="Leaderboard"', '🏆', 'Leaderboard') +
-      row('data-tab="Customer care"', '💬', 'Customer care') +
-      row('data-tab="Vinted updates"', '✉️', 'Vinted emails', 'Gmail sync') +
-    '</div><div class="me-group">' +
-      row('data-settings-section="account"', '⚙️', 'Settings') +
-      row('data-settings-section="plan"', '⭐', 'Plan & billing') +
-      row('data-settings-section="notifications"', '🔔', 'Notifications') +
-      row('data-settings-section="data"', '💾', 'Data & backups') +
-      (admin ? row('data-tab="Admin"', '🛠', 'Admin console') : '') +
-    '</div><div class="me-group">' +
-      row('data-tour-open', '✨', 'App tour') +
-      '<a class="me-row" href="mailto:info@bookednpaid.com?subject=Stockroom%20help"><i aria-hidden="true">❓</i><span><b>Help</b><small>info@bookednpaid.com</small></span><em aria-hidden="true">›</em></a>' +
-      '<button type="button" class="me-row me-signout" data-sign-out><i aria-hidden="true">↩</i><span><b>Sign out</b></span></button>' +
-    '</div></section>';
+  const svg = d => '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="' + d + '"/></svg>';
+  const I = {
+    user: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM4 21a8 8 0 0 1 16 0',
+    star: 'm12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9Z',
+    bell: 'M18 8a6 6 0 0 0-12 0c0 7-3 8-3 8h18s-3-1-3-8M13.7 21a2 2 0 0 1-3.4 0',
+    link: 'M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1',
+    box: 'M21 8 12 3 3 8v8l9 5 9-5ZM3 8l9 5 9-5M12 13v8',
+    people: 'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM2 21a7 7 0 0 1 14 0M16 3.5a4 4 0 0 1 0 7.5M22 21a7 7 0 0 0-4.5-6.5',
+    trophy: 'M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0ZM7 6H4v1a3 3 0 0 0 3 3M17 6h3v1a3 3 0 0 1-3 3',
+    chat: 'M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12Z',
+    camera: 'M4 8h2.5L8 6h8l1.5 2H20a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1ZM12 16.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4Z',
+    spark: 'M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6',
+    help: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17.5h.01',
+    tools: 'M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.5-2.5Z',
+    shield: 'M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6Z',
+    out: 'M15 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4M10 17l5-5-5-5M15 12H3'
+  };
+  const row = (attrs, icon, label, sub = '', extra = '') => '<button type="button" class="me-row" ' + attrs + '><i>' + svg(I[icon]) + '</i><span><b>' + label + '</b>' + (sub ? '<small>' + sub + '</small>' : '') + '</span>' + extra + '<em aria-hidden="true">›</em></button>';
+  const group = (title, rows) => '<h2 class="me-group-title">' + title + '</h2><div class="me-group">' + rows + '</div>';
+  return '<section class="me-hub" aria-label="Your profile and settings">' +
+    '<div class="ig-head"><span class="ig-avatar">' + (typeof avatar === 'function' ? avatar(p.avatarSeed, 'large') : '') + '</span>' +
+      '<div class="ig-stats"><button type="button" data-tab="Stock"><b>' + inStock + '</b><small>in stock</small></button><button type="button" data-tab="Activity"><b>' + sold + '</b><small>sold</small></button><button type="button" data-me-friends><b>' + friendCount + '</b><small>friends</small></button></div></div>' +
+    '<div class="ig-name"><b>' + esc(name) + '</b><span class="ig-plan">' + plan + '</span></div>' +
+    (p.instagram ? '<a class="ig-handle" href="https://instagram.com/' + encodeURIComponent(p.instagram) + '" target="_blank" rel="noopener">Instagram · @' + esc(p.instagram) + '</a>' : '<button type="button" class="ig-handle add" data-settings-section="privacy">＋ Add your Instagram</button>') +
+    '<div class="ig-buttons"><button type="button" data-settings-section="privacy">Edit profile</button><button type="button" data-me-share>Share profile</button></div>' +
+    group('Your account',
+      row('data-settings-section="account"', 'user', 'Account & sign-in', esc(account?.email || '')) +
+      row('data-settings-section="plan"', 'star', 'Plan & billing', plan) +
+      row('data-settings-section="notifications"', 'bell', 'Notifications') +
+      row('data-settings-section="connections"', 'link', 'Connections', 'Gmail and Vinted emails') +
+      row('data-settings-section="data"', 'box', 'Data & backups')) +
+    group('Community',
+      row('data-me-friends', 'people', 'Friends & messages', '', unread ? '<span class="me-badge">' + unread + '</span>' : '') +
+      row('data-tab="Leaderboard"', 'trophy', 'Leaderboard')) +
+    group('Tools',
+      row('data-tab="Customer care"', 'chat', 'Customer care') +
+      row('data-tab="Studio"', 'camera', 'Photo studio') +
+      row('data-tour-open', 'spark', 'App tour')) +
+    group('More',
+      '<a class="me-row" href="mailto:info@bookednpaid.com?subject=Stockroom%20help"><i>' + svg(I.help) + '</i><span><b>Help</b><small>info@bookednpaid.com</small></span><em aria-hidden="true">›</em></a>' +
+      row('data-settings-section="advanced"', 'tools', 'Advanced') +
+      (admin ? row('data-tab="Admin"', 'shield', 'Admin console') : '') +
+      '<button type="button" class="me-row me-signout" data-sign-out><i>' + svg(I.out) + '</i><span><b>Sign out</b></span></button>') +
+    '<p class="me-foot">Booked &amp; Paid Stockroom</p></section>';
 }
+document.addEventListener('click', event => {
+  const sec = event.target.closest('[data-settings-section]');
+  if (sec && navPhone()) setTimeout(() => { const h = document.getElementById('settingsHeading-' + sec.dataset.settingsSection); if (h && SETTINGS_TITLES[sec.dataset.settingsSection]) h.textContent = SETTINGS_TITLES[sec.dataset.settingsSection]; window.scrollTo({top: 0}); }, 0);
+});
+document.addEventListener('click', event => {
+  if (!event.target.closest('[data-me-share]')) return;
+  const p = (typeof profile !== 'undefined' && profile) || {};
+  const text = p.username ? 'Add me on Stockroom: @' + p.username + ' · stockroom.bookednpaid.com' : 'stockroom.bookednpaid.com';
+  if (navigator.share) navigator.share({text}).catch(() => {});
+  else navigator.clipboard?.writeText(text).then(() => toast('Copied, paste it anywhere')).catch(() => {});
+});
 document.addEventListener('click', event => {
   if (!event.target.closest('[data-me-friends]')) return;
   const target = document.getElementById('friendsList')?.closest('section') || document.getElementById('friendsList');
@@ -172,6 +213,13 @@ if (typeof render === 'function') {
     if (phone && tab === 'Profile' && view && !view.querySelector('.me-hub')) {
       const anchor = view.querySelector('.profile-layout');
       if (anchor) anchor.insertAdjacentHTML('beforebegin', meHubHtml());
+    }
+    // Settings on phone: one section per page with its own title (back goes to Profile).
+    document.body.classList.toggle('tab-settings', tab === 'Account');
+    if (phone && tab === 'Account' && typeof settingsSection === 'string') {
+      const title = SETTINGS_TITLES[settingsSection] || 'Settings';
+      const pn = document.getElementById('pageName'); if (pn) pn.textContent = '';
+      const h = document.getElementById('settingsHeading-' + settingsSection); if (h) h.textContent = title;
     }
     // Pip top left asks Pip; your profile and settings are only under Profile.
     const avatarBtn = document.querySelector('.mh-avatar');

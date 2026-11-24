@@ -3081,3 +3081,73 @@ details.market-group[open]>summary{margin-bottom:10px}
   body.nav-phone .market-group tbody td:first-child{padding:0 0 6px!important;font-size:13.5px!important}
   body.nav-phone .market-group tbody td::before{font-size:9.5px!important}
 }
+
+/* =================== Instagram-style Profile =================== */
+@media (max-width:800px){
+  body.nav-phone .me-hub{gap:0!important}
+  body.nav-phone .me-title{display:none}
+  .ig-head{display:flex;align-items:center;gap:18px;margin:4px 0 12px}
+  .ig-avatar img{width:82px;height:82px;border-radius:50%;object-fit:cover;background:#2a2633;box-shadow:0 0 0 2px #0e0d12,0 0 0 4px rgba(155,120,255,.55)}
+  .ig-stats{flex:1;display:grid;grid-template-columns:repeat(3,1fr)}
+  .ig-stats button{all:unset;cursor:pointer;text-align:center;-webkit-tap-highlight-color:transparent}
+  .ig-stats b{display:block;font-size:18px;font-weight:700;color:var(--ink)}
+  .ig-stats small{display:block;font-size:12px;color:var(--muted);margin-top:1px}
+  .ig-name{display:flex;align-items:center;gap:8px}
+  .ig-name b{font-size:15px;font-weight:650;color:var(--ink)}
+  .ig-plan{font-size:10.5px;font-weight:650;letter-spacing:.04em;text-transform:uppercase;padding:2px 7px;border-radius:6px;background:rgba(155,120,255,.16);color:#c3b2ff}
+  .ig-handle{display:inline-block;margin-top:3px;font-size:13px;color:#b9a4ff;text-decoration:none}
+  button.ig-handle{all:unset;margin-top:3px;font-size:13px;color:#b9a4ff;cursor:pointer}
+  .ig-buttons{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:14px 0 6px}
+  .ig-buttons button{all:unset;box-sizing:border-box;text-align:center;padding:9px;border-radius:10px;background:rgba(255,255,255,.09);color:var(--ink);font-size:13.5px;font-weight:600;cursor:pointer}
+  .ig-buttons button:active{background:rgba(255,255,255,.14)}
+  .me-group-title{font-size:12px!important;font-weight:600!important;letter-spacing:.02em!important;color:var(--muted)!important;margin:20px 4px 7px!important;text-transform:none}
+  .me-group{border-radius:14px!important}
+  .me-row i{display:grid;place-items:center;width:22px;color:var(--ink);opacity:.85}
+  .me-row{min-height:48px!important}
+  .me-badge{min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#ff5a5f;color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center;margin-right:4px}
+  .me-signout i,.me-signout b{color:#ff7b7b!important}
+  .me-foot{text-align:center;font-size:11px;color:var(--muted);margin:18px 0 4px;opacity:.6}
+  /* friends block under the list */
+  body.nav-phone.tab-profile .profile-layout{margin-top:16px}
+
+  /* =================== Settings: one section per page =================== */
+  body.nav-phone.tab-settings #view>.subnav,body.nav-phone.tab-settings #view>.top,body.nav-phone.tab-settings .settings-navigation{display:none!important}
+  body.nav-phone.tab-settings .settings-layout{display:block!important}
+  body.nav-phone.tab-settings .settings-panel{background:none!important;border:0!important;box-shadow:none!important;padding:0!important}
+  body.nav-phone.tab-settings .settings-panel-heading{margin:0 0 16px!important}
+  body.nav-phone.tab-settings .settings-panel-heading h2{font-size:22px!important;letter-spacing:-.03em!important;margin:0 0 4px!important}
+  body.nav-phone.tab-settings .settings-panel-heading p{font-size:13px!important;color:var(--muted)!important;margin:0!important}
+  /* content as grouped cards */
+  body.nav-phone.tab-settings .settings-identity,body.nav-phone.tab-settings .security-box,body.nav-phone.tab-settings .weekly-box,body.nav-phone.tab-settings .billing-box{border-radius:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);padding:12px 14px!important;margin:0 0 12px!important}
+  body.nav-phone.tab-settings .mini-stat{display:flex;justify-content:space-between;align-items:center;padding:12px 14px!important;margin:0!important;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07)!important;border-radius:0;font-size:13.5px}
+  body.nav-phone.tab-settings .mini-stat+.mini-stat{border-top:0!important}
+  body.nav-phone.tab-settings .settings-panel>.mini-stat:first-of-type,body.nav-phone.tab-settings .mini-stat:not(.mini-stat+.mini-stat){border-radius:14px 14px 0 0}
+  body.nav-phone.tab-settings .mini-stat:not(:has(+.mini-stat)){border-radius:0 0 14px 14px;margin-bottom:12px!important}
+  body.nav-phone.tab-settings .settings-panel>p{font-size:12.5px!important;color:var(--muted)!important}
+  body.nav-phone.tab-settings .settings-panel>.settings-action-row,body.nav-phone.tab-settings .settings-content .settings-action-row{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07)!important;border-radius:14px;padding:12px 14px!important;margin:0 0 10px!important}
+  body.nav-phone.tab-settings .security-box .settings-action-row{background:none;border:0!important;padding:10px 0!important;margin:0!important;border-top:1px solid rgba(255,255,255,.06)!important;border-radius:0}
+  body.nav-phone.tab-settings .security-box .settings-action-row:first-child{border-top:0!important}
+  body.nav-phone.tab-settings .account-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  body.nav-phone.tab-settings #profileForm label{font-size:12.5px!important;color:var(--muted)}
+  body.nav-phone.tab-settings #profileForm .footnote{font-size:11.5px!important;margin:4px 0 12px}
+  body.nav-phone.tab-settings #view button.secondary{width:100%}
+  body.nav-phone.tab-settings .sound-actions button.secondary{width:auto}
+}
+@media (max-width:800px){
+  body.nav-phone.tab-settings #view .settings-panel{padding:0!important;background:none!important;border:0!important}
+  body.nav-phone.tab-settings #view .settings-panel-heading{border:0!important;padding:0!important;margin:2px 0 16px!important}
+  body.nav-phone.tab-settings #view .settings-panel-heading h2{font-size:24px!important;letter-spacing:-.03em!important;margin:0 0 4px!important}
+  body.nav-phone.tab-settings #profileForm label{display:block!important;margin-top:14px}
+  body.nav-phone.tab-settings #profileForm label input{display:block;width:100%!important;margin-top:6px;box-sizing:border-box}
+  body.nav-phone.tab-settings #profileForm label:has(input[type=checkbox]){display:flex!important;align-items:center;gap:10px;padding:12px 14px;margin:0;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-top:0;color:var(--ink)!important;font-size:13.5px!important}
+  body.nav-phone.tab-settings #profileForm label:has(input[type=checkbox]) input{width:auto!important;margin:0;display:inline}
+  body.nav-phone.tab-settings #profileForm button,body.nav-phone.tab-settings #profileForm [type=submit]{width:100%;margin-top:14px}
+  body.nav-phone.tab-settings .sound-row{flex-direction:column;align-items:stretch}
+  body.nav-phone.tab-settings .sound-actions{display:grid!important;grid-template-columns:1fr 1fr;gap:8px;width:100%}
+  body.nav-phone.tab-settings .sound-actions button{width:100%!important}
+  .me-row,.me-row b{color:var(--ink)!important;text-decoration:none}
+}
+@media (max-width:800px){
+  body.nav-phone.tab-settings #profileForm label:has(input[type=checkbox]):not(label:has(input[type=checkbox])+label){border-top:1px solid rgba(255,255,255,.07);border-radius:14px 14px 0 0;margin-top:16px}
+  body.nav-phone.tab-settings #profileForm label:has(input[type=checkbox]):not(:has(+label input[type=checkbox])){border-radius:0 0 14px 14px}
+}
