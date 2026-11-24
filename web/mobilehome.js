@@ -57,7 +57,10 @@ function mobileHome() {
   const iso = t => new Date(t).toISOString().slice(0, 10);
   const inRange = (from, to) => rows.filter(r => r.date >= iso(from) && r.date <= iso(to));
   const now = inRange(end - (mhRange - 1) * day, end), before = inRange(end - (2 * mhRange - 1) * day, end - mhRange * day);
-  const tNow = reportTotals(now), tBefore = reportTotals(before);
+  // Home profit is profit on sales (sale price − item cost − sale costs). Business expenses like packaging
+  // are dated when you bought them, so they made profit jump between 7D/30D/90D; they stay in Money → Reports.
+  const onSales = list => list.filter(r => r.kind === 'Sale' || r.kind === 'Sale refund');
+  const tNow = reportTotals(onSales(now)), tBefore = reportTotals(onSales(before));
   const soldNow = now.filter(r => r.kind === 'Sale').length, soldBefore = before.filter(r => r.kind === 'Sale').length;
   const pct = (a, b) => b ? Math.round((a - b) / Math.abs(b) * 100) : null;
   const delta = v => v == null ? '' : '<span class="mh-delta ' + (v >= 0 ? 'up' : 'down') + '">' + (v >= 0 ? '+' : '') + v + '%</span>';
@@ -73,7 +76,7 @@ function mobileHome() {
     '<div class="mh-stats">' +
       '<div class="mh-stat"><small><i class="mh-live"></i>In stock</small><b>' + inStock + '</b></div>' +
       '<div class="mh-stat mh-main"><small>Sales</small><b>' + gbp(tNow.revenue) + '</b>' + delta(pct(tNow.revenue, tBefore.revenue)) + '</div>' +
-      '<div class="mh-stat"><small>Profit</small><b>' + gbp(tNow.profit) + '</b>' + delta(pct(tNow.profit, tBefore.profit)) + '</div>' +
+      '<div class="mh-stat"><small>Profit on sales</small><b>' + gbp(tNow.profit) + '</b>' + delta(pct(tNow.profit, tBefore.profit)) + '</div>' +
       '<div class="mh-stat"><small>Sold</small><b>' + soldNow + '</b>' + delta(pct(soldNow, soldBefore)) + '</div>' +
     '</div>' +
     '<p class="mh-range-note">Last ' + mhRange + ' days · % vs the ' + mhRange + ' days before</p>' +

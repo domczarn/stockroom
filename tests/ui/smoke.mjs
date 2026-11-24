@@ -139,6 +139,15 @@ for (const viewport of [{width: 390, height: 844}, {width: 1440, height: 900}]) 
     });
     assert.equal(out, '50|50|20', out);
   });
+  if (viewport.width < 500) await check('home profit is the same at 30D and 90D', viewport, async page => {
+    const out = await page.evaluate(() => {
+      const old = new Date(Date.parse(todayUK()) - 50 * 864e5).toISOString().slice(0, 10);
+      db = {...db, expenses: [...db.expenses, ['Mailing bags', 9.98, 'Packaging', null, old, '']]};
+      const read = r => { mhRange = r; render(); return document.querySelectorAll('.mh-stat b')[2].textContent; };
+      return [read(30), read(90)];
+    });
+    assert.equal(out[0], out[1], 'profit 30D ' + out[0] + ' vs 90D ' + out[1]);
+  });
   await check('stock number in Vinted titles', viewport, async page => {
     const out = await page.evaluate(() => {
       const item = db.items.find(i => i.status === 'In Stock');
