@@ -92,3 +92,9 @@ test('tracking, label and courier fields are validated', () => {
   assert.throws(() => validateWorkspace(base({shipLabel: 'https://evil.example/l.pdf'}), 'owner'), /label/);
   assert.throws(() => validateWorkspace(base({shipPostedAt: 'yesterday'}), 'owner'), /shipping date/);
 });
+
+test('Pip price needs something to go on', async () => {
+  const {priceRoute} = await import('../worker/grow.js');
+  const req = body => new Request('https://x/api/pip/price', {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify(body)});
+  await assert.rejects(() => priceRoute(req({item: {}}), {DB: {}}, {id: 'u'}), /brand or category/);
+});

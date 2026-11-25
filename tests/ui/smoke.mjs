@@ -36,6 +36,7 @@ const go = (page, tab) => page.evaluate(t => navigate(t), tab).then(() => page.w
 
 for (const viewport of [{width: 390, height: 844}, {width: 1440, height: 900}]) {
   await check('home chart', viewport, async page => {
+    await page.evaluate(() => { if (startIsNew()) { const it = db.items.find(i => i.status === 'In Stock' && !i.deletedAt); db = recordSale(db, it.id, 20, todayUK()); render(); } });
     if (viewport.width <= 800) {
       await page.waitForSelector('.mh .mh-chart .mh-line', {state: 'attached'});
       await page.waitForSelector('.mh-sheet .mh-pulse .mh-pulse-cta');
@@ -222,6 +223,7 @@ for (const viewport of [{width: 390, height: 844}, {width: 1440, height: 900}]) 
     assert.equal(out, '24|18|40|1', out);
     if (viewport.width < 500) {
       await go(page, 'Dashboard');
+    await page.evaluate(() => { if (startIsNew()) { const it = db.items.find(i => i.status === 'In Stock' && !i.deletedAt); db = recordSale(db, it.id, 20, todayUK()); render(); } });
       await page.evaluate(() => { mhRange = 1; rc.range = '24H'; render(); });
       assert.match(await page.textContent('.mh-range-note'), /Last 24 hours/);
       await page.locator('.mh-chart-wrap').scrollIntoViewIfNeeded();
@@ -254,6 +256,23 @@ for (const viewport of [{width: 390, height: 844}, {width: 1440, height: 900}]) 
       return res.join(' ');
     });
     assert.equal(out, '1:ok 7:ok 30:ok 90:ok', out);
+  });
+  await check('new seller: getting started, beginner mode, empty states', viewport, async page => {
+    const out = await page.evaluate(() => {
+      const saved = db; db = emptyData(); try { localStorage.removeItem(startKey()); localStorage.removeItem('sr-pro-tools:' + account.id); } catch {}
+      navigate('Dashboard'); render();
+      const card = !!document.querySelector('.start-card'), chartHidden = !document.querySelector('.mh-chart-wrap, .revenue-studio') || getComputedStyle(document.querySelector('.mh-chart-wrap, .revenue-studio')).display === 'none';
+      const firstStep = document.querySelector('.start-steps li.current b')?.textContent;
+      navigate('Stock'); render();
+      const tabs = [...document.querySelectorAll('.subnav button')].map(b => b.textContent.trim()).join(',');
+      const empty = document.querySelector('.stock-empty .action')?.textContent.trim();
+      db = {...db, items: [{id: '0001', name: 'Grey Nike Hoodie', brand: 'Nike', cost: 5, price: null, status: 'In Stock', sale: null, refund: null}]};
+      navigate('Dashboard'); render();
+      const next = document.querySelector('.start-steps li.current b')?.textContent;
+      db = saved; render();
+      return [card, chartHidden, firstStep, tabs, empty, next].join('|');
+    });
+    assert.equal(out, 'true|true|Add your first item|Collection,Not selling|＋ Add your first item|Add photos', out);
   });
   await check('stock number in Vinted titles', viewport, async page => {
     const out = await page.evaluate(() => {

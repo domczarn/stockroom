@@ -5,7 +5,7 @@ const TOUR = [
   {icon: '＋', tone: 'violet', title: 'Add your stock', body: 'Tap <b>＋</b> to add a piece. Snap the item and its label and Pip fills in the brand, size, condition and a resale price for you.', chips: ['Snap to stock', 'Reads labels', 'Spots flaws']},
   {icon: '✍️', tone: 'blue', title: 'Listings that sell', body: '<b>Write with Pip</b> turns your photo into a Vinted-ready title, description and hashtags. Photo studio gives you clean backgrounds in one tap.', chips: ['Search-ready titles', 'Photo studio', 'Depop & eBay copy']},
   {icon: '📷', tone: 'green', title: 'Know what to pay', body: 'At a charity shop or car boot? Open <b>Buy or pass</b>, snap a piece and Pip tells you what it sells for and the most to pay.', chips: ['Sold-price data', 'Max buy price', 'What to check']},
-  {icon: '📈', tone: 'amber', title: 'See real profit', body: 'Home shows your sales, profit and <b>Pip Pulse</b>, one smart move a day. Every sale counts down Vinted’s 5 working days to post.', chips: ['True profit', 'Ship-by countdown', 'Repricing coach']},
+  {icon: '✉️', tone: 'amber', title: 'Sales track themselves', body: 'Connect Gmail and Pip reads your Vinted emails: every sale, shipping label and QR code lands in the app, and Home shows your real profit. <button type="button" class="tour-inline" data-start-gmail>Connect Gmail</button>', chips: ['Sold → recorded', 'QR codes', 'Posted & delivered']},
   {icon: '💬', tone: 'pink', title: 'Just tell Pip', body: 'Type or say what happened: <b>“Sold the black Nike hoodie for £25.”</b> Pip shows the changes and saves them when you tap Do it.', chips: ['Type or speak', 'You confirm first', 'Works in seconds']}
 ];
 const tourKey = () => 'sr-onboarded:' + (account?.id || 'guest');
@@ -23,8 +23,8 @@ function tourSlide(step) {
     '<span class="tour-eyebrow">Booked &amp; Paid Stockroom</span><h2>Welcome' + (tourName() ? ', ' + esc(tourName()) : '') + '!</h2>' +
     '<p>I’m Pip, your reselling co-pilot. I’ll write your listings, price your stock and keep track of every penny.<br>Want a quick 30-second tour?</p></div>';
   if (step === TOUR.length) return '<div class="tour-hero"><div class="tour-orb done"><img src="/pip-orb.svg" alt="" width="200" height="200"><span class="tour-check">✓</span></div>' +
-    '<span class="tour-eyebrow">You’re all set</span><h2>Let’s make your first flip.</h2>' +
-    '<p>Add a piece you’ve got to hand and watch Pip do the rest. Your first 20 new items every month are free.</p></div>';
+    '<span class="tour-eyebrow">You’re all set</span><h2>Let’s add your first item.</h2>' +
+    '<p>Grab something you’re selling and tap a few buttons. Your Getting started list on Home walks you through the rest. Your first 20 new items every month are free.</p></div>';
   const s = TOUR[step];
   return '<div class="tour-visual tone-' + s.tone + '"><span class="tour-ring r1"></span><span class="tour-ring r2"></span><span class="tour-icon">' + s.icon + '</span>' +
     s.chips.map((c, i) => '<span class="tour-chip c' + i + '">' + esc(c) + '</span>').join('') + '</div>' +

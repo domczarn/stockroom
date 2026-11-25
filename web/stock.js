@@ -156,9 +156,9 @@ function stockResults() {
     (showReset?'<button class="secondary" type="button" data-reset-filters>Clear filters</button>':'')+'</div>';
   const hasStock=db.items.some(item=>!item.deletedAt);
   if (!items.length) {
-    return summary+'<section class="stock-empty"><h2>'+(!hasStock?'Your next find starts here.':'No matching stock')+
-      '</h2><p>'+(!hasStock?'Add your first item to start tracking it.':'Try a different search or clear your filters.')+'</p>'+
-      (!hasStock&&!isReadOnly()?'<button class="secondary" data-add-piece>Add stock</button>':'')+'</section>';
+    return summary+'<section class="stock-empty"><h2>'+(!hasStock?'Your next find starts here':'No matching stock')+
+      '</h2><p>'+(!hasStock?'Add something you’re selling, even if it’s already on Vinted. It takes about 10 seconds and Pip names it for you.':'Try a different search or clear your filters.')+'</p>'+
+      (!hasStock&&!isReadOnly()?'<button class="action" data-add-piece>＋ Add your first item</button>':'')+'</section>';
   }
   if(stockAgeView){
     const asOf=todayUK();
@@ -208,15 +208,15 @@ function stockPage() {
     '<button type="button" data-guide>Open Pip review <span aria-hidden="true">↗</span></button></div></aside>';
   const viewSwitch='<div class="stock-view-switch" role="group" aria-label="Stock view">'+
     '<button type="button" data-stock-view="collection" aria-pressed="'+!stockAgeView+'">Collection</button>'+
-    '<button type="button" data-stock-view="ageing" aria-pressed="'+stockAgeView+'">Ageing stock</button></div>';
+    '<button type="button" data-stock-view="ageing" aria-pressed="'+stockAgeView+'">Oldest first</button></div>';
   return (stockAgeView?'<section class="stock-overview" aria-label="Ageing summary"><div><span>Cash tied up in unsold stock</span><strong>'+gbp(cost)+
       '</strong></div><div><span>Listed 30+ days</span><strong>'+ageing.length+'</strong><small>'+gbp(total(ageing,item=>item.cost))+
       ' at purchase cost</small></div><div><span>Active listings</span><strong>'+listed.length+'</strong><small>'+
       listed.filter(item=>daysListed(item,asOf)===null).length+' without a listing date</small></div></section>'+
       '<p class="stock-age-explainer">Review older listings first. Listing age uses your recorded listed date. Asking price updates are recorded from now on.</p>':
       '<section class="stock-overview" aria-label="Stock summary"><div><span>In stock</span><strong>'+active.length+'</strong></div>'+
-      '<div><span>At purchase cost</span><strong>'+gbp(cost)+'</strong></div><div><span>Forecast profit</span><strong>'+
-      gbp(total(active.filter(item=>Number.isFinite(item.price)),item=>profit(item)))+'</strong></div></section>')+
+      '<div><span>You paid</span><strong>'+gbp(cost)+'</strong></div><div><span>Profit if it sells</span>'+
+      (active.some(item=>Number.isFinite(item.price))?'<strong>'+gbp(total(active.filter(item=>Number.isFinite(item.price)),item=>profit(item)))+'</strong>':'<strong class="muted-value">—</strong><small>Add selling prices</small>')+'</div></section>')+
     '<section class="stock-controls" aria-label="Stock filters"><div class="stock-toolbar">'+viewSwitch+
     '<div class="stock-toolbar-actions">'+
     (stockAgeView?'':'<select id="sortQuick" class="sort-quick" aria-label="Sort stock">'+[['newest','Newest'],['oldest','Oldest'],['label','Label # ↑'],['label-desc','Label # ↓'],['profit','Most profit'],['cost','Highest cost'],['name','A–Z']].map(([v,l])=>'<option value="'+v+'" '+(sortBy===v?'selected':'')+'>'+l+'</option>').join('')+'</select>')+

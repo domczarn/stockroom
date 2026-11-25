@@ -153,3 +153,27 @@ eBay rules: title max 80 characters, keyword-rich, Brand + Item type + key detai
   if (!out.depop.description || !out.ebay.title || !out.ebay.description) throw new HttpError(502, 'Pip wrote something unusable. Try again.');
   return out;
 }
+
+// Price suggestion for anyone, even with no sales yet: community sold prices if we have them,
+// otherwise Pip's estimate of what it sells for on Vinted UK from the details (and photo, if given).
+export async function priceRoute(request, env, user) {
+  if (request.method !== 'POST') throw new HttpError(405, 'Method not allowed.');
+  const body = await readBody(request, 1_200_000) || {};
+  const item = body.item && typeof body.item === 'object' ? body.item : {};
+  const details = {Brand: text(item.brand, 60), 'Item type': text(item.garment, 40), Name: text(item.name, 120), Size: text(item.size, 20), Colour: text(item.color, 30), Condition: text(item.condition, 40), Flaws: text(item.flaws, 200)};
+  if (!details.Brand && !details['Item type'] && !details.Name) throw new HttpError(400, 'Pick a brand or category first.');
+  const community = await lookupIndex(env, details.Brand, garmentType(details['Item type'] || details.Name));
+  await aiAllowance(env, user);
+  const image = imageFromDataUrl(body.photo, 1_100_000);
+  const prompt = `You price second-hand clothing for resale on Vinted UK in ${new Date().getFullYear()}. Be realistic about what it actually SELLS for (not asking prices), for a typical seller.
+${Object.entries(details).filter(([, v]) => v).map(([k, v]) => `- ${k}: ${v}`).join('\n')}
+${community ? `- Stockroom sellers' recent sold prices for similar items: median £${community.median}, typical £${community.low}-£${community.high} (${community.n} sales)` : ''}
+${image ? '- A photo of the item is attached.' : ''}
+Reply with ONLY JSON: {"low": number, "high": number, "suggested": number, "why": string}
+low/high: realistic sold range in GBP; suggested: a good listing price that leaves a little room for offers; why: one short plain-English sentence a beginner understands (max 25 words). If details are too vague, give a wide range and say what would narrow it.`;
+  const data = jsonFrom(await ask(env, {prompt, maxTokens: 300, ...(image ? {image} : {})}), 'Pip couldn’t price that. Try again.');
+  const n = v => { const x = Math.round(Number(v) * 2) / 2; return Number.isFinite(x) && x > 0 && x < 5000 ? x : null; };
+  const low = n(data.low), high = n(data.high), suggested = n(data.suggested);
+  if (!low || !high || !suggested || low > high) throw new HttpError(502, 'Pip couldn’t price that. Add a brand or category and try again.');
+  return {low, high, suggested: Math.min(Math.max(suggested, low), high * 1.2), why: text(data.why, 200), community: community ? {median: community.median, count: community.n} : null};
+}

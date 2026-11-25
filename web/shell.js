@@ -3,17 +3,27 @@
 
 const SECTIONS = [
   {key:'home', label:'Home', tabs:[['Dashboard','Overview'],['Vinted updates','Vinted updates'],['Sale receipts','Sale receipts','admin']]},
-  {key:'stock', label:'Stock', tabs:[['Stock','Collection'],['Repricing','Stale stock'],['Sourcing','Sourcing'],['Orders','Bulk orders'],['Buying insights','Performance'],['Buying research','Market research']]},
+  {key:'stock', label:'Stock', tabs:[['Stock','Collection'],['Repricing','Not selling'],['Sourcing','Where I buy','pro-tools'],['Orders','Bulk buys','pro-tools'],['Buying insights','What sells best','pro-tools'],['Buying research','Market trends','pro-tools']]},
   {key:'money', label:'Money', tabs:[['Activity','Transactions'],['Expenses','Expenses'],['Reports','Reports']]},
   {key:'care', label:'Customer care', tabs:[['Customer care','Customer care']]},
   {key:'studio', label:'Photo studio', tabs:[['Studio','Photo studio']]},
   {key:'account', label:'Account', tabs:[['Account','Settings'],['Profile','Community'],['Leaderboard','Leaderboard'],['Admin','Admin','admin']]}
 ];
+// Beginner mode: the advanced stock tools stay out of the way until you've got going (10+ items or 3+ sales),
+// or you switch them on in Settings → Advanced. They're always reachable if you're already on one.
+function proToolsSetting() { try { return localStorage.getItem('sr-pro-tools:' + (account?.id || '')); } catch { return null; } }
+function showProTools() {
+  const pref = proToolsSetting();
+  if (pref === 'on') return true;
+  if (pref === 'off') return ['Sourcing', 'Orders', 'Buying insights', 'Buying research'].includes(typeof tab === 'string' ? tab : '');
+  const items = (db?.items || []).filter(i => !i.deletedAt).length, sales = (db?.trades || []).length;
+  return items >= 10 || sales >= 3 || ['Sourcing', 'Orders', 'Buying insights', 'Buying research'].includes(typeof tab === 'string' ? tab : '');
+}
 const sectionOf = name => SECTIONS.find(section => section.tabs.some(([id]) => id === name)) || SECTIONS[0];
 
 function subnavView(current) {
   const section = sectionOf(current);
-  const tabs = section.tabs.filter(([, , role]) => role !== 'admin' || (account?.role === 'admin' && !isReadOnly()));
+  const tabs = section.tabs.filter(([, , role]) => role === 'pro-tools' ? showProTools() : role !== 'admin' || (account?.role === 'admin' && !isReadOnly()));
   if (tabs.length < 2) return '';
   return '<nav class="subnav" aria-label="' + section.label + '">' + tabs.map(([id, label]) =>
     '<button type="button" data-tab="' + esc(id) + '"' + (id === current ? ' class="active" aria-current="page"' : '') + '>' + esc(label) + '</button>'
@@ -103,8 +113,8 @@ function pipBrainView() {
   const tone = {go:'Opportunity', warn:'Needs attention', info:'Signal'};
   return '<section class="pip-brain" aria-labelledby="pipBrainTitle">' +
     '<div class="pip-brain-visual">' + pipBrainArt() + '<img class="pip-brain-face" src="/pip.svg" alt="" width="96" height="90"></div>' +
-    '<div class="pip-brain-copy"><span class="pip-brain-eyebrow"><span class="pip-live"></span>Pip · live analysis</span>' +
-    '<h2 id="pipBrainTitle">Pip’s brain</h2><p class="pip-brain-summary">' + esc(brain.summary) + '</p>' +
+    '<div class="pip-brain-copy"><span class="pip-brain-eyebrow"><span class="pip-live"></span>About your numbers</span>' +
+    '<h2 id="pipBrainTitle">Ask Pip</h2><p class="pip-brain-summary">' + esc(brain.summary) + '</p>' +
     '<form class="ask-pip-bar" data-ask-pip-form><span class="ask-pip-spark" aria-hidden="true">✦</span><input name="q" autocomplete="off" maxlength="500" placeholder="Ask Pip about your numbers…" aria-label="Ask Pip a question"><button type="submit" aria-label="Ask">↑</button></form>' +
     '<div class="ask-pip-starters">' + ['What made me most money this month?', 'Which brands should I buy more of?', 'What should I reprice?'].map(q => '<button type="button" data-ask-pip="' + esc(q) + '">' + esc(q) + '</button>').join('') + '</div>' +
     (brain.signals.length ? '<ul class="pip-signals">' + brain.signals.map(signal =>

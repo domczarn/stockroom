@@ -6,7 +6,7 @@ import {notifyOwner,pushRoute} from './push.js';
 import { socialRoute, ownProfile, findConnection } from './social.js';
 import { pipSvg } from './pip.js';
 import {visionRoute,writeListingRoute} from './vision.js';
-import {priceIndexRoute,measureRoute,crosslistRoute} from './grow.js';
+import {priceIndexRoute,measureRoute,crosslistRoute,priceRoute} from './grow.js';
 import {snapRoute,flawsRoute,commandRoute} from './pipplus.js';
 import {studioRoute} from './studio.js';
 import {offerRoute,askRoute,scanRoute} from './pipai.js';
@@ -169,6 +169,7 @@ export default {
       if(url.pathname==='/api/pip/flaws')return json(await flawsRoute(request,env,user));
       if(url.pathname==='/api/pip/command')return json(await commandRoute(request,env,user));
       if(url.pathname==='/api/pip/crosslist')return json(await crosslistRoute(request,env,user));
+      if(url.pathname==='/api/pip/price')return json(await priceRoute(request,env,user));
       if(url.pathname==='/api/price-index'&&request.method==='GET')return json(await priceIndexRoute(request,env,user));
       if(url.pathname.startsWith('/api/pip/weekly'))return json(await weeklyRoute(request,url,env,user));
       if(url.pathname==='/api/vision/listing')return json(await visionRoute(request,env,user));

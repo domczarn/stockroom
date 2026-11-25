@@ -332,7 +332,7 @@ function activity() {
   const groups={all:[...legacyRows, ...expenseRows, ...stockSales],sales:[...legacyRows,...stockSales.filter(r=>r.includes('>Sale<'))],expenses:expenseRows,returns:stockSales.filter(r=>r.includes('>Return<'))};
   const counts={all:groups.all.length,sales:groups.sales.length,expenses:groups.expenses.length,returns:groups.returns.length};
   return '<div class="tools view-tools">'+viewTabs('activity',[['all','All'],['sales','Sales'],['expenses','Expenses'],['returns','Returns']],activityView,counts)+'<button class="secondary" data-ledger="expense">＋ Add expense</button></div>' +
-    table(['Type','Item / description','Amount','Item profit','Status',''], groups[activityView].join('') || '<tr><td colspan="6">Nothing here yet.</td></tr>')+removedExpensesView('sale');
+    table(['Type','Item / description','Amount','Item profit','Status',''], groups[activityView].join('') || '<tr><td colspan="6" class="money-empty"><b>'+({all:'Nothing sold or spent yet',sales:'No sales yet',expenses:'No expenses yet',returns:'No returns yet'}[String(activityView).toLowerCase()]||'Nothing here yet')+'</b><span>'+(String(activityView).toLowerCase()==='expenses'?'Log things like mailing bags or petrol to the car boot so your real profit is right.':(typeof personalGmail!=='undefined'&&personalGmail?.connection?'When something sells on Vinted it appears here by itself.':'Sales appear here when you mark an item sold. Connect Gmail and they appear by themselves.'))+'</span></td></tr>')+removedExpensesView('sale');
 }
 let expenseView='all', expenseCategory='All', activityView='all';
 function viewTabs(kind,options,current,counts={}){
@@ -390,7 +390,7 @@ function render() {
   markSections(tab);
   const headerAction = page => page==='Expenses'?'<button class="action" id="add" data-ledger="expense">＋ Add expense</button>':
     page==='Activity'?'<button class="action" id="add" data-ledger="sale">＋ Add sale</button>':'<button class="action" id="add">＋ Add stock</button>';
-  const titles = {Repricing:'Repricing coach',Sourcing:'Sourcing trips',Orders:'Bulk orders',Resources:'Reseller resources','Customer care':'Customer care',Dashboard: 'Business overview', Stock: 'Stock collection', Activity: 'Transactions', Expenses:'Business expenses',Account:'Settings',Profile:'Community',Admin:'Admin console',Studio:'Photo studio', 'Buying research': 'Buying research',Reports:'Reports','Buying insights':'Performance','Sale receipts':'Sale receipts','Vinted updates':'Vinted updates',Leaderboard:'Revenue leaderboard'};
+  const titles = {Repricing:'Not selling',Sourcing:'Where I buy',Orders:'Bulk buys',Resources:'Reseller resources','Customer care':'Customer care',Dashboard: 'Business overview', Stock: 'Stock collection', Activity: 'Transactions', Expenses:'Business expenses',Account:'Settings',Profile:'Community',Admin:'Admin console',Studio:'Photo studio', 'Buying research': 'Buying research',Reports:'Reports','Buying insights':'Performance','Sale receipts':'Sale receipts','Vinted updates':'Vinted updates',Leaderboard:'Revenue leaderboard'};
   const subtitles = {Repricing:'What to drop, refresh or clear, and how much cash it’s holding.',Sourcing:'Which shops, boots and suppliers actually make you money per hour.',Orders:'Every supplier, every batch, from purchase to your stockroom.',Resources:'Your directory of suppliers, auction sellers and useful tools.','Customer care':'Thoughtful updates for every customer, from purchase to delivery.',Dashboard:'Your resale business at a glance.',Stock:'See what’s in, what’s selling and what needs your attention.',Activity:'Track sales, expenses and completed returns.',Account:'Your account, connections and preferences, in one place.',Profile:'Your profile, connections and messages.',Admin:'Members, plans, invites and app settings.',Studio:'Clean, square listing photos on pro backdrops, in one tap.',Expenses:'Record and review the costs of running your resale business.','Buying research':'UK market data and comparable asking prices.',Reports:'Review your numbers by month or across all time.','Buying insights':'See what sells, what earns and what to buy more of.','Sale receipts':'Review and match imported Vinted orders.','Vinted updates':'Connect the inbox you use for Vinted and review recent order emails.',Leaderboard:'See how the Stockroom community ranks by recorded sales revenue.'};
   const phoneDash = tab==='Dashboard' && typeof phoneHome==='function' && phoneHome();
   let html = tab==='Dashboard'?(phoneDash?mobileHome():welcome()):'<section class="top'+(tab==='Stock'?' stock-page-heading':'')+'"><div>'+
@@ -472,8 +472,8 @@ function previewProfit() {
   const ready = cost !== '' && price !== '' && form.elements.status.value !== 'Refund pending';
   const result = Number(price) - Number(cost);
   $('profitPreview').textContent = ready
-    ? 'Profit ' + gbp(result) + '  ·  ROI ' + (Number(cost) > 0 ? (result / Number(cost) * 100).toFixed(1) + '%' : '—')
-    : 'Enter cost and resale price to preview profit and ROI.';
+    ? 'Profit ' + gbp(result) + '  ·  return on what you paid ' + (Number(cost) > 0 ? (result / Number(cost) * 100).toFixed(1) + '%' : '—')
+    : 'Add what you paid and a selling price to see your profit.';
 }
 let liveDraftFields = new Set();
 function setQuickStockEntry(quick) {

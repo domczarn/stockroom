@@ -52,7 +52,7 @@ function priceGuide(target) {
 function priceGuideHtml(target, cost) {
   const g = priceGuide(target);
   const community = typeof communityLine === 'function' ? communityLine(target, cost) : '';
-  if (!g) return community || '<span class="pg-none">Pip needs a sale of something similar before it can suggest a price.</span>';
+  if (!g) return community || '<span class="pg-line pg-ask-row"><span class="pg-pip" aria-hidden="true"></span><span><strong>Not sure what to charge?</strong><small>Pip estimates what it sells for on Vinted.</small></span><button type="button" class="pg-ask" data-pg-ask>Ask Pip</button></span>';
   const profit = Number.isFinite(cost) && cost !== null ? g.suggest - cost : null;
   return '<span class="pg-line"><span class="pg-pip" aria-hidden="true"></span><span><strong>Pip suggests ' + gbp(g.suggest) + '</strong>' +
     '<small>' + g.count + ' similar sale' + (g.count === 1 ? '' : 's') + (g.count > 1 ? ' · ' + gbp(g.low) + '–' + gbp(g.high) : '') + (g.days !== null ? ' · sold in about ' + g.days + ' day' + (g.days === 1 ? '' : 's') : '') +
@@ -84,4 +84,23 @@ document.addEventListener('click', event => {
   price.value = Number(use.dataset.pgUse).toFixed(2);
   price.dispatchEvent(new Event('input', {bubbles: true}));
   const row = price.closest('.qa-row, label'); row?.classList.remove('qa-flash'); void row?.offsetWidth; row?.classList.add('qa-flash');
+});
+
+// No sales of anything similar yet: ask Pip for an estimate from the details (and first photo).
+document.addEventListener('click', async event => {
+  const btn = event.target.closest('[data-pg-ask]');
+  if (!btn) return;
+  const form = btn.closest('form'), f = form?.elements, box = btn.closest('.pg-hint');
+  if (!form || !box) return;
+  const item = {brand: f.brand?.value || '', garment: f.garment?.value || '', name: f.name?.value || '', size: f.size?.value || '', color: f.color?.value || '', condition: f.condition?.value || (form.querySelector('[data-qa-cond][aria-pressed="true"]')?.dataset.qaCond || ''), flaws: f.flaws?.value || ''};
+  const photo = (typeof quick !== 'undefined' && form.id === 'quickAddForm' ? quick.photos?.[0] : (typeof draftPhotos !== 'undefined' ? draftPhotos?.[0] : '')) || '';
+  btn.disabled = true; btn.textContent = 'Pricing…';
+  try {
+    const r = await api('/api/pip/price', {method: 'POST', body: JSON.stringify({item, ...(String(photo).startsWith('data:image/') ? {photo} : {})})});
+    const cost = f.cost && f.cost.value !== '' ? Number(String(f.cost.value).replace(/[£,\s]/g, '')) : null;
+    const profit = Number.isFinite(cost) && cost !== null ? r.suggested - cost : null;
+    box.innerHTML = '<span class="pg-line"><span class="pg-pip" aria-hidden="true"></span><span><strong>Pip suggests ' + gbp(r.suggested) + '</strong>' +
+      '<small>Usually sells for ' + gbp(r.low) + '–' + gbp(r.high) + (profit !== null ? ' · ' + (profit >= 0 ? '+' : '') + gbp(profit) + ' profit' : '') + '</small>' +
+      (r.why ? '<small class="pg-ex">' + esc(r.why) + '</small>' : '') + '</span><button type="button" class="pg-use" data-pg-use="' + r.suggested + '">Use ' + gbp(r.suggested) + '</button></span>';
+  } catch (error) { btn.disabled = false; btn.textContent = 'Ask Pip'; toast(error.message || 'Pip couldn’t price that.'); }
 });

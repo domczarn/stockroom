@@ -159,7 +159,7 @@ function mobileHome() {
         '<button type="button" class="mh-tile" data-tab="Activity"><small>Money on the way</small><b>' + gbp(owed) + '</b><span aria-hidden="true">£</span></button>' +
         '<button type="button" class="mh-tile" data-mh-scroll="todo"><small>Parcels to post</small><b>' + toPost + '</b><span aria-hidden="true">📦</span></button>' +
       '</div>' +
-      '<div class="mh-pulse"><div class="mh-pulse-head"><span class="mh-pulse-orb"></span>Pip Pulse' + (pulses.length > 1 ? '<span class="mh-dots">' + pulses.map((_, i) => '<i class="' + (i === mhPulse % pulses.length ? 'on' : '') + '"></i>').join('') + '</span>' : '') + '</div>' +
+      '<div class="mh-pulse"><div class="mh-pulse-head"><span class="mh-pulse-orb"></span>Pip’s tip' + (pulses.length > 1 ? '<span class="mh-dots">' + pulses.map((_, i) => '<i class="' + (i === mhPulse % pulses.length ? 'on' : '') + '"></i>').join('') + '</span>' : '') + '</div>' +
         '<div class="mh-pulse-body" ' + (pulses.length > 1 ? 'data-mh-next' : '') + '><h3>' + p.title + '</h3><p>' + p.body + '</p></div>' +
         '<button type="button" class="mh-pulse-cta" ' + p.act + '>' + p.cta + '<span aria-hidden="true">→</span></button></div>' +
       (ro ? '' : '<div class="mh-quick"><button type="button" data-scan-open><span>📷</span>Buy or pass</button><button type="button" data-shot-import><span>🖼️</span>Screenshots</button><button type="button" data-mh-add><span>＋</span>Add stock</button></div>') +

@@ -372,3 +372,43 @@ document.addEventListener('click', async event => {
     undoToast('Posted · ' + item.name, async () => { await persist(before); render(); });
   } catch (error) { toast(error.message); } finally { button.disabled = false; }
 }, true);
+
+// Settings → Advanced: switch the extra stock tools on or off.
+document.addEventListener('click', event => {
+  if (!event.target.closest('[data-pro-tools]')) return;
+  const on = proToolsSetting() === 'on';
+  try { localStorage.setItem('sr-pro-tools:' + (account?.id || ''), on ? 'off' : 'on'); } catch {}
+  toast(on ? 'Extra stock tools hidden.' : 'Extra stock tools are on: find them under Stock.');
+  render();
+});
+
+// ---------- Item editor: everyday fields first, the rest folded under "More details" ----------
+const EDITOR_ADVANCED = ['purchasedAt', 'receivedAt', 'listedAt', 'stage', 'platform', 'location', 'sourcingRunId', 'refundedAt', 'styleCode'];
+function editorFold() {
+  const form = document.getElementById('form');
+  if (!form || form.dataset.folded) return;
+  form.dataset.folded = '1';
+  const rows = EDITOR_ADVANCED.map(n => form.elements[n]?.closest('label')).filter(Boolean);
+  if (!rows.length) return;
+  rows.forEach(r => r.classList.add('adv-field'));
+  const btn = document.createElement('button');
+  btn.type = 'button'; btn.className = 'more-details-toggle'; btn.dataset.moreDetails = '';
+  btn.innerHTML = '<span>More details</span><small>Dates, stage, where it’s stored, platform</small><em aria-hidden="true">›</em>';
+  const notes = form.elements.notes?.closest('label');
+  (notes || rows.at(-1)).insertAdjacentElement(notes ? 'beforebegin' : 'afterend', btn);
+}
+document.addEventListener('click', event => {
+  const btn = event.target.closest('[data-more-details]');
+  if (!btn) return;
+  const form = btn.closest('form'); form.classList.toggle('show-more');
+  btn.setAttribute('aria-expanded', String(form.classList.contains('show-more')));
+});
+// Fold on first open; show everything automatically if one of those fields already has something worth seeing.
+new MutationObserver(() => {
+  const modal = document.getElementById('modal');
+  if (!modal?.open) return;
+  editorFold();
+  const form = document.getElementById('form');
+  const filled = ['receivedAt', 'listedAt', 'location', 'sourcingRunId', 'refundedAt'].some(n => form.elements[n]?.value) || (form.elements.platform?.value && form.elements.platform.value !== 'Vinted');
+  form.classList.toggle('show-more', !!filled);
+}).observe(document.getElementById('modal') || document.body, {attributes: true, attributeFilter: ['open']});
