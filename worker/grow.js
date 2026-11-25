@@ -1,6 +1,7 @@
 // Growth features: the Stockroom price index (anonymous sold prices across all sellers),
 // measurements from a photo, and cross-platform listing copy.
 import {readBody, HttpError} from './security.js';
+import {isPro} from './billing.js';
 import {ask, jsonFrom, imageFromDataUrl, aiAllowance} from './llm.js';
 
 // ---------- Price index ----------
@@ -156,12 +157,19 @@ eBay rules: title max 80 characters, keyword-rich, Brand + Item type + key detai
 
 // Price suggestion for anyone, even with no sales yet: community sold prices if we have them,
 // otherwise Pip's estimate of what it sells for on Vinted UK from the details (and photo, if given).
+export const FREE_PRICE_CHECKS = 5;
 export async function priceRoute(request, env, user) {
   if (request.method !== 'POST') throw new HttpError(405, 'Method not allowed.');
   const body = await readBody(request, 1_200_000) || {};
   const item = body.item && typeof body.item === 'object' ? body.item : {};
   const details = {Brand: text(item.brand, 60), 'Item type': text(item.garment, 40), Name: text(item.name, 120), Size: text(item.size, 20), Colour: text(item.color, 30), Condition: text(item.condition, 40), Flaws: text(item.flaws, 200)};
   if (!details.Brand && !details['Item type'] && !details.Name) throw new HttpError(400, 'Pick a brand or category first.');
+  // Free accounts: a few price checks a day, so everyone can try Pip.
+  if (!user.admin && env.DB && !(await isPro(env, user))) {
+    const day = Math.floor(Date.now() / 86400000);
+    const row = await env.DB.prepare('INSERT INTO rate_limits (key,window,count) VALUES (?,?,1) ON CONFLICT(key) DO UPDATE SET count = CASE WHEN window = excluded.window THEN count + 1 ELSE 1 END, window=excluded.window RETURNING count').bind('pip-price:' + user.id, day).first();
+    if (row.count > FREE_PRICE_CHECKS) throw new HttpError(402, 'You’ve used today’s ' + FREE_PRICE_CHECKS + ' free price checks. Go Pro for unlimited Pip.');
+  }
   const community = await lookupIndex(env, details.Brand, garmentType(details['Item type'] || details.Name));
   await aiAllowance(env, user);
   const image = imageFromDataUrl(body.photo, 1_100_000);

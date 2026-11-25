@@ -259,11 +259,26 @@ export function vintedEvent(subject,snippet,receivedAt){
   return null;
 }
 
+// Free accounts: the first FREE_GMAIL_SALES sales each month are tracked automatically; later ones are still shown
+// but marked capped, so the app asks before adding them. Pro (and upgrading later) clears the mark.
+export const FREE_GMAIL_SALES=20;
+export function capFreeSales(receipts,pro){
+  const out=receipts.map(({capped,...rest})=>rest);
+  if(pro)return out;
+  const used=new Map();
+  for(const r of [...out].filter(r=>r.event?.type==='sold').sort((a,b)=>String(a.receivedAt).localeCompare(String(b.receivedAt)))){
+    const month=String(r.event.date||r.receivedAt||'').slice(0,7), n=(used.get(month)||0)+1;
+    used.set(month,n);
+    if(n>FREE_GMAIL_SALES)r.capped=true;
+  }
+  return out;
+}
 export async function check(env,user,context,row){
   if(!row.enabled)throw new HttpError(409,'Resume Gmail sync before checking.');
   if(row.state==='reconnect')throw new HttpError(409,'Reconnect Gmail to continue.');
   const now=Date.now();
   if(row.checked_at&&now-Date.parse(row.checked_at)<60000)return {added:0,...publicConnection(row,env)};
+  const pro=Boolean(user.admin)||await isPro(env,user);
   const lease=now+90000;
   const locked=await env.DB.prepare('UPDATE gmail_connections SET lease=? WHERE owner_id=? AND connection_id=? AND lease<? AND enabled=1')
     .bind(lease,user.id,row.connection_id,now).run();
@@ -274,7 +289,7 @@ export async function check(env,user,context,row){
     const before=JSON.parse(current.receipts);
     const merged=new Map(before.map(receipt=>[receipt.id,receipt]));
     for(const receipt of receipts){const known=merged.get(receipt.id);if(!known)merged.set(receipt.id,receipt);else if(((receipt.read||0)>(known.read||0))||(receipt.event&&(!known.event||(receipt.event.tracking&&!known.event.tracking))))merged.set(receipt.id,{...known,...receipt});}
-    const recent=[...merged.values()].sort((a,b)=>b.receivedAt.localeCompare(a.receivedAt)).slice(0,220);
+    const recent=capFreeSales([...merged.values()].sort((a,b)=>b.receivedAt.localeCompare(a.receivedAt)).slice(0,220),pro);
     const result=await env.DB.prepare('UPDATE gmail_connections SET state=?,checked_at=?,receipts=?,lease=0 WHERE owner_id=? AND connection_id=? AND lease=? AND enabled=1 AND receipts=?')
       .bind(state,new Date().toISOString(),JSON.stringify(recent),user.id,row.connection_id,lease,current.receipts).run();
     const added=recent.filter(receipt=>!before.some(existing=>existing.id===receipt.id)).length;
@@ -284,8 +299,8 @@ export async function check(env,user,context,row){
   try{
     const token=await unprotect(env,user.id,row.token);
     const {access_token}=await googleToken(env,{refresh_token:token,grant_type:'refresh_token'});
+    let budget=38-await renewWatch(env,row,access_token);
     // Cloudflare allows ~50 outside requests per run, so spend them carefully and pick up the rest next check.
-    let budget=38;
     const senders=['no-reply@vinted.co.uk',...COURIER_DOMAINS.map(d=>'@'+d)].map(f=>'from:'+f).join(' OR ');
     const list=await getGmail('messages',access_token,{q:'('+senders+') newer_than:'+row.days+'d',maxResults:'40',fields:'messages(id)'});
     // Also look further back for completed orders and labels, so older sales still close properly.
@@ -435,13 +450,98 @@ async function importPurchases(env,token,receipts){
 }
 
 // Runs from the Worker cron so purchases arrive without opening the app.
-export async function scheduledGmail(env,context){
-  const owner=await env.DB.prepare('SELECT user_id FROM profiles WHERE owner=1 LIMIT 1').first();
-  const rows=(await env.DB.prepare("SELECT * FROM gmail_connections WHERE enabled=1 AND state<>'reconnect'").all()).results||[];
+// One mailbox per run. A Gmail check spends most of a free Worker run's ~50 outside requests, so the cron
+// (every minute) picks the single most overdue mailbox: Pro every 5 minutes, free every 20. Everyone gets a turn,
+// however many people connect, and no run ever runs out of budget half-way through someone's check.
+export const DUE_MS={pro:5*60000,free:20*60000,pushed:60*60000};
+export function pickDue(rows,now=Date.now()){
+  let best=null,bestLate=0;
   for(const row of rows){
-    const owned=Boolean(owner&&row.owner_id===owner.user_id);
-    if(!owned&&!(await isPro(env,{id:row.owner_id,admin:false})))continue; // auto-updates are a Pro feature
-    try{await check(env,{id:row.owner_id,admin:Boolean(owner&&row.owner_id===owner.user_id)},context,row);}
-    catch(error){if(error?.status!==409)console.error('Scheduled Gmail check failed',String(error?.message||error).slice(0,160));}
+    const since=row.checked_at?now-Date.parse(row.checked_at):Infinity;
+    // With instant Gmail alerts on, the minute cron is only a safety net.
+    const pushed=Number(row.watch_until||0)>now;
+    const late=since-(pushed?DUE_MS.pushed:row.pro?DUE_MS.pro:DUE_MS.free);
+    if(late<0||row.lease>now)continue;
+    const score=late===Infinity?Number.MAX_SAFE_INTEGER:late+(row.pro?DUE_MS.free:0);
+    if(!best||score>bestLate){best=row;bestLate=score;}
   }
+  return best;
+}
+export async function scheduledGmail(env,context){
+  const rows=(await env.DB.prepare(`SELECT g.*, COALESCE(p.owner,0) AS owner, CASE WHEN p.owner=1 OR (a.plan='pro' AND (a.plan_until IS NULL OR a.plan_until>?)) THEN 1 ELSE 0 END AS pro
+    FROM gmail_connections g LEFT JOIN accounts a ON a.id=g.owner_id LEFT JOIN profiles p ON p.user_id=g.owner_id
+    WHERE g.enabled=1 AND g.state<>'reconnect'`).bind(new Date().toISOString()).all()).results||[];
+  const row=pickDue(rows);
+  if(!row)return;
+  try{await check(env,{id:row.owner_id,admin:Boolean(row.owner)},context,row);}
+  catch(error){if(error?.status!==409)console.error('Scheduled Gmail check failed',String(error?.message||error).slice(0,160));}
+}
+
+// ---- Instant updates: Gmail → Google Pub/Sub → POST /hooks/gmail ----
+// Off unless GMAIL_PUBSUB_TOPIC is set (projects/<project>/topics/<topic>). Each connected mailbox asks Gmail to
+// announce new mail on that topic; Pub/Sub then calls us with a Google-signed token and we check that one mailbox
+// straight away, in its own request with its own budget. Watches last 7 days and renew during normal checks.
+async function renewWatch(env,row,accessToken){
+  if(!env.GMAIL_PUBSUB_TOPIC||Number(row.watch_until||0)>Date.now()+2*86400000)return 0;
+  try{
+    const res=await googleJSON('https://gmail.googleapis.com/gmail/v1/users/me/watch',{method:'POST',
+      headers:{Authorization:'Bearer '+accessToken,'content-type':'application/json'},
+      body:JSON.stringify({topicName:env.GMAIL_PUBSUB_TOPIC,labelIds:['INBOX'],labelFilterBehavior:'INCLUDE'})});
+    const until=Number(res.expiration)||0;
+    if(until)await env.DB.prepare('UPDATE gmail_connections SET watch_until=? WHERE owner_id=? AND connection_id=?').bind(until,row.owner_id,row.connection_id).run().catch(()=>{});
+  }catch(error){console.error('Gmail watch failed',String(error?.message||error).slice(0,160));}
+  return 1;
+}
+const googleCerts={at:0,keys:null};
+const b64u=v=>Uint8Array.from(atob(v.replace(/-/g,'+').replace(/_/g,'/').padEnd(Math.ceil(v.length/4)*4,'=')),c=>c.charCodeAt(0));
+export async function verifyGoogleJwt(token,env,now=Date.now(),fetchKeys){
+  const parts=String(token||'').split('.');
+  if(parts.length!==3)return null;
+  try{
+    const header=JSON.parse(new TextDecoder().decode(b64u(parts[0])));
+    if(header.alg!=='RS256')return null;
+    if(!googleCerts.keys||now-googleCerts.at>3600000){
+      googleCerts.keys=fetchKeys?await fetchKeys():(await googleJSON('https://www.googleapis.com/oauth2/v3/certs')).keys||[];
+      googleCerts.at=now;
+    }
+    const jwk=googleCerts.keys.find(k=>k.kid===header.kid);
+    if(!jwk)return null;
+    const key=await crypto.subtle.importKey('jwk',jwk,{name:'RSASSA-PKCS1-v1_5',hash:'SHA-256'},false,['verify']);
+    if(!await crypto.subtle.verify('RSASSA-PKCS1-v1_5',key,b64u(parts[2]),new TextEncoder().encode(parts[0]+'.'+parts[1])))return null;
+    const c=JSON.parse(new TextDecoder().decode(b64u(parts[1])));
+    if(!['https://accounts.google.com','accounts.google.com'].includes(c.iss))return null;
+    if(c.aud!==(env.GMAIL_PUSH_AUDIENCE||origin+'/hooks/gmail'))return null;
+    if(!env.GMAIL_PUSH_SERVICE_ACCOUNT||c.email!==env.GMAIL_PUSH_SERVICE_ACCOUNT||c.email_verified!==true)return null;
+    if(!(Number(c.exp)*1000>now))return null;
+    return c;
+  }catch{return null;}
+}
+export async function gmailPushRoute(request,env,context){
+  if(!env.GMAIL_PUBSUB_TOPIC)return new Response('Not found',{status:404});
+  const claims=await verifyGoogleJwt((request.headers.get('authorization')||'').replace(/^Bearer\s+/i,''),env);
+  if(!claims)return new Response('Unauthorized',{status:401});
+  let mailbox='';
+  try{
+    const body=await request.json();
+    mailbox=String(JSON.parse(atob(body?.message?.data||''))?.emailAddress||'').toLowerCase().slice(0,200);
+  }catch{return new Response(null,{status:204});}
+  if(!mailbox)return new Response(null,{status:204});
+  const row=await env.DB.prepare("SELECT * FROM gmail_connections WHERE lower(mailbox)=? AND enabled=1 AND state<>'reconnect'").bind(mailbox).first();
+  if(row){
+    const owner=await env.DB.prepare('SELECT owner FROM profiles WHERE user_id=?').bind(row.owner_id).first().catch(()=>null);
+    // A push means there is new mail, so skip the one-minute pause; if a check is already running, try again shortly.
+    const who={id:row.owner_id,admin:Boolean(owner?.owner)};
+    const run=(async()=>{
+      for(let attempt=0;attempt<2;attempt++){
+        const fresh=attempt?await connection(env,row.owner_id):row;
+        if(!fresh)return;
+        try{await check(env,who,context,{...fresh,checked_at:null});return;}
+        catch(error){if(error?.status!==409){console.error('Pushed Gmail check failed',String(error?.message||error).slice(0,160));return;}}
+        await new Promise(r=>setTimeout(r,15000));
+      }
+    })();
+    context?.waitUntil?context.waitUntil(run):await run;
+  }
+  // Always acknowledge, or Pub/Sub keeps retrying the same notice.
+  return new Response(null,{status:204});
 }

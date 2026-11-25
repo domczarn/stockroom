@@ -12,8 +12,8 @@ function call(path,who,method='GET',body,headers={}){
     ...(body?{'content-type':'application/json'}:{})
   },...(body?{body:JSON.stringify(body)}:{})}),env);
 }
-// Gmail auto-updates are Pro: a free member is refused, Pro members (below) can connect.
-assert.equal((await call('/api/gmail/connect','alice','POST')).status,402);
+// Gmail is open to free members too (sales past the monthly allowance are marked capped).
+assert.notEqual((await call('/api/gmail/connect','alice','POST')).status,402);
 for(const [id,email] of Object.entries(users))await env.DB.prepare("INSERT INTO accounts (id,email,created_at,plan) VALUES (?,?,'2026-01-01','pro')").bind(id,email).run();
 assert.equal((await call('/api/gmail')).status,401);
 assert.equal((await call('/api/gmail',null,'GET',null,serviceHeaders())).status,401);

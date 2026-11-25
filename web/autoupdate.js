@@ -164,7 +164,14 @@ async function auRun() {
   // Exact email time order (several emails often land in the same minute), and for ties the natural order:
   // sold → label → QR → posted → delivered → completed.
   const stage = {sold: 0, label: 1, qr: 2, posted: 3, 'parcel-delivered': 4, delivered: 5, completed: 6, paid: 7, refund: 8};
-  const events = receipts.filter(r => r.event && !auDone.has(auKey(r))).map(r => ({...r.event, id: auKey(r), at: r.receivedAt || r.event.date}))
+  // Free plan: sales past the monthly allowance are shown in Vinted updates but not added by themselves.
+  const capped = receipts.filter(r => r.capped && r.event?.type === 'sold');
+  if (capped.length) {
+    const key = 'sr-gmail-cap:' + account.id + ':' + String(capped[0].event.date || capped[0].receivedAt || '').slice(0, 7);
+    let told = false; try { told = !!localStorage.getItem(key); localStorage.setItem(key, '1'); } catch {}
+    if (!told && typeof openUpgrade === 'function') setTimeout(() => openUpgrade('You’ve had 20 sales tracked for free this month. Go Pro to keep every sale tracking itself, or add the rest from Vinted updates.'), 600);
+  }
+  const events = receipts.filter(r => r.event && !r.capped && !auDone.has(auKey(r))).map(r => ({...r.event, id: auKey(r), at: r.receivedAt || r.event.date}))
     .sort((a, b) => String(a.at).localeCompare(String(b.at)) || (stage[a.type] ?? 9) - (stage[b.type] ?? 9));
   // Older sales recorded from emails get their exact time from the email (once), for the 24H chart.
   if (!auTimesFilled && receipts.length && !isReadOnly()) {

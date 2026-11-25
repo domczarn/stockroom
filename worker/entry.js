@@ -9,7 +9,7 @@ export default {
     return app.fetch(await withIdentity(request,env),env,context);
   },
   async scheduled(event,env,context){
-    context.waitUntil(scheduledGmail(env,context));
+    if(event.cron!=='*/10 * * * *'){context.waitUntil(scheduledGmail(env,context));return;}
     context.waitUntil(scheduledAlerts(env).catch(()=>{}));
     context.waitUntil(rebuildPriceIndex(env).catch(error=>console.error('Price index failed',String(error?.message||error).slice(0,160))));
     context.waitUntil(scheduledWeekly(env).catch(error=>console.error('Weekly report failed',String(error?.message||error).slice(0,160))));

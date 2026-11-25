@@ -7,7 +7,8 @@ workers_dev = false
 routes = [{ pattern = "stockroom.bookednpaid.com", custom_domain = true }]
 
 [triggers]
-crons = ["*/10 * * * *"]
+# Every minute: one Gmail mailbox. Every 10 minutes: price index, alerts, weekly reports. Separate runs, separate budgets.
+crons = ["* * * * *", "*/10 * * * *"]
 
 [observability]
 enabled = true

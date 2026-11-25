@@ -48,7 +48,8 @@ test('free plan allows 20 new items a month, then asks for Pro', async () => {
   assert.deepEqual([billing.data.plan, billing.data.used, billing.data.limit], ['free', 20, 20]);
   // Pro features are refused on free.
   assert.equal((await call(env, '/api/vision/write-listing', 'a', 'POST', {})).status, 402);
-  assert.equal((await call(env, '/api/gmail/connect', 'a', 'POST', {})).status, 402);
+  // Gmail is open to free accounts (capped by capFreeSales), so it is no longer refused with 402.
+  assert.notEqual((await call(env, '/api/gmail/connect', 'a', 'POST', {})).status, 402);
 });
 
 test('the owner is always Pro and has no limit', async () => {

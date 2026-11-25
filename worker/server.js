@@ -1,7 +1,7 @@
 import {marketResearchRoute} from './market-research.js';
 import {isStockroomService} from './service-auth.js';
 import {emailSyncState,syncStatusRoute} from './import-status.js';
-import {gmailRoute} from './gmail.js';
+import {gmailRoute,gmailPushRoute} from './gmail.js';
 import {notifyOwner,pushRoute} from './push.js';
 import { socialRoute, ownProfile, findConnection } from './social.js';
 import { pipSvg } from './pip.js';
@@ -105,6 +105,7 @@ export default {
         if (request.headers.get('sec-fetch-site') === 'cross-site') throw new HttpError(403,'Cross-site write blocked');
       }
       if(url.pathname.startsWith('/auth/'))return await authRoute(request,url,env);
+      if(url.pathname==='/hooks/gmail'&&request.method==='POST')return await gmailPushRoute(request,env,context);
       if(url.pathname==='/email/unsubscribe'&&request.method==='GET')return await unsubscribePage(url,env);
       if(url.pathname==='/login'&&['GET','HEAD'].includes(request.method))return identity(request)?Response.redirect(url.origin+'/',302):loginPage(request,env);
       const rawUser=identity(request);
@@ -137,7 +138,7 @@ export default {
       }
       if(url.pathname==='/api/account/delete'){const r=await deleteOwnAccount(request,env,user);return new Response(JSON.stringify(r),{headers:{'content-type':'application/json','cache-control':'no-store','set-cookie':'sr_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0'}});}
       if(url.pathname==='/api/billing'||url.pathname.startsWith('/api/billing/'))return json(await billingRoute(request,url,env,user));
-      if(['/api/gmail/connect','/api/gmail/check'].includes(url.pathname)&&request.method==='POST')await requirePro(env,user,'Gmail auto-updates');
+      // Gmail is open to everyone; free accounts get FREE_GMAIL_SALES auto-tracked sales a month (see capFreeSales).
       // App health: errors from people's phones, and which screens get used (counted per day, never per person).
       if(url.pathname==='/api/client-error'&&request.method==='POST'){
         await rateLimit(env,'client-error:'+user.id);
@@ -159,7 +160,7 @@ export default {
         const result=await gmailRoute(request,url,env,user,context);
         return result instanceof Response?result:json(result);
       }
-      if((url.pathname.startsWith('/api/vision/')||(url.pathname.startsWith('/api/pip/')&&!url.pathname.startsWith('/api/pip/weekly')))&&request.method==='POST')await requirePro(env,user,'Pip AI');
+      if((url.pathname.startsWith('/api/vision/')||(url.pathname.startsWith('/api/pip/')&&!url.pathname.startsWith('/api/pip/weekly')&&url.pathname!=='/api/pip/price'))&&request.method==='POST')await requirePro(env,user,'Pip AI');
       if(url.pathname==='/api/pip/studio')return json(await studioRoute(request,env,user));
       if(url.pathname==='/api/pip/offer')return json(await offerRoute(request,env,user));
       if(url.pathname==='/api/pip/ask')return json(await askRoute(request,env,user));

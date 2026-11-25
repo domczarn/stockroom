@@ -45,7 +45,7 @@ test('new emails get a fresh account; bad input and brute force are refused', as
 test('signed-out visitors get the website, /login has the sign-in form; passkey routes need a session', async () => {
   const env = environment();
   const page = await app.fetch(new Request(origin + '/'), env);
-  assert.match(await page.text(), /run like a business/);
+  assert.match(await page.text(), /Vinted sale again/);
   assert.match(page.headers.get('content-security-policy'), /script-src 'self'/);
   const login = await app.fetch(new Request(origin + '/login'), env);
   assert.match(await login.text(), /Sign in to Stockroom/);

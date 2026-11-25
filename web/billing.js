@@ -2,7 +2,7 @@
 let billingInfo = null, billingInterval = 'year';
 const PRO_FEATURES = [
   ['Unlimited stock', 'Add as many items as you buy. Free is 20 a month.'],
-  ['Gmail auto-updates (beta)', 'Pip reads your Vinted emails and marks sales, deliveries and refunds for you.'],
+  ['Every sale tracks itself', 'Free tracks 20 sales a month from Gmail. Pro tracks all of them, with labels, QR codes and deliveries.'],
   ['Pip AI', 'Fill items from a screenshot and get Vinted listings written for you.'],
 ];
 
