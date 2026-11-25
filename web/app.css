@@ -3204,3 +3204,11 @@ details.market-group[open]>summary{margin-bottom:10px}
 .mh-tip dt i.rev{background:#7f9dff}.mh-tip dt i.pro{background:#e7864f}
 .mh-tip .run{border-top:1px solid rgba(255,255,255,.08);padding-top:4px;margin-top:2px}
 .rc-grains[hidden]{display:none!important}
+/* Add stock: type box first, suggestions under it */
+.qa-pick .qa-chips button[hidden]{display:none}
+.qa-pick .qa-other{order:0}
+.qa-pick .qa-chips:empty{display:none}
+#quickAdd .qa-pick input.qa-other,#quickAdd .qa-pick .qa-money input{display:block;width:100%;box-sizing:border-box;text-align:left!important;background:rgba(255,255,255,.06)!important;border:1px solid rgba(255,255,255,.12)!important;border-radius:11px!important;padding:10px 12px!important;color:var(--ink)!important;min-height:42px}
+#quickAdd .qa-pick input.qa-other:focus,#quickAdd .qa-pick .qa-money input:focus{border-color:rgba(155,120,255,.7)!important;outline:none;background:rgba(255,255,255,.09)!important}
+#quickAdd .qa-pick input::placeholder{color:var(--muted);opacity:.8}
+#quickAdd .qa-pick .qa-money{display:flex;align-items:center;gap:8px}

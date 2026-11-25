@@ -190,6 +190,18 @@ for (const viewport of [{width: 390, height: 844}, {width: 1440, height: 900}]) 
     const it = await page.evaluate(() => { const i = db.items.at(-1); return [i.name, i.cost, i.size].join('|'); });
     assert.equal(it, 'Black Nike Windbreaker|8|M');
   });
+  await check('add stock: type freely, suggestions narrow down', viewport, async page => {
+    await page.evaluate(() => openQuickAdd());
+    await page.fill('#quickAdd [data-qa-pick="brand"] input', 'nik');
+    const shown = await page.evaluate(() => [...document.querySelectorAll('#quickAdd [data-qa-pick="brand"] [data-v]')].filter(b => !b.hidden).map(b => b.dataset.v));
+    assert.deepEqual(shown, ['Nike']);
+    await page.fill('#quickAdd [data-qa-pick="brand"] input', 'Arc\'teryx');
+    await page.fill('#quickAdd [data-qa-pick="garment"] input', 'Shell Jacket');
+    const count = await page.evaluate(() => db.items.length);
+    await page.click('#qaSave');
+    await page.waitForFunction(c => db.items.length === c + 1, count);
+    assert.equal(await page.evaluate(() => db.items.at(-1).name), "Arc'teryx Shell Jacket");
+  });
   await check('mark as posted is one tap with undo', viewport, async page => {
     const id = await page.evaluate(() => { const item = db.items.find(i => i.status === 'In Stock' && !i.deletedAt); db = recordSale(db, item.id, 20, todayUK()); render(); return item.id; });
     await page.evaluate(id => { const b = document.createElement('button'); b.dataset.trade = 'post'; b.dataset.stockId = id; b.id = 'testPost'; document.body.append(b); }, id);

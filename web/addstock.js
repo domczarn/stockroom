@@ -19,26 +19,31 @@ const QA_COMMON = {
   color: ['Black', 'White', 'Grey', 'Navy', 'Blue', 'Green', 'Red', 'Beige', 'Brown', 'Pink', 'Multi']
 };
 // One row of tap-to-choose chips: your recent picks first, then common ones, then "Other".
+// Type freely, or tap a suggestion. Suggestions narrow down as you type.
 function qaPick(field, label) {
-  return '<div class="qa-row qa-pick" data-qa-pick="' + field + '"><span>' + label + '</span><div class="qa-chips"></div>' +
-    '<input name="' + field + '" class="qa-other" placeholder="Type ' + label.toLowerCase() + '" autocomplete="off" hidden></div>';
+  return '<div class="qa-row qa-pick" data-qa-pick="' + field + '"><span>' + label + '</span>' +
+    '<input name="' + field + '" class="qa-other" placeholder="Type or tap a suggestion" autocomplete="off" enterkeyhint="next">' +
+    '<div class="qa-chips" aria-label="Suggested ' + label.toLowerCase() + '"></div></div>';
 }
 function qaFillPicks(form) {
   for (const row of form.querySelectorAll('[data-qa-pick]')) {
     const field = row.dataset.qaPick, recent = recentValues(field, 6);
     const seen = new Set(), list = [...recent, ...QA_COMMON[field]].filter(v => { const k = v.toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; }).slice(0, field === 'size' ? 9 : 10);
     if (field === 'size') list.sort((a, b) => (QA_COMMON.size.indexOf(a) + 1 || 99) - (QA_COMMON.size.indexOf(b) + 1 || 99));
-    row.querySelector('.qa-chips').innerHTML = list.map(v => '<button type="button" data-v="' + esc(v) + '">' + esc(v) + '</button>').join('') + '<button type="button" class="qa-chip-other" data-other>Other…</button>';
+    row.querySelector('.qa-chips').innerHTML = list.map(v => '<button type="button" data-v="' + esc(v) + '">' + esc(v) + '</button>').join('');
   }
   qaSyncPicks(form);
 }
 function qaSyncPicks(form) {
   for (const row of form.querySelectorAll('[data-qa-pick]')) {
     const input = row.querySelector('input'), value = input.value.trim().toLowerCase();
-    let matched = false;
-    row.querySelectorAll('[data-v]').forEach(b => { const on = !!value && b.dataset.v.toLowerCase() === value; matched ||= on; b.setAttribute('aria-pressed', String(on)); });
-    if (value && !matched) input.hidden = false;
-    row.querySelector('[data-other]').setAttribute('aria-pressed', String(!input.hidden));
+    const exact = [...row.querySelectorAll('[data-v]')].some(b => b.dataset.v.toLowerCase() === value);
+    row.querySelectorAll('[data-v]').forEach(b => {
+      const v = b.dataset.v.toLowerCase();
+      b.setAttribute('aria-pressed', String(!!value && v === value));
+      // While typing, only show suggestions that fit what you've typed (all of them once one is picked).
+      b.hidden = !!value && !exact && !v.includes(value);
+    });
   }
   for (const box of form.querySelectorAll('[data-qa-money]')) {
     const v = Number(form.elements[box.dataset.qaMoney].value);
@@ -53,11 +58,9 @@ document.addEventListener('click', event => {
   const pick = event.target.closest('[data-qa-pick] [data-v]');
   if (pick) {
     const input = pick.closest('[data-qa-pick]').querySelector('input');
-    input.value = pick.getAttribute('aria-pressed') === 'true' ? '' : pick.dataset.v; input.hidden = true;
+    input.value = pick.getAttribute('aria-pressed') === 'true' ? '' : pick.dataset.v;
     qaSyncPicks(form); if (typeof pgRefresh === 'function') pgRefresh(form); return;
   }
-  const other = event.target.closest('[data-qa-pick] [data-other]');
-  if (other) { const input = other.closest('[data-qa-pick]').querySelector('input'); input.hidden = false; input.value = ''; qaSyncPicks(form); input.focus(); return; }
   const money = event.target.closest('[data-qa-money] [data-v]');
   if (money) { const input = form.elements[money.closest('[data-qa-money]').dataset.qaMoney]; input.value = money.getAttribute('aria-pressed') === 'true' ? '' : Number(money.dataset.v).toFixed(2); qaSyncPicks(form); if (typeof pgRefresh === 'function') pgRefresh(form); return; }
   const day = event.target.closest('[data-qa-date] [data-d]');
@@ -68,7 +71,7 @@ document.addEventListener('click', event => {
     qaSyncPicks(form);
   }
 });
-document.addEventListener('input', event => { const form = event.target.closest('#quickAddForm'); if (form && event.target.matches('[name=cost],[name=price],[name=purchasedAt]')) qaSyncPicks(form); });
+document.addEventListener('input', event => { const form = event.target.closest('#quickAddForm'); if (form && event.target.matches('[name=cost],[name=price],[name=purchasedAt],[data-qa-pick] input')) qaSyncPicks(form); });
 
 function quickSheet() {
   let dialog = document.getElementById('quickAdd');
@@ -133,7 +136,6 @@ function openQuickAdd() {
   document.getElementById('qaReading').hidden = true;
   form.elements.purchasedAt.value = todayUK();
   form.elements.purchasedAt.max = todayUK();
-  form.querySelectorAll('[data-qa-pick] input').forEach(i => { i.hidden = true; });
   form.elements.purchasedAt.hidden = true;
   qaFillPicks(form);
   document.getElementById('qaError').textContent = '';
