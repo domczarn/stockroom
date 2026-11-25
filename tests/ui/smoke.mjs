@@ -197,6 +197,7 @@ for (const viewport of [{width: 390, height: 844}, {width: 1440, height: 900}]) 
     assert.deepEqual(shown, ['Nike']);
     await page.fill('#quickAdd [data-qa-pick="brand"] input', 'Arc\'teryx');
     await page.fill('#quickAdd [data-qa-pick="garment"] input', 'Shell Jacket');
+    await page.click('#quickAdd [data-qa-money="cost"] [data-v="12"]');
     const count = await page.evaluate(() => db.items.length);
     await page.click('#qaSave');
     await page.waitForFunction(c => db.items.length === c + 1, count);
