@@ -222,7 +222,7 @@ for (const viewport of [{width: 390, height: 844}, {width: 1440, height: 900}]) 
     assert.equal(out, '24|18|40|1', out);
     if (viewport.width < 500) {
       await go(page, 'Dashboard');
-      await page.evaluate(() => { mhRange = 1; render(); });
+      await page.evaluate(() => { mhRange = 1; rc.range = '24H'; render(); });
       assert.match(await page.textContent('.mh-range-note'), /Last 24 hours/);
       await page.locator('.mh-chart-wrap').scrollIntoViewIfNeeded();
       const box = await page.locator('.mh-chart-wrap').boundingBox();
@@ -230,12 +230,30 @@ for (const viewport of [{width: 390, height: 844}, {width: 1440, height: 900}]) 
       await page.waitForSelector('.mh-tip:not([hidden])');
       assert.match(await page.textContent('.mh-tip'), /Revenue.*Profit.*Sales/s);
       await page.mouse.up();
-      await page.evaluate(() => { mhRange = 30; render(); });
+      await page.evaluate(() => { mhRange = 30; rc.range = '1M'; render(); });
     } else {
       await page.evaluate(() => { rc.range = '24H'; render(); });
       assert.match(await page.textContent('.rc-eyebrow'), /Last 24 hours/);
       await page.evaluate(() => { rc.range = '1M'; render(); });
     }
+  });
+  if (viewport.width < 500) await check('phone and web Home numbers match for every range', viewport, async page => {
+    await go(page, 'Dashboard');
+    const out = await page.evaluate(() => {
+      // An expense today must not make them disagree.
+      db = {...db, expenses: [...db.expenses, ['Mailing bags', 4.5, 'Packaging', null, todayUK(), '']]};
+      const res = [];
+      for (const r of [1, 7, 30, 90]) {
+        mhRange = r; rc.range = MH_TO_RC[r]; render();
+        const phone = [...document.querySelectorAll('.mh-stat b')].slice(1).map(b => b.textContent);
+        const t = rcModel(accountingRows(db), todayUK()).total;
+        const web = [gbp(t.revenue), gbp(t.profit), String(t.sold)];
+        res.push(r + ':' + (JSON.stringify(phone) === JSON.stringify(web) ? 'ok' : JSON.stringify({phone, web})));
+      }
+      mhRange = 30; rc.range = '1M'; render();
+      return res.join(' ');
+    });
+    assert.equal(out, '1:ok 7:ok 30:ok 90:ok', out);
   });
   await check('stock number in Vinted titles', viewport, async page => {
     const out = await page.evaluate(() => {

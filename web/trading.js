@@ -35,6 +35,9 @@ function accountingRows(data) {
   return rows;
 }
 
+// The Home numbers on phone and web: sales only (sale price − item cost − sale costs, minus returns).
+// Business expenses and purchase refunds live in Money → Reports, so Home never jumps when you log a parcel bag.
+const saleRows = rows => rows.filter(row => row.kind === 'Sale' || row.kind === 'Sale refund');
 function reportTotals(rows) {
   const sum = key => pounds(rows.reduce((n,row)=>n+cents(row[key]??0),0));
   const revenue = sum('revenue'), cost = sum('cost'), expense = sum('expense');

@@ -116,7 +116,10 @@ function mhPulses(today) {
   if (!out.length) out.push({title: 'Snap your next find', body: 'At a charity shop or car boot? Point your camera at a piece and Pip tells you <b>what it sells for</b> and <b>the most to pay</b>.', cta: 'Open Buy or pass', act: 'data-scan-open'});
   return out;
 }
+// Phone and web share one chart range: 24H = 24H, 7D = 1W, 30D = 1M, 90D = 3M.
+const MH_TO_RC = {1: '24H', 7: '1W', 30: '1M', 90: '3M'}, RC_TO_MH = {'24H': 1, '1W': 7, '1M': 30, '3M': 90};
 function mobileHome() {
+  if (typeof rc !== 'undefined' && RC_TO_MH[rc.range]) mhRange = RC_TO_MH[rc.range];
   const today = todayUK(), rows = accountingRows(db), day = 864e5, end = Date.parse(today + 'T00:00:00Z');
   const iso = t => new Date(t).toISOString().slice(0, 10);
   const inRange = (from, to) => rows.filter(r => r.date >= iso(from) && r.date <= iso(to));
@@ -126,7 +129,7 @@ function mobileHome() {
   const before = mhRange === 1 ? within(nowMs - 2 * day, nowMs - day) : inRange(end - (2 * mhRange - 1) * day, end - mhRange * day);
   // Home profit is profit on sales (sale price − item cost − sale costs). Business expenses like packaging
   // are dated when you bought them, so they made profit jump between 7D/30D/90D; they stay in Money → Reports.
-  const onSales = list => list.filter(r => r.kind === 'Sale' || r.kind === 'Sale refund');
+  const onSales = saleRows;
   const tNow = reportTotals(onSales(now)), tBefore = reportTotals(onSales(before));
   const soldNow = now.filter(r => r.kind === 'Sale').length, soldBefore = before.filter(r => r.kind === 'Sale').length;
   const pct = (a, b) => b ? Math.round((a - b) / Math.abs(b) * 100) : null;
@@ -170,7 +173,7 @@ function dashboardPhone() {
 document.addEventListener('click', event => {
   const t = event.target;
   const range = t.closest('[data-mh-range]');
-  if (range) { mhRange = Number(range.dataset.mhRange); try { localStorage.setItem('mh-range', String(mhRange)); } catch {} render(); return; }
+  if (range) { mhRange = Number(range.dataset.mhRange); try { localStorage.setItem('mh-range', String(mhRange)); } catch {} if (typeof rc !== 'undefined') { rc.range = MH_TO_RC[mhRange]; rc.grain = ''; rc.selected = -1; if (typeof rcSave === 'function') rcSave(); } render(); return; }
   if (t.closest('[data-mh-next]')) { mhPulse++; render(); return; }
   if (t.closest('[data-mh-add]')) { openItem(null); return; }
   const scroll = t.closest('[data-mh-scroll]');

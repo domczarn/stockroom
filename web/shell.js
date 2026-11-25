@@ -120,9 +120,9 @@ function kpiStrip() {
   const today = todayUK();
   const day = 86400000, end = Date.parse(today + 'T00:00:00Z');
   const iso = t => new Date(t).toISOString().slice(0, 10);
-  const span = (from, to) => reportTotals(rows.filter(row => row.date >= iso(from) && row.date <= iso(to)));
+  const span = (from, to) => reportTotals(saleRows(rows).filter(row => row.date >= iso(from) && row.date <= iso(to)));
   const now = span(end - 29 * day, end), before = span(end - 59 * day, end - 30 * day);
-  const all = reportTotals(rows);
+  const all = reportTotals(saleRows(rows));
   const f = finances(db);
   const delta = (a, b) => b ? Math.round((a - b) / Math.abs(b) * 100) : null;
   const spark = key => {
@@ -135,9 +135,9 @@ function kpiStrip() {
     '<span class="kpi-note">' + (change === null || change === undefined ? '' : '<span class="kpi-delta ' + (change >= 0 ? 'up' : 'down') + '">' + (change >= 0 ? '↑' : '↓') + ' ' + Math.abs(change) + '%</span> ') + note + '</span>' +
     (sparkKey ? spark(sparkKey) : '') + '</div>';
   return '<section class="kpi-strip" aria-label="Key numbers">' +
-    tile('Net profit', gbp(all.profit), 'all time', null, 'profit') +
+    tile('Profit on sales', gbp(all.profit), 'all time', null, 'profit') +
     tile('Revenue', gbp(now.revenue), 'last 30 days', delta(now.revenue, before.revenue), 'revenue') +
-    tile('Net margin', now.revenue > 0 ? Math.round(now.profit / now.revenue * 100) + '%' : '—', 'last 30 days', null) +
+    tile('Margin', now.revenue > 0 ? Math.round(now.profit / now.revenue * 100) + '%' : '—', 'last 30 days', null) +
     tile('Stock at cost', gbp(f.inventory), f.active.length + ' items in stock', null) + '</section>';
 }
 

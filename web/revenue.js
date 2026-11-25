@@ -1,11 +1,11 @@
 'use strict';
 // Revenue studio: the Home chart. Range, metric, grain, comparison, running total, tap-for-detail.
 
-const RC_RANGES = [['24H', 1], ['1W', 7], ['1M', 30], ['3M', 91], ['6M', 182], ['1Y', 365], ['All', 0]];
+const RC_RANGES = [['24H', 1], ['1W', 7], ['1M', 30], ['3M', 90], ['6M', 182], ['1Y', 365], ['All', 0]];
 const RC_ICON_CAL = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>';
 const RC_METRICS = {
   revenue: {label: 'Revenue', color: '#3987e5', kind: 'money', additive: true},
-  profit: {label: 'Net profit', color: '#d95926', kind: 'money', additive: true},
+  profit: {label: 'Profit on sales', color: '#d95926', kind: 'money', additive: true},
   margin: {label: 'Margin', color: '#d95926', kind: 'pct', additive: false},
   sold: {label: 'Items sold', color: '#3987e5', kind: 'count', additive: true},
   avg: {label: 'Avg sale', color: '#3987e5', kind: 'money', additive: false}
@@ -27,7 +27,7 @@ const rcFmt = (opts) => new Intl.DateTimeFormat('en-GB', {...opts, timeZone: 'UT
 const rcDayFmt = rcFmt({day: 'numeric', month: 'short'}), rcMonFmt = rcFmt({month: 'short', year: '2-digit'}), rcLongFmt = rcFmt({day: 'numeric', month: 'short', year: 'numeric'}), rcMonthLong = rcFmt({month: 'long', year: 'numeric'});
 
 function rcStats(rows) {
-  const t = reportTotals(rows);
+  const t = {...reportTotals(saleRows(rows)), expense: reportTotals(rows.filter(row => row.kind === 'Expense')).expense};
   const sales = rows.filter(row => row.kind === 'Sale');
   const saleRevenue = pounds(sales.reduce((n, row) => n + cents(row.revenue), 0));
   return {
@@ -259,7 +259,7 @@ function rcDetail(model) {
   const chip = (k, l, v) => '<div><span>' + (k ? '<i class="rc-key ' + k + '"></i>' : '') + l + '</span><strong>' + v + '</strong></div>';
   return '<div class="rc-detail"><div class="rc-detail-head"><h3>' + (sel ? esc(label) : 'Everything in ' + esc(label)) + '</h3>' +
     (sel ? '<button type="button" class="link" data-rc-clear>Show whole period</button>' : '') + '</div>' +
-    (sel ? '<div class="rc-sum">' + chip('rev', 'Revenue', gbp(st.revenue)) + chip('pro', 'Net profit', gbp(st.profit)) + chip('', 'Margin', rcValue(st.margin, 'pct')) + chip('', 'Sold', st.sold) + '</div>' : '') +
+    (sel ? '<div class="rc-sum">' + chip('rev', 'Revenue', gbp(st.revenue)) + chip('pro', 'Profit on sales', gbp(st.profit)) + chip('', 'Margin', rcValue(st.margin, 'pct')) + chip('', 'Sold', st.sold) + '</div>' : '') +
     (sales.length || costs.length
       ? (sales.length ? '<p class="rc-detail-sub">Sales · ' + sales.length + '</p><ul class="rc-list">' + sales.slice(0, rc.all ? 999 : 6).map(line).join('') + '</ul>' : '') +
         (sales.length > 6 ? '<button type="button" class="link rc-more" data-rc-all>' + (rc.all ? 'Show fewer' : 'Show all ' + sales.length + ' sales') + '</button>' : '') +
@@ -279,7 +279,7 @@ function rcInsights(model) {
     cell('Best ' + grainWord, best ? gbp(buckets[best.i].stats.revenue) : '—', best ? esc(rcLabel(buckets[best.i], win.grain)) : 'No sales yet') +
     (win.hourly ? cell('Revenue per hour', gbp(total.revenue / 24), '24 hours') : cell('Revenue per day', gbp(perDay), win.days + ' days')) +
     cell(grainWord[0].toUpperCase() + grainWord.slice(1) + 's with sales', active + ' / ' + buckets.length, buckets.length ? Math.round(100 * active / buckets.length) + '% hit rate' : '') +
-    cell('Expenses', gbp(total.expense), total.missing ? total.missing + ' sale cost' + (total.missing === 1 ? '' : 's') + ' missing' : 'Included in net profit') +
+    cell('Expenses', gbp(total.expense), total.missing ? total.missing + ' sale cost' + (total.missing === 1 ? '' : 's') + ' missing' : 'Not in Home profit · see Money → Reports') +
     '</div>';
 }
 
