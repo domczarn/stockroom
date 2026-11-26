@@ -3,6 +3,7 @@ import {isStockroomService} from './service-auth.js';
 import {emailSyncState,syncStatusRoute} from './import-status.js';
 import {gmailRoute,gmailPushRoute} from './gmail.js';
 import {applyOps,touchedRecords} from './ops.js';
+import {iapWebhookRoute} from './iap.js';
 import {notifyOwner,pushRoute} from './push.js';
 import { socialRoute, ownProfile, findConnection } from './social.js';
 import { pipSvg } from './pip.js';
@@ -121,6 +122,7 @@ export default {
       }
       if(url.pathname.startsWith('/auth/'))return await authRoute(request,url,env);
       if(url.pathname==='/hooks/gmail'&&request.method==='POST')return await gmailPushRoute(request,env,context);
+      if(url.pathname==='/hooks/revenuecat'&&request.method==='POST')return await iapWebhookRoute(request,env);
       if(url.pathname==='/email/unsubscribe'&&request.method==='GET')return await unsubscribePage(url,env);
       if(url.pathname==='/login'&&['GET','HEAD'].includes(request.method))return identity(request)?Response.redirect(url.origin+'/',302):loginPage(request,env);
       const rawUser=identity(request);

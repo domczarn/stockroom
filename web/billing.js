@@ -57,7 +57,12 @@ function syncUpgradeToggle() {
 function openUpgrade(reason) {
   if (account?.role === 'admin') { toast(reason || 'The owner account has everything.'); return; }
   // Store apps can't sell plans outside the store's own payments, so the app only explains the limit.
-  if (isNativeApp()) { toast(String(reason || 'That’s a Pro feature.').replace(/\s*Go Pro.*$/, '').replace(/\s*is part of Stockroom Pro\.?$/, ' is a Pro feature.')); return; }
+  if (isNativeApp()) {
+    const fallback = () => toast(String(reason || 'That’s a Pro feature.').replace(/\s*Go Pro.*$/, '').replace(/\s*is part of Stockroom Pro\.?$/, ' is a Pro feature.'));
+    // Store apps buy through Apple / Google (iap.js). If that isn't set up yet, just explain the limit.
+    if (typeof iapPaywall === 'function') iapPaywall(reason).then(shown => { if (!shown) fallback(); }, fallback); else fallback();
+    return;
+  }
   const dialog = upgradeSheet();
   document.getElementById('upgradeReason').textContent = reason || '';
   document.getElementById('upgradeReason').hidden = !reason;

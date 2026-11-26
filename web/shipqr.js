@@ -110,7 +110,7 @@ function showQrView(id) {
   el.className = 'qr-view'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-label', 'Shipping QR code for ' + item.name);
   el.innerHTML = '<div class="qr-top"><button type="button" class="qr-close" data-qr-close aria-label="Close">×</button>' +
     (rows.length > 1 ? '<span class="qr-count">' + (index + 1) + ' of ' + rows.length + '</span>' : '<span></span>') + '<span></span></div>' +
-    '<div class="qr-item"><b>' + esc(item.name) + '</b><small>' + esc([item.size && 'Size ' + item.size, ship?.label].filter(Boolean).join(' · ')) + '</small></div>' +
+    '<div class="qr-item"><b><span class="qr-id">#' + esc(item.id) + '</span> ' + esc(item.name) + '</b><small>' + esc([item.size && 'Size ' + item.size, ship?.label].filter(Boolean).join(' · ')) + '</small></div>' +
     '<div class="qr-image"><img src="' + esc(item.shipQr) + '" alt="Shipping QR code"></div>' +
     '<p class="qr-tip">' + (item.shipCode ? 'No scanner? Enter code <b>' + esc(item.shipCode) + '</b> at the locker. ' : '') + 'Turn your screen brightness up if it won’t scan.</p>' +
     (item.shipLabel ? '<p class="qr-tip"><button type="button" class="link" data-label-show="' + esc(item.id) + '">Open the shipping label</button></p>' : '') +
@@ -180,3 +180,44 @@ if (typeof render === 'function') {
     }
   });
 }
+
+// ---------- Drop-off mode ----------
+// One tap (Home tile, or the "Post a parcel" home screen shortcut) opens straight to your first QR code. Codes are
+// saved on the phone ahead of time, because the back of a shop often has no signal. Swipe between parcels.
+function dropOff() {
+  const first = awaitingPost().find(r => r.item.shipQr);
+  if (first) { showQr(first.item.id); return true; }
+  navigate('Stock'); render();
+  toast(awaitingPost().length ? 'No QR codes yet. They attach when Vinted emails your label.' : 'Nothing to post right now.');
+  return false;
+}
+const dropOffSaved = new Set();
+onHook('afterRender', () => {
+  if (isReadOnly() || !db) return;
+  // Only your own stored codes, and never hold the page up waiting for them.
+  const mine = u => typeof u === 'string' && u.startsWith('/api/media/');
+  const todo = awaitingPost().filter(r => mine(r.item.shipQr) && !dropOffSaved.has(r.item.shipQr));
+  if (!todo.length) return;
+  const save = () => todo.forEach(r => { dropOffSaved.add(r.item.shipQr); fetch(r.item.shipQr, {credentials: 'same-origin', signal: AbortSignal.timeout(8000)}).catch(() => dropOffSaved.delete(r.item.shipQr)); if (mine(r.item.shipLabel)) fetch(r.item.shipLabel, {credentials: 'same-origin', signal: AbortSignal.timeout(8000)}).catch(() => {}); });
+  if (window.requestIdleCallback) requestIdleCallback(save, {timeout: 3000}); else setTimeout(save, 1200);
+});
+// Opened from the home screen shortcut (/?open=dropoff): wait for your data, then go straight to the code.
+let dropOffPending = new URLSearchParams(location.search).get('open') === 'dropoff';
+onHook('afterRender', () => {
+  if (!dropOffPending || !account || typeof startLoaded !== 'function' || !startLoaded()) return;
+  dropOffPending = false;
+  try { history.replaceState(null, '', '/'); } catch {}
+  setTimeout(dropOff, 50);
+});
+// Swipe left/right between parcels in the QR viewer.
+(() => {
+  let x0 = null, y0 = 0;
+  document.addEventListener('touchstart', e => { x0 = e.target.closest('.qr-view') && e.touches.length === 1 ? e.touches[0].clientX : null; y0 = e.touches[0]?.clientY || 0; }, {passive: true});
+  document.addEventListener('touchend', e => {
+    if (x0 === null) return;
+    const t = e.changedTouches[0], dx = t.clientX - x0, dy = t.clientY - y0; x0 = null;
+    if (Math.abs(dx) < 60 || Math.abs(dy) > Math.abs(dx)) return;
+    document.querySelector('.qr-view [data-qr-step="' + (dx < 0 ? 1 : -1) + '"]')?.click();
+  }, {passive: true});
+})();
+document.addEventListener('click', event => { if (event.target.closest('[data-dropoff]')) dropOff(); });

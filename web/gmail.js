@@ -80,7 +80,7 @@ function forwardPanel(c){
   const working=c.state==='connected';
   const code=c.confirm?'<div class="fwd-code"><small>Gmail’s confirmation code</small><b>'+esc(c.confirm.code)+'</b></div>':'<p class="fwd-wait"><i></i>Waiting for Gmail’s code… it appears here a few seconds after step 2.</p>';
   return '<div class="fwd">'+
-    '<p class="fwd-status '+(working?'on':'')+'">'+(working?'✓ Working · last email '+esc(new Date(c.checkedAt).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})):'Set up once, then new Vinted, courier, eBay and Depop emails arrive by themselves.')+'</p>'+
+    '<p class="fwd-status '+(working?'on':'')+'">'+(working?'✓ Working · last email '+esc(new Date(c.checkedAt).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})):'Takes about 2 minutes, once.')+'</p>'+
     copy('Your private Stockroom address',c.address,'address')+
     '<details class="fwd-steps"'+(working?'':' open')+'><summary>Gmail setup (on a computer, about 2 minutes)</summary><ol>'+
       '<li>Gmail → ⚙️ Settings → <b>See all settings</b> → <b>Forwarding and POP/IMAP</b> → <b>Add a forwarding address</b> → paste your address → Next → Proceed.</li>'+

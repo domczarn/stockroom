@@ -4,7 +4,20 @@ This wraps the live site (stockroom.bookednpaid.com) in a native app using Capac
 
 What's already handled in the web app when it runs inside the native app:
 - Gmail connect opens in the phone's browser (Google blocks sign-in inside apps), and the app picks the connection up when you come back.
-- Plans aren't sold inside the app (Apple and Google require their own payments for that). Free limits still show; upgrading happens on the website.
+- Pro is bought with Apple / Google in-app purchases through RevenueCat (see below). Until that's set up, the app only explains free limits.
+
+## In-app purchases (RevenueCat)
+
+1. App Store Connect → your app → Subscriptions → create a group "Pro" with two products: `pro_monthly` (£7.99) and `pro_yearly` (£59.99). Do the same in Play Console → Monetise → Subscriptions.
+2. revenuecat.com → new project → add the iOS and Android apps → import those products → create an entitlement called `pro` attached to both → create an offering (the default "current" one) with a monthly and an annual package.
+3. RevenueCat → Integrations → Webhooks → URL `https://stockroom.bookednpaid.com/hooks/revenuecat` → set an Authorization header value (a long random string).
+4. Cloudflare → Workers → stockroom → Settings → Variables and Secrets:
+   - `REVENUECAT_SECRET` (secret): RevenueCat → API keys → secret key
+   - `REVENUECAT_IOS_KEY` / `REVENUECAT_ANDROID_KEY`: the public app keys
+   - `REVENUECAT_WEBHOOK_AUTH` (secret): exactly the Authorization value from step 3
+5. In this folder: `npm install` → `npx cap sync`.
+
+Apple takes 15% under the Small Business Program (apply in App Store Connect → Agreements). Prices are set a little higher than the website to cover it.
 
 ## Android (Google Play)
 

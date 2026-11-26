@@ -3380,3 +3380,9 @@ dialog.rv h2 { margin: 4px 0 6px; font-size: 22px; letter-spacing: -.02em; }
 .rv-note { margin: 6px 0 10px; color: #b9add0; font-size: 12px; }
 .rv-pro { display: grid; gap: 4px; padding: 14px; border-radius: 16px; border: 1px solid rgba(183,140,255,.45); background: rgba(183,140,255,.1); margin: 8px 0; text-align: left; }
 .rv-pro span { color: #d0c4e6; font-size: 13px; } .rv-pro button { justify-self: start; margin-top: 6px; }
+.qr-id { opacity: .6; font-variant-numeric: tabular-nums; }
+.iap-perks { list-style: none; padding: 0; margin: 0 0 14px; display: grid; gap: 6px; text-align: left; color: #dcd2ec; font-size: 14px; }
+.iap-perks li::before { content: '✓  '; color: #7fe0a6; font-weight: 700; }
+.iap-buy { width: 100%; margin-top: 8px; }
+.iap-restore { margin-top: 10px; }
+.iap .rv-note a { color: inherit; }

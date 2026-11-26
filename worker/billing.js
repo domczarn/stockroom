@@ -1,3 +1,4 @@
+import {iapConfig, iapSyncRoute} from './iap.js';
 // Plans and Stripe billing.
 // Free: 20 new stock items a month. Pro (£7/month or £60/year): unlimited items, Gmail auto-updates and Pip AI.
 // No webhook needed: the plan is confirmed when checkout returns, and re-checked with Stripe when the paid period ends.
@@ -124,9 +125,10 @@ export async function recordNewItems(env, ownerId, added) {
 export async function billingRoute(request, url, env, user) {
   if (!user) throw new HttpError(401, 'Sign in first.');
   const origin = url.origin;
+  if (url.pathname === '/api/billing/iap/sync' && request.method === 'POST') return iapSyncRoute(request, env, user);
   if (url.pathname === '/api/billing' && request.method === 'GET') {
     const plan = await planFor(env, user);
-    return {...plan, used: await itemsThisMonth(env, user.id), limit: await freeLimit(env), prices: {month: PRICES.month.label, year: PRICES.year.label}, ready: Boolean(env.STRIPE_SECRET_KEY)};
+    return {...plan, used: await itemsThisMonth(env, user.id), limit: await freeLimit(env), prices: {month: PRICES.month.label, year: PRICES.year.label}, ready: Boolean(env.STRIPE_SECRET_KEY), iap: iapConfig(env)};
   }
   if (request.method !== 'POST') throw new HttpError(405, 'Method not allowed.');
   const body = await readBody(request, 4000) || {};

@@ -393,6 +393,26 @@ for (const viewport of [{width: 390, height: 844}, {width: 1440, height: 900}]) 
     assert.match(out.addLabel, /Add my 1 sale/);
     assert.deepEqual([out.status, out.emailId, out.amount, out.again], ['Sold', 'aa11bb22cc33dd44', 31, false]);
   });
+  await check('drop-off mode: tile opens the first QR, shows the stock number', viewport, async page => {
+    const out = await page.evaluate(async () => {
+      const saved = db;
+      const it = db.items.find(i => i.status === 'In Stock' && !i.deletedAt);
+      db = recordSale(db, it.id, 22, todayUK());
+      db = {...db, items: db.items.map(i => i.id === it.id ? {...i, shipQr: '/icon-192.png'} : i)};
+      navigate('Dashboard'); render();
+      const tile = !!document.querySelector('.mh-tile[data-dropoff]') || !document.querySelector('.mh');
+      const opened = dropOff();
+      await new Promise(r => setTimeout(r, 100));
+      const view = document.querySelector('.qr-view');
+      const res = {tile, opened, id: view?.querySelector('.qr-id')?.textContent, want: '#' + it.id};
+      closeQr(); await new Promise(r => setTimeout(r, 350));
+      db = saved; render();
+      return res;
+    });
+    assert.equal(out.tile, true);
+    assert.equal(out.opened, true);
+    assert.equal(out.id, out.want);
+  });
   await check('saves send changes only, queue offline, then sync', viewport, async page => {
     const bodies = [];
     page.on('request', r => { if (r.url().endsWith('/api/workspace') && ['PATCH', 'PUT'].includes(r.method())) bodies.push({m: r.method(), size: (r.postData() || '').length}); });
