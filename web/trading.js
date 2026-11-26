@@ -326,7 +326,7 @@ async function openScannedStock() {
   const id = await scannedLabelId(stockLabelUrl(params.get('i'),params.get('s')));
   history.replaceState(history.state,'',location.pathname);
   if (!id) return toast('This label belongs to a different Stockroom workspace.');
-  if (pendingLocal || cloudConflict) return toast('Resolve your pending workspace changes, then scan the label again.');
+  if ((pendingLocal && !pendingOffline) || cloudConflict) return toast('Resolve your pending workspace changes, then scan the label again.');
   const item = db.items.find(row=>!row.deletedAt && row.id===id);
   if (!item) return toast('This stock item is no longer available.');
   navigate('Stock');

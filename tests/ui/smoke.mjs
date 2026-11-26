@@ -257,6 +257,27 @@ for (const viewport of [{width: 390, height: 844}, {width: 1440, height: 900}]) 
     });
     assert.equal(out, '1:ok 7:ok 30:ok 90:ok', out);
   });
+  await check('saves send changes only, queue offline, then sync', viewport, async page => {
+    const bodies = [];
+    page.on('request', r => { if (r.url().endsWith('/api/workspace') && ['PATCH', 'PUT'].includes(r.method())) bodies.push({m: r.method(), size: (r.postData() || '').length}); });
+    // Online: one price change goes as a small PATCH.
+    await page.evaluate(async () => { const next = cloneWorkspace(db); next.items[0] = {...next.items[0], price: (next.items[0].price || 10) + 1}; await persist(next); });
+    assert.equal(bodies.at(-1).m, 'PATCH');
+    assert.ok(bodies.at(-1).size < 5000, 'small save: ' + bodies.at(-1).size);
+    // Offline: the edit is kept on the device and the status says so.
+    await page.route('**/api/workspace', route => route.request().method() === 'GET' ? route.continue() : route.abort('internetdisconnected'));
+    const offline = await page.evaluate(async () => { const next = cloneWorkspace(db); next.items[0] = {...next.items[0], price: next.items[0].price + 1}; await persist(next); return {status: document.getElementById('cloudStatus').textContent, waiting: !!pendingLocal, price: db.items[0].price}; });
+    assert.match(offline.status, /Offline · 1 change waiting/);
+    assert.ok(offline.waiting);
+    // A second offline edit is allowed too, and counted.
+    const two = await page.evaluate(async () => { const next = cloneWorkspace(db); next.items[1] = {...next.items[1], price: (next.items[1].price || 10) + 1}; await persist(next); return document.getElementById('cloudStatus').textContent; });
+    assert.match(two, /2 changes waiting/);
+    // Back online: everything syncs by itself.
+    await page.unroute('**/api/workspace');
+    const back = await page.evaluate(async () => { await wsFlush(); return {status: document.getElementById('cloudStatus').textContent, waiting: !!pendingLocal}; });
+    assert.equal(back.waiting, false);
+    assert.match(back.status, /Synced/);
+  });
   await check('new seller: getting started, beginner mode, empty states', viewport, async page => {
     const out = await page.evaluate(() => {
       const saved = db; db = emptyData(); try { localStorage.removeItem(startKey()); localStorage.removeItem('sr-pro-tools:' + account.id); } catch {}

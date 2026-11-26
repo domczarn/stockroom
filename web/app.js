@@ -46,28 +46,45 @@ async function pendingRecord(value,write=false){
 async function persist(next=db){
   if(isReadOnly())throw Error('This account is read-only. Return to your workspace to edit.');
   if(cloudSaving)throw Error('A save is in progress. Please try again.');
-  if(pendingLocal && next!==pendingLocal)throw Error('An unsaved change is waiting. Open Settings to retry or discard it first.');
+  if(pendingLocal && next!==pendingLocal && !pendingOffline)throw Error('An unsaved change is waiting. Open Settings to retry or discard it first.');
   if(cloudConflict)throw Error('Resolve the sync conflict in Settings before saving. Your changes are still here.');
   // The server stores item text separately, so workspaces can hold thousands of items. Warn only when very large.
   const size=JSON.stringify(next).length;
   if(size>24000000&&!persist.warned){persist.warned=true;toast('Your workspace is getting very large. Archive old sold items soon.');}
   cloudSaving=true;cloudState('Saving…','saving');
   pendingLocal=cloneWorkspace(next);
-  await pendingRecord({data:pendingLocal,revision:cloudRevision},true).catch(()=>{});
+  await pendingRecord({data:pendingLocal,revision:cloudRevision,base:cloudBase},true).catch(()=>{});
   try{
-    const result=await api('/api/workspace',{method:'PUT',body:JSON.stringify({data:next,revision:cloudRevision})});
-    db=result.data;cloudRevision=result.revision;cloudAvailable=true;pendingLocal=null;await pendingRecord(null,true).catch(()=>{});
+    // Send only the changes when we know what the server has; otherwise (first save, huge edits) the whole copy.
+    const ops=cloudBase?wsDiff(cloudBase,next):null;
+    let result;
+    if(ops&&!ops.length){result={revision:cloudRevision};db=next;}
+    else if(ops&&ops.length<=4000){
+      result=await api('/api/workspace',{method:'PATCH',body:JSON.stringify({revision:cloudRevision,ops})});
+      db=result.data||wsApplyChanges(next,result.changes);
+      if(result.data)toast('Synced with your other device.');
+    }else{
+      result=await api('/api/workspace',{method:'PUT',body:JSON.stringify({data:next,revision:cloudRevision})});
+      db=result.data;
+    }
+    cloudRevision=result.revision;cloudBase=cloneWorkspace(db);cloudAvailable=true;pendingLocal=null;pendingOffline=false;await pendingRecord(null,true).catch(()=>{});
     try{await writeSaved(db);}catch{/* Cloud is authoritative even if this device cannot cache it. */}
     render();cloudState('Synced to cloud','saved');$('saveState').textContent='Saved across devices';
   }catch(error){
     if(error.status===402){
       // Over the free allowance: drop this change, reload the saved copy and offer Pro.
-      pendingLocal=null;await pendingRecord(null,true).catch(()=>{});
-      try{const fresh=await api('/api/workspace');if(fresh.data){db=fresh.data;cloudRevision=fresh.revision;await writeSaved(db).catch(()=>{});}}catch{}
+      pendingLocal=null;pendingOffline=false;await pendingRecord(null,true).catch(()=>{});
+      try{const fresh=await api('/api/workspace');if(fresh.data){db=fresh.data;cloudRevision=fresh.revision;cloudBase=cloneWorkspace(db);await writeSaved(db).catch(()=>{});}}catch{}
       cloudAvailable=true;cloudState('Synced to cloud','saved');render();
       if(typeof openUpgrade==='function')openUpgrade(error.message);
     }
-    else if(error.status===409){cloudConflict=true;cloudState('Resolve sync conflict','error');toast('Another device saved newer data. Your edits are kept. Open Settings to resolve.');}
+    else if(error.status===409){pendingOffline=false;cloudConflict=true;cloudState('Resolve sync conflict','error');toast(error.message||'Another device saved newer data. Your edits are kept. Open Settings to resolve.');}
+    else if(!error.status||error.status>=500){
+      // No signal (or the server hiccuped): keep the change on this phone and send it when we can.
+      const wasOffline=pendingOffline;pendingOffline=true;db=next;cloudAvailable=false;wsOfflineState();
+      if(!wasOffline)toast('Saved on this phone. It’ll sync when you’re back online.');
+      render();return;
+    }
     else{cloudAvailable=false;cloudState('Not saved · retry','error');}
     throw error;
   }finally{cloudSaving=false;}
@@ -80,7 +97,7 @@ async function syncCloud(force=false){
     const result=await api('/api/workspace'+(isReadOnly()?'?owner='+encodeURIComponent(workspaceOwner):''));
     // Never replace a form or a local save that began during the network read.
     if(switchingWorkspace||startingRevision!==cloudRevision||startingOwner!==workspaceOwner||cloudSaving||pendingLocal||document.querySelector('dialog[open]')||(!force&&document.activeElement?.matches('input,select,textarea')))return;
-    if(result.data&&result.revision!==cloudRevision){db=result.data;cloudRevision=result.revision;await writeSaved(db).catch(()=>{});render();}
+    if(result.data&&result.revision!==cloudRevision){db=result.data;cloudRevision=result.revision;if(!isReadOnly())cloudBase=cloneWorkspace(db);await writeSaved(db).catch(()=>{});render();}
     cloudAvailable=true;cloudState(isReadOnly()?'Admin · read-only':'Synced to cloud','saved');
   }catch(error){cloudAvailable=false;cloudState(error.status===401?'Sign in required':'Offline · edits need connection','error');}
   finally{cloudPolling=false;}
@@ -95,7 +112,7 @@ async function switchWorkspace(owner){
   try{
     const result=await api('/api/workspace'+(owner!==account.id?'?owner='+encodeURIComponent(owner):''));
     if(cloudSaving||pendingLocal||document.querySelector('dialog[open]'))throw Error('Finish your current edit before switching workspaces.');
-    workspaceOwner=owner;cloudRevision=result.revision;resetStockFilters();stockAgeView=false;resetStockSelection();
+    workspaceOwner=owner;cloudRevision=result.revision;cloudBase=owner===account.id&&result.data?cloneWorkspace(result.data):null;resetStockFilters();stockAgeView=false;resetStockSelection();
     db=result.data||emptyData();tab='Dashboard';$('workspacePicker').open=false;
     render();cloudState(isReadOnly()?'Admin · read-only':'Synced to cloud','saved');
     window.scrollTo(0,0);
@@ -773,8 +790,13 @@ $('upload').onchange=async e=>{try{const file=e.target.files[0];if(!file)return;
     const early=await workspaceEarly;
     const remote=early.value||await api('/api/workspace');cloudRevision=remote.revision;
     const held=await pendingRecord().catch(()=>null);
-    if(held){db=remote.data||emptyData();pendingLocal=held.data;cloudConflict=held.revision!==remote.revision;tab='Account';}
-    else if(remote.data)db=remote.data;
+    if(held&&held.base){
+      // Changes made offline last time: send them now. The server merges them with anything newer.
+      db=held.data;pendingLocal=held.data;cloudBase=held.base;cloudRevision=held.revision;pendingOffline=true;
+      setTimeout(()=>void wsFlush(),0);
+    }
+    else if(held){db=remote.data||emptyData();pendingLocal=held.data;cloudConflict=held.revision!==remote.revision;tab='Account';}
+    else if(remote.data){db=remote.data;cloudBase=cloneWorkspace(db);}
     else{
       db=emptyData();
       if(account.role==='admin'){
@@ -965,10 +987,10 @@ document.addEventListener('click',async event=>{
   if(el.id==='exportAccount')await fullBackup();
   if(el.id==='restoreSettings'&&!isReadOnly())$('upload').click();
   if(el.id==='exportPending')await fullBackup(pendingLocal);
-  if(el.id==='retrySave'){const next=pendingLocal;await persist(next);toast('Changes saved to cloud.');}
+  if(el.id==='retrySave'){const next=pendingOffline?db:pendingLocal;await persist(next);if(!pendingLocal)toast('Changes saved to cloud.');else toast('Still offline. Your changes are safe on this device.');}
   if(el.id==='loadLatest'){
    if(!confirm('Discard the unsaved attempt and load the latest cloud version? Export your unsaved changes first if you need them.'))return;
-   const latest=await api('/api/workspace');db=latest.data||emptyData();cloudRevision=latest.revision;pendingLocal=null;cloudConflict=false;await pendingRecord(null,true).catch(()=>{});render();cloudState('Synced to cloud','saved');
+   const latest=await api('/api/workspace');db=latest.data||emptyData();cloudRevision=latest.revision;cloudBase=cloneWorkspace(db);pendingLocal=null;pendingOffline=false;cloudConflict=false;await pendingRecord(null,true).catch(()=>{});render();cloudState('Synced to cloud','saved');
   }
   if(el.id==='ownWorkspace')await switchWorkspace(account.id);
   if(el.dataset.viewMember)await switchWorkspace(el.dataset.viewMember);

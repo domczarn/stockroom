@@ -2,6 +2,7 @@ import {marketResearchRoute} from './market-research.js';
 import {isStockroomService} from './service-auth.js';
 import {emailSyncState,syncStatusRoute} from './import-status.js';
 import {gmailRoute,gmailPushRoute} from './gmail.js';
+import {applyOps,touchedRecords} from './ops.js';
 import {notifyOwner,pushRoute} from './push.js';
 import { socialRoute, ownProfile, findConnection } from './social.js';
 import { pipSvg } from './pip.js';
@@ -228,6 +229,33 @@ export default {
           await recordNewItems(env,owner,added);
           await audit(env,user,owner,'workspace_save');
           return json({data,revision,updatedAt,owner});
+        }
+        if(request.method==='PATCH') {
+          // Change-based save: only what changed travels; each record is checked on its own (see ops.js).
+          if(owner!==user.id)throw new HttpError(403,'Other accounts are read-only.');
+          const body=await readBody(request,19000000);
+          if(!(body.revision===null||typeof body.revision==='string'))throw new HttpError(400,'Missing workspace revision.');
+          for(let attempt=0;attempt<3;attempt++){
+            const stored=await loadWorkspace(env,owner);
+            const result=applyOps(stored?.data||emptyWorkspace(),body.ops);
+            if(result.error)throw new HttpError(400,result.error);
+            if(result.conflicts.length){
+              const names=result.conflicts.map(c=>c.name);
+              return json({error:'“'+names[0]+'”'+(names.length>1?' and '+(names.length-1)+' more were':' was')+' changed on another device too. Your edits are kept here.',conflicts:result.conflicts},409);
+            }
+            const checked=validateWorkspace(result.data,owner);
+            const added=await checkNewItems(env,user,stored?.data?.items||[],checked.items);
+            const data=await storePhotos(checked,owner,env);
+            if(!user.admin && data.items.some(i=>i.referencePhotos?.length))throw new HttpError(400,'Reference imports belong to the admin account.');
+            const saved=await saveWorkspace(env,owner,data,stored?stored.revision:null);
+            if(saved.tooBig)throw new HttpError(413,'Your workspace is too big to save. Archive or delete old sold items, then try again.');
+            if(saved.conflict)continue;   // another save landed between our read and write: re-apply on top of it
+            await recordNewItems(env,owner,added);
+            await audit(env,user,owner,'workspace_save');
+            const merged=(stored?.revision||null)!==body.revision;
+            return json({revision:saved.revision,updatedAt:saved.updatedAt,owner,changes:touchedRecords(data,result.touched),...(merged?{data}:{})});
+          }
+          throw new HttpError(409,'Another device is saving right now. Try again in a moment.');
         }
         throw new HttpError(405,'Method not allowed');
       }
