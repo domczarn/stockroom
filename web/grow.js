@@ -237,8 +237,7 @@ function fillSourcingSelect(item) {
 
 // ---------- HMRC platform reporting tracker ----------
 const REPORT_SALES = 30, REPORT_GROSS = 1700;
-function reportingCard() {
-  const year = todayUK().slice(0, 4);
+function reportingPlatforms(year = todayUK().slice(0, 4)) {
   const items = new Map(db.items.map(i => [i.id, i]));
   const platforms = new Map();
   const add = (platform, amount) => { const p = platforms.get(platform) || {sales: 0, gross: 0}; p.sales++; p.gross += amount; platforms.set(platform, p); };
@@ -247,7 +246,11 @@ function reportingCard() {
   for (const i of db.items) if (!traded.has(i.id) && i.status === 'Sold' && Number.isFinite(i.sale) && String(i.soldAt || '').startsWith(year)) add(i.platform || 'Vinted', i.sale);
   for (const row of db.sales) if (String(row[4] || '').startsWith(year)) add('Vinted', Number(row[1]) || 0);
   if (!platforms.size) platforms.set('Vinted', {sales: 0, gross: 0});
-  const bar = (v, max) => '<span class="track"><span class="' + (v >= max ? 'hmrc-over' : 'green') + '" style="width:' + Math.min(100, Math.round(v / max * 100)) + '%"></span></span>';
+  return platforms;
+}
+function reportingCard() {
+  const year = todayUK().slice(0, 4), platforms = reportingPlatforms(year);
+  const bar = (v, max) => '<span class="track"><span class="' + (v >= max ? 'hmrc-over' : 'green') + '" data-w="' + Math.min(100, Math.round(v / max * 100)) + '"></span></span>';
   const rows = [...platforms.entries()].sort((a, b) => b[1].sales - a[1].sales).map(([name, p]) => {
     const hit = p.sales >= REPORT_SALES || p.gross >= REPORT_GROSS;
     return '<div class="hmrc-row"><div class="hmrc-name"><b>' + esc(name) + '</b><span class="tag' + (hit ? ' pending' : '') + '">' + (hit ? 'Will be reported' : 'Under the limits') + '</span></div>' +

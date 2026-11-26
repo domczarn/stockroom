@@ -3268,3 +3268,7 @@ body.is-new-seller .kpi-strip,body.is-new-seller .revenue-studio{display:none!im
 /* Long lists: the browser skips drawing cards and rows that are off screen until you scroll to them. */
 /* (Stock cards are left alone: their menus need to overflow the card.) */
 #view tbody tr{content-visibility:auto;contain-intrinsic-size:auto 52px}
+/* HMRC reporting nudge on Home */
+.hmrc-nudge{display:flex;align-items:center;gap:.5rem;width:100%;margin:.5rem 0;padding:.6rem .8rem;border:1px solid var(--line);border-radius:12px;background:transparent;color:inherit;font:inherit;font-size:.85rem;text-align:left}
+.hmrc-nudge span:nth-child(2){flex:1}
+.hmrc-nudge b{white-space:nowrap;font-weight:600}

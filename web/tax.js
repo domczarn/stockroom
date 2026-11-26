@@ -27,6 +27,29 @@ function taxSummary(start) {
     best: turnover <= allowance ? 'allowance-free' : withAllowance < actual ? 'allowance' : 'actual'};
 }
 
+// HMRC platform reporting: a platform reports a seller for a calendar year after 30 sales or about £1,700 (€2,000).
+// The busiest platform decides: each platform reports you separately (see reportingPlatforms in grow.js).
+function reportingStatus(year = todayUK().slice(0, 4)) {
+  const top = [...reportingPlatforms(year).entries()].sort((a, b) => b[1].sales - a[1].sales || b[1].gross - a[1].gross)[0] || ['Vinted', {sales: 0, gross: 0}];
+  const [platform, {sales, gross}] = top;
+  return {year, platform, sales, money: gross, reported: sales >= REPORT_SALES || gross >= REPORT_GROSS, close: sales >= 20 || gross >= 1000};
+}
+function reportingNudgeHtml() {
+  const r = reportingStatus();
+  if (!r.close) return '';
+  const text = r.reported ? r.platform + ' will report your ' + r.year + ' sales to HMRC' : (REPORT_SALES - r.sales) + ' sales or ' + gbp(Math.max(0, REPORT_GROSS - r.money)) + ' until ' + r.platform + ' reports you to HMRC';
+  return '<button type="button" class="hmrc-nudge" data-hmrc-open><span aria-hidden="true">🧾</span><span>' + esc(text) + '</span><b>Tax pack →</b></button>';
+}
+onHook('afterRender', () => {
+  // Page rules block inline styles, so meter widths are set here.
+  document.querySelectorAll('.hmrc-card .track > span[data-w]').forEach(el => { el.style.width = el.dataset.w + '%'; });
+  if (tab !== 'Dashboard' || document.querySelector('.hmrc-nudge')) return;
+  const html = reportingNudgeHtml(), view = document.getElementById('view');
+  const anchor = view?.querySelector('.mh-stats') || view?.querySelector('.kpi-strip');
+  if (html && anchor) anchor.insertAdjacentHTML('afterend', html);
+});
+document.addEventListener('click', event => { if (event.target.closest('[data-hmrc-open]')) { navigate('Reports'); setTimeout(() => document.querySelector('.hmrc-card')?.scrollIntoView({block: 'start'}), 50); } });
+
 function taxCard() {
   const years = [...new Set([taxYearOf(todayUK()), ...accountingRows(db).filter(r => r.date).map(r => taxYearOf(r.date))])].sort((a, b) => b - a);
   if (taxYear === null || !years.includes(taxYear)) taxYear = years[0];

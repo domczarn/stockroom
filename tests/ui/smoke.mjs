@@ -274,6 +274,22 @@ for (const viewport of [{width: 390, height: 844}, {width: 1440, height: 900}]) 
     });
     assert.ok(['kept', 'no-input'].includes(kept), kept);
   });
+  await check('HMRC reporting counter and Home nudge', viewport, async page => {
+    const out = await page.evaluate(() => {
+      const saved = db, year = todayUK().slice(0, 4);
+      db = {...db, sales: Array.from({length: 31}, (_, i) => ['Thing ' + i, 20, 0, 5, year + '-01-' + String(1 + (i % 28)).padStart(2, '0')])};
+      const r = reportingStatus();
+      navigate('Dashboard'); render();
+      const nudge = document.querySelector('.hmrc-nudge')?.textContent || '';
+      navigate('Reports'); render();
+      const card = document.querySelector('.hmrc-card h2')?.textContent || '';
+      db = saved; navigate('Dashboard'); render();
+      return {sales: r.sales, reported: r.reported, nudge, card};
+    });
+    assert.ok(out.sales >= 31 && out.reported, JSON.stringify(out));
+    assert.match(out.nudge, /report your \d{4} sales to HMRC/);
+    assert.match(out.card, /HMRC platform reporting/);
+  });
   await check('saves send changes only, queue offline, then sync', viewport, async page => {
     const bodies = [];
     page.on('request', r => { if (r.url().endsWith('/api/workspace') && ['PATCH', 'PUT'].includes(r.method())) bodies.push({m: r.method(), size: (r.postData() || '').length}); });
