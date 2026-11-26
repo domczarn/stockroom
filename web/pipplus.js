@@ -58,16 +58,8 @@ async function runSnap() {
   } catch (error) { out.textContent = error.message; }
   finally { go.disabled = false; box.classList.remove('busy'); }
 }
-if (typeof openQuickAdd === 'function') {
-  const baseQuickAdd = openQuickAdd;
-  // eslint-disable-next-line no-global-assign
-  openQuickAdd = function () { baseQuickAdd(); quick.extra = null; mountSnap(); const box = document.getElementById('qaSnap'); if (box) { box.classList.remove('done'); document.getElementById('qaSnapResult').textContent = ''; } syncSnap(); };
-}
-if (typeof syncQuick === 'function') {
-  const baseSync = syncQuick;
-  // eslint-disable-next-line no-global-assign
-  syncQuick = function () { baseSync(); syncSnap(); };
-}
+onHook('afterOpenQuickAdd', () => { if (!document.getElementById('quickAdd')?.open) return; quick.extra = null; mountSnap(); const box = document.getElementById('qaSnap'); if (box) { box.classList.remove('done'); document.getElementById('qaSnapResult').textContent = ''; } syncSnap(); });
+onHook('afterSyncQuick', () => syncSnap());
 
 // ---------- Flaw finder (full editor) ----------
 function mountFlaws() {
@@ -203,17 +195,14 @@ document.addEventListener('click', async event => {
 });
 // Put the Tell Pip bar at the top of Home after each render, and mount the editor tools.
 if (typeof render === 'function') {
-  const baseRender = render;
-  // eslint-disable-next-line no-global-assign
-  render = function (...args) {
-    const typing = document.activeElement?.id === 'tellPipInput' ? document.activeElement.selectionStart : null;
-    const out = baseRender.apply(this, args);
+  let typing = null;
+  onHook('beforeRender', () => { typing = document.activeElement?.id === 'tellPipInput' ? document.activeElement.selectionStart : null; });
+  onHook('afterRender', () => {
     if (tab === 'Dashboard' && !isReadOnly() && !document.getElementById('tellPip')) {
       const view = document.getElementById('view'), anchor = view?.querySelector('.welcome, section');
       if (anchor) anchor.insertAdjacentHTML('afterend', tellPipBar());
       if (typing != null) { const input = document.getElementById('tellPipInput'); input?.focus(); input?.setSelectionRange(typing, typing); }
     }
-    return out;
-  };
+  });
 }
 setTimeout(mountFlaws, 0);

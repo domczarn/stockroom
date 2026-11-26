@@ -43,27 +43,20 @@ function navCloseLayer(layer) {
   document.addEventListener('close', event => { if (event.target.tagName === 'DIALOG') navLayerClosed(event.target); }, true);
 })();
 if (typeof showQr === 'function') {
-  const baseShowQr = showQr, baseCloseQr = closeQr;
-  showQr = function (...args) {
-    baseShowQr.apply(this, args);
+  onHook('afterShowQr', () => {
     const el = document.querySelector('.qr-view:not(.label-view)');
     if (!el) return;
     // Stepping between parcels reuses the same history entry.
     if (history.state?.sr === 'layer' && history.state.qr && !navSkipPop) el._navLayer = history.state.id;
     else navPushLayer(el, {qr: true});
-  };
-  closeQr = function (...args) { const el = document.querySelector('.qr-view'); baseCloseQr.apply(this, args); navLayerClosed(el); };
+  });
+  onHook('afterCloseQr', el => navLayerClosed(el));
 }
 
 // Screens: each tab change is a history step.
-if (typeof navigate === 'function') {
-  const baseNavigate = navigate;
-  navigate = function (next, ...rest) {
-    const before = tab;
-    baseNavigate.call(this, next, ...rest);
-    if (tab !== before && !navFromHistory) { try { history.pushState({sr: 'tab', tab}, ''); navDepth++; } catch {} }
-  };
-}
+onHook('afterNavigate', before => {
+  if (tab !== before && !navFromHistory) { try { history.pushState({sr: 'tab', tab}, ''); navDepth++; } catch {} }
+});
 addEventListener('popstate', event => {
   navDepth = Math.max(0, navDepth - 1);
   if (navSkipPop) {
@@ -198,10 +191,7 @@ document.addEventListener('click', event => {
 });
 
 if (typeof render === 'function') {
-  const baseRenderNav = render;
-  // eslint-disable-next-line no-global-assign
-  render = function (...args) {
-    const out = baseRenderNav.apply(this, args);
+  onHook('afterRender', () => {
     const phone = navPhone();
     document.body.classList.toggle('nav-phone', phone);
     document.body.classList.toggle('tab-profile', tab === 'Profile');
@@ -224,8 +214,7 @@ if (typeof render === 'function') {
     // Pip top left asks Pip; your profile and settings are only under Profile.
     const avatarBtn = document.querySelector('.mh-avatar');
     if (avatarBtn && avatarBtn.dataset.tab) { avatarBtn.removeAttribute('data-tab'); avatarBtn.setAttribute('data-pip-ask', ''); avatarBtn.setAttribute('aria-label', 'Ask Pip'); }
-    return out;
-  };
+  });
 }
 
 // ---------- Money lists: tight rows; tap a row for its actions (like Vinted) ----------
@@ -346,8 +335,7 @@ document.addEventListener('click', event => {
     try { navigator.sendBeacon?.('/api/usage', new Blob([JSON.stringify({feature: name})], {type: 'application/json'})); } catch {}
   };
   if (typeof render === 'function') {
-    const baseRenderUsage = render;
-    render = function (...args) { const out = baseRenderUsage.apply(this, args); count('tab:' + tab); return out; };
+    onHook('afterRender', () => count('tab:' + tab));
   }
   document.addEventListener('click', event => {
     const f = event.target.closest('[data-scan-open], [data-label-show], [data-qr-show], [data-tell-go], .tell-go, [data-write-pip], #writeWithPip, [data-snap], [data-me-share]');

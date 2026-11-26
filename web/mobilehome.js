@@ -193,8 +193,6 @@ function mhHeader() {
   header.querySelector('.mh-store').lastChild.textContent = name.charAt(0).toUpperCase() + name.slice(1);
 }
 if (typeof render === 'function') {
-  const baseRenderMh = render;
-  // eslint-disable-next-line no-global-assign
-  render = function (...args) { const out = baseRenderMh.apply(this, args); mhHeader(); return out; };
+  onHook('afterRender', mhHeader);
   matchMedia('(max-width: 800px)').addEventListener?.('change', () => { if (typeof tab !== 'undefined' && tab === 'Dashboard') render(); });
 }

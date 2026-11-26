@@ -57,9 +57,7 @@ document.addEventListener('click', event => {
 
 // Put the card on Home (phone and web). While you're new, the empty charts and widgets step aside.
 if (typeof render === 'function') {
-  const baseRenderStart = render;
-  render = function (...args) {
-    const out = baseRenderStart.apply(this, args);
+  onHook('afterRender', () => {
     const isNew = startIsNew();
     document.body.classList.toggle('is-new-seller', isNew && tab === 'Dashboard');
     if (tab === 'Dashboard' && startVisible()) {
@@ -70,6 +68,5 @@ if (typeof render === 'function') {
         else view.insertAdjacentHTML('afterbegin', startCardHtml());
       }
     }
-    return out;
-  };
+  });
 }

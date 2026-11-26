@@ -397,6 +397,12 @@ function expensesView() {
     '</section>';
 }
 function render() {
+  runHooks('beforeRender');
+  const out = renderView();
+  runHooks('afterRender');
+  return out;
+}
+function renderView() {
   if (tab === 'Resources') tab = 'Customer care';
   parkNotificationPreferences();
   document.querySelectorAll('.menu-links button').forEach(button => {
@@ -432,12 +438,12 @@ function render() {
   if(tab==='Orders')html+=ordersView();
   if(tab==='Resources')html+=resourcesView();
   if(tab==='Customer care')html+=customerCareView();
-  if(tab==='Studio')html+=studioView();
+  if(tab==='Studio')html+=typeof studioView==='function'?studioView():lazyViewHtml('/studio.js');
   if(tab==='Account')html+=accountView();
   if(tab==='Vinted updates')html+=gmailView();
   if(tab==='Leaderboard')html+=leaderboardView();
   if(tab==='Profile'){html+=profileView();queueMicrotask(()=>loadFriends().catch(error=>{if($('friendsList'))$('friendsList').textContent=error.message;}));}
-  if(tab==='Admin'&&account.role==='admin')html+=adminView();
+  if(tab==='Admin'&&account.role==='admin')html+=typeof adminView==='function'?adminView():lazyViewHtml('/admin.js');
   html=subnavView(tab)+(typeof announcementBar==='function'?announcementBar():'')+html;
   if(isReadOnly())html='<div class="readonly-banner">Viewing a member account · read-only <button class="link" id="ownWorkspace">Return to my Stockroom</button></div>'+html;
   $('view').innerHTML = html;
@@ -808,7 +814,7 @@ $('upload').onchange=async e=>{try{const file=e.target.files[0];if(!file)return;
     }
     if(['Sale receipts','Admin'].includes(tab)&&account.role!=='admin')tab='Dashboard';
     render();finishLaunch();loadNotificationReads().catch(()=>{});startSocial();preparePush().catch(()=>{});cloudAvailable=true;cloudState(pendingLocal?(cloudConflict?'Resolve sync conflict':'Unsaved change · retry'):'Synced to cloud',pendingLocal?'error':'saved');
-    if(account.role==='admin'){loadSaleReceipts().catch(()=>{});loadImportNoticeStatus().catch(()=>{});if(tab==='Admin')loadAdmin().then(()=>{if(tab==='Admin')render();}).catch(()=>{});}
+    if(account.role==='admin'){loadSaleReceipts().catch(()=>{});loadImportNoticeStatus().catch(()=>{});loadScript('/admin.js').then(()=>{if(tab==='Admin')return loadAdmin().then(()=>{if(tab==='Admin')render();});}).catch(()=>{});}
     loadGmail(true).catch(()=>{if($('personalGmailPanel'))$('personalGmailPanel').textContent='Gmail status unavailable. Reopen Vinted updates to try again.';});
     await openScannedStock();
     await refreshImports();setInterval(()=>{if(!document.hidden)void refreshImports();},30000);setInterval(syncCloud,15000);

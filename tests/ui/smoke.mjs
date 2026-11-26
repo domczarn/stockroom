@@ -257,6 +257,23 @@ for (const viewport of [{width: 390, height: 844}, {width: 1440, height: 900}]) 
     });
     assert.equal(out, '1:ok 7:ok 30:ok 90:ok', out);
   });
+  await check('admin and studio load on first open; hooks keep typing focus', viewport, async page => {
+    // (The admin console preloads in the background for admins only; members never download it.)
+    assert.equal(await page.evaluate(() => typeof studioView), 'undefined');
+    await page.evaluate(() => { navigate('Studio'); render(); });
+    await page.waitForFunction(() => typeof studioView === 'function' && !document.querySelector('.lazy-loading'));
+    // A re-render while typing in a field keeps focus and cursor.
+    const kept = await page.evaluate(() => {
+      navigate('Stock'); render();
+      const input = document.querySelector('#view input[type="search"], #view input[id]');
+      if (!input || !input.id) return 'no-input';
+      input.focus(); input.value = 'nike'; input.setSelectionRange(2, 2);
+      render();
+      const now = document.getElementById(input.id);
+      return document.activeElement === now ? 'kept' : 'lost';
+    });
+    assert.ok(['kept', 'no-input'].includes(kept), kept);
+  });
   await check('saves send changes only, queue offline, then sync', viewport, async page => {
     const bodies = [];
     page.on('request', r => { if (r.url().endsWith('/api/workspace') && ['PATCH', 'PUT'].includes(r.method())) bodies.push({m: r.method(), size: (r.postData() || '').length}); });

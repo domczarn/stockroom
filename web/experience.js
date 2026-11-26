@@ -48,7 +48,8 @@ function guideView() {
  return '<div class="guide-intro">'+blobCharacter('small')+'<p>Pip checks your saved stock, sales and orders when you open this review. Pick a finding to see what needs attention.</p></div>'+
    '<div class="pip-review-list">'+(groups.join('') || '<p>No issues found in the records Pip checks.</p>')+'</div>';
 }
-function navigate(next){
+function navigate(next, ...rest){const before=tab;navigateTo(next,...rest);runHooks('afterNavigate',before);}
+function navigateTo(next){
  if(!account||!db){tab=next;return;}
  if(['Admin','Sale receipts'].includes(next)&&account.role!=='admin')return;
  $('accountMenu').open=false;
@@ -62,7 +63,7 @@ function navigate(next){
  if(tab==='Leaderboard')loadLeaderboard(1);
  if(tab==='Vinted updates')loadGmail().catch(error=>{if($('personalGmailPanel'))$('personalGmailPanel').textContent=error.message;});
  if(tab==='Sale receipts')loadSaleReceipts().catch(error=>toast(error.message));
- if(tab==='Admin')loadAdmin().then(()=>{if(tab==='Admin')render();}).catch(error=>toast(error.message));
+ if(tab==='Admin')loadScript('/admin.js').then(()=>loadAdmin()).then(()=>{if(tab==='Admin')render();}).catch(error=>toast(error.message));
 }
 function panelSnapshot(dialog){
  if(dialog.id==='chatDialog'||dialog.id==='labelDialog'||(dialog.id==='tradeDialog'&&['offer','lookup','order'].includes(dialogAction)))return '';

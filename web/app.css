@@ -3264,3 +3264,7 @@ body.is-new-seller .kpi-strip,body.is-new-seller .revenue-studio{display:none!im
 /* editor price helper uses the full width */
 #form .pg-hint{grid-column:1/-1}
 #form .pg-line{width:100%;box-sizing:border-box}
+.lazy-loading{min-height:40vh;display:grid;place-items:center;color:var(--muted,#9a9aa5)}
+/* Long lists: the browser skips drawing cards and rows that are off screen until you scroll to them. */
+/* (Stock cards are left alone: their menus need to overflow the card.) */
+#view tbody tr{content-visibility:auto;contain-intrinsic-size:auto 52px}

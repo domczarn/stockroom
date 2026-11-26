@@ -100,7 +100,8 @@ async function removeQr(id) {
 }
 
 // Full-screen viewer: white, big and bright for the scanner at the drop-off.
-function showQr(id) {
+function showQr(id) { showQrView(id); runHooks('afterShowQr', id); }
+function showQrView(id) {
   const item = db.items.find(i => i.id === id);
   if (!item?.shipQr) return;
   const trade = lastTrade(db, id), ship = trade && typeof shipInfo === 'function' ? shipInfo(trade) : null;
@@ -124,7 +125,8 @@ function showQr(id) {
   el.querySelector('[data-qr-close]').focus();
   try { navigator.wakeLock?.request('screen').then(lock => { el._lock = lock; }).catch(() => {}); } catch {}
 }
-function closeQr() {
+function closeQr() { const el = document.querySelector('.qr-view'); closeQrView(); runHooks('afterCloseQr', el); }
+function closeQrView() {
   const el = document.querySelector('.qr-view');
   if (!el) return;
   try { el._lock?.release(); } catch {}
@@ -157,10 +159,7 @@ document.addEventListener('keydown', event => { if (event.key === 'Escape' && do
 
 // Pin "Ready to post" to the top of Home and Stock.
 if (typeof render === 'function') {
-  const baseRenderQr = render;
-  // eslint-disable-next-line no-global-assign
-  render = function (...args) {
-    const out = baseRenderQr.apply(this, args);
+  onHook('afterRender', () => {
     const view = document.getElementById('view');
     if (view && !view.querySelector('.ship-qr-panel, .ship-way-panel')) {
       if (tab === 'Dashboard') {
@@ -179,6 +178,5 @@ if (typeof render === 'function') {
         else if (html) view.insertAdjacentHTML('afterbegin', html);
       }
     }
-    return out;
-  };
+  });
 }

@@ -115,7 +115,8 @@ function quickSheet() {
   return dialog;
 }
 
-function syncQuick() {
+function syncQuick() { syncQuickView(); runHooks('afterSyncQuick'); }
+function syncQuickView() {
   const grid = document.getElementById('qaGrid');
   grid.innerHTML = quick.photos.map((src, i) => '<figure><img src="' + src + '" alt=""><button type="button" data-qa-remove="' + i + '" aria-label="Remove photo">✕</button>' + (i === 0 ? '<span>Cover</span>' : '') + '</figure>').join('');
   grid.hidden = !quick.photos.length;
@@ -127,7 +128,8 @@ function syncQuick() {
   const form = document.getElementById('quickAddForm'); if (form) qaSyncPicks(form);
 }
 
-function openQuickAdd() {
+function openQuickAdd() { const opened = openQuickAddView(); runHooks('afterOpenQuickAdd'); return opened; }
+function openQuickAddView() {
   if (!db || isReadOnly()) { toast('This account is read-only.'); return; }
   const dialog = quickSheet();
   const form = dialog.querySelector('form');
