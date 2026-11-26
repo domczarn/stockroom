@@ -34,7 +34,24 @@ assets['/index.html']=assets['/index.html'].replace('<meta charset="utf-8">','<m
 assets['/'] = assets['/index.html'];
 await rm('dist',{recursive:true,force:true});
 await mkdir('dist/server',{recursive:true});
-const banner={js:'const assets = '+JSON.stringify(assets)+';'};
+// Static files (scripts, styles, fonts, images) are served by Cloudflare straight from dist/client/s/<version>/,
+// cached for a year because the version is in the path. The Worker keeps only pages, JSON, the manifest and the
+// service worker, so it stays small and starts fast. Old unversioned paths still work through the Worker.
+const keepInWorker=name=>/\.(?:html|json|webmanifest)$/.test(name)||name==='/'||name==='/stockroom-sw.js';
+const staticNames=Object.keys(assets).filter(name=>!keepInWorker(name));
+const base='/s/'+version+'/';
+const escapeRe=v=>v.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+const refs=new RegExp('(["\'(])\\/?('+staticNames.map(n=>escapeRe(n.slice(1))).sort((a,b)=>b.length-a.length).join('|')+')(?=["\')?#])','g');
+const rewrite=text=>text.replace(refs,(_,quote,name)=>quote+base+name);
+for(const name of Object.keys(assets))if(typeof assets[name]==='string'&&!/\.json$/.test(name)&&name!=='/stockroom-sw.js')assets[name]=rewrite(assets[name]);
+await mkdir('dist/client'+base,{recursive:true});
+for(const name of staticNames){
+  const a=assets[name];
+  await writeFile('dist/client'+base+name.slice(1),typeof a==='object'?Buffer.from(a.base64,'base64'):a);
+}
+await writeFile('dist/client/_headers','/s/*\n  Cache-Control: public, max-age=31536000, immutable\n  X-Content-Type-Options: nosniff\n');
+const workerAssets=Object.fromEntries(Object.entries(assets).filter(([name])=>keepInWorker(name)));
+const banner={js:'const assets = '+JSON.stringify(workerAssets)+';\nconst staticAssets = '+JSON.stringify({base,names:staticNames})+';'};
 // index.js is the deployed Worker (verifies Cloudflare Access). app.js skips that wrapper for tests and local dev only.
 await build({entryPoints:{index:'worker/entry.js',app:'worker/server.js'},banner,
   bundle:true,format:'esm',platform:'browser',target:'es2022',outdir:'dist/server'});

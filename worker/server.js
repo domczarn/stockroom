@@ -341,6 +341,15 @@ export default {
         const details=[s.company_number&&'company number '+e(s.company_number),s.company_address&&'registered office '+e(s.company_address)].filter(Boolean).join(', ');
         return new Response(assets[url.pathname].replace('<!--company-->',details?' ('+details+')':''),{headers:{'content-type':'text/html;charset=utf-8','cache-control':'no-cache','x-content-type-options':'nosniff','content-security-policy':"default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'"}});
       }
+      // Cloudflare serves /s/ itself; this only runs locally and in tests.
+      if (url.pathname.startsWith('/s/') && env.ASSETS) return env.ASSETS.fetch(request);
+      // Old unversioned paths (/app.js, /icon-192.png, emails, the manifest): fetch the current static copy.
+      if (!(url.pathname in assets) && staticAssets.names.includes(url.pathname) && env.ASSETS) {
+        const found=await env.ASSETS.fetch(new Request(new URL(staticAssets.base+url.pathname.slice(1),url),{method:request.method}));
+        if(!found.ok)return new Response('Not found',{status:404});
+        const headers=new Headers(found.headers);headers.set('cache-control','private, no-cache');headers.set('x-content-type-options','nosniff');
+        return new Response(request.method==='HEAD'?null:found.body,{status:200,headers});
+      }
       if (!(url.pathname in assets)) return new Response('Not found',{status:404});
       const assetTag='"'+(JSON.parse(assets['/version.json']||'{}').version||'v')+'"';
       if(request.headers.get('if-none-match')===assetTag&&url.pathname!=='/version.json')return new Response(null,{status:304,headers:{etag:assetTag,'cache-control':'private, no-cache'}});

@@ -10,6 +10,13 @@ routes = [{ pattern = "stockroom.bookednpaid.com", custom_domain = true }]
 # Every minute: one Gmail mailbox. Every 10 minutes: price index, alerts, weekly reports. Separate runs, separate budgets.
 crons = ["* * * * *", "*/10 * * * *"]
 
+# Scripts, styles, fonts and images live under /s/<version>/ and are served by Cloudflare directly, cached for a year.
+# Everything else (pages, API, old unversioned paths) runs through the Worker.
+[assets]
+directory = "dist/client"
+binding = "ASSETS"
+run_worker_first = ["/*", "!/s/*"]
+
 [observability]
 enabled = true
 

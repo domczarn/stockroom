@@ -1,8 +1,8 @@
 'use strict';
 // Offline: network first, last good copy when there is no signal.
 // Only plain same-origin GETs are kept: the app itself, your last workspace and photos. Sign-in redirects are never cached.
-const CACHE='stockroom-offline-v2';
-const KEEP=/^\/(?:$|index\.html$|[\w.-]+\.(?:js|css|woff2|png|svg|webmanifest|json)$|api\/(?:me|workspace|gmail|purchases)$|api\/media\/)/;
+const CACHE='stockroom-offline-v3';
+const KEEP=/^\/(?:$|index\.html$|[\w.-]+\.(?:js|css|woff2|png|svg|webmanifest|json)$|s\/[0-9a-f]+\/[\w.-]+$|api\/(?:me|workspace|gmail|purchases)$|api\/media\/)/;
 self.addEventListener('install',event=>event.waitUntil(self.skipWaiting()));
 self.addEventListener('activate',event=>event.waitUntil((async()=>{
   for(const key of await caches.keys())if(key!==CACHE)await caches.delete(key);
@@ -15,13 +15,16 @@ self.addEventListener('fetch',event=>{
     const cache=await caches.open(CACHE);
     const key=request.mode==='navigate'?'/':url.pathname+url.search;
     // Photos and images never change once uploaded: show the saved copy instantly.
-    if(/^\/api\/media\/|\.(?:png|svg|woff2)$/.test(url.pathname)){
+    // Versioned files (/s/<version>/…) never change either. When a new version arrives, drop the old ones.
+    if(/^\/api\/media\/|^\/s\/|\.(?:png|svg|woff2)$/.test(url.pathname)){
       const hit=await cache.match(key);
       if(hit)return hit;
     }
     try{
       const response=await fetch(request);
       if(response.ok&&response.type==='basic'&&!response.redirected)cache.put(key,response.clone()).catch(()=>{});
+      const v=url.pathname.match(/^\/s\/([0-9a-f]+)\//);
+      if(v&&response.ok)cache.keys().then(keys=>{for(const k of keys){const p=new URL(k.url).pathname.match(/^\/s\/([0-9a-f]+)\//);if(p&&p[1]!==v[1])cache.delete(k);}}).catch(()=>{});
       return response;
     }catch(error){
       const cached=await cache.match(key)||(request.mode==='navigate'?await cache.match('/'):null);
