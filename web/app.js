@@ -43,14 +43,20 @@ async function pendingRecord(value,write=false){
  if(!storage)return null;
  return new Promise((resolve,reject)=>{const tx=storage.transaction('workspace',write?'readwrite':'readonly'),store=tx.objectStore('workspace'),key='pending:'+account.id;const r=write?(value?store.put(value,key):store.delete(key)):store.get(key);r.onsuccess=()=>{if(!write)resolve(r.result);};tx.oncomplete=()=>{if(write)resolve();};tx.onerror=()=>reject(tx.error);});
 }
+// The server says how full the account is after each save. Warn early (75%), and again when it's close (90%).
+function storageWarning(used){
+  if(!(used>=0.75))return;
+  const level=used>=0.9?90:75;
+  if((storageWarning.shown||0)>=level)return;
+  storageWarning.shown=level;
+  toast(level===90?'Your account is '+Math.round(used*100)+'% full. Delete or archive old sold items now so saving keeps working.':'Your account is '+Math.round(used*100)+'% full. Archiving old sold items will keep it fast.');
+}
 async function persist(next=db){
   if(isReadOnly())throw Error('This account is read-only. Return to your workspace to edit.');
   if(cloudSaving)throw Error('A save is in progress. Please try again.');
   if(pendingLocal && next!==pendingLocal && !pendingOffline)throw Error('An unsaved change is waiting. Open Settings to retry or discard it first.');
   if(cloudConflict)throw Error('Resolve the sync conflict in Settings before saving. Your changes are still here.');
   // The server stores item text separately, so workspaces can hold thousands of items. Warn only when very large.
-  const size=JSON.stringify(next).length;
-  if(size>24000000&&!persist.warned){persist.warned=true;toast('Your workspace is getting very large. Archive old sold items soon.');}
   cloudSaving=true;cloudState('Saving…','saving');
   pendingLocal=cloneWorkspace(next);
   await pendingRecord({data:pendingLocal,revision:cloudRevision,base:cloudBase},true).catch(()=>{});
@@ -67,6 +73,7 @@ async function persist(next=db){
       result=await api('/api/workspace',{method:'PUT',body:JSON.stringify({data:next,revision:cloudRevision})});
       db=result.data;
     }
+    storageWarning(result.used);
     cloudRevision=result.revision;cloudBase=cloneWorkspace(db);cloudAvailable=true;pendingLocal=null;pendingOffline=false;await pendingRecord(null,true).catch(()=>{});
     try{await writeSaved(db);}catch{/* Cloud is authoritative even if this device cannot cache it. */}
     render();cloudState('Synced to cloud','saved');$('saveState').textContent='Saved across devices';

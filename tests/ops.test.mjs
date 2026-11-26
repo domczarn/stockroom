@@ -58,3 +58,13 @@ test('change-based saves still enforce validation and the free item allowance', 
   const bad = await call(env, 'PATCH', {revision: first.data.revision, ops: [{k: 'items', id: 'z', before: null, rec: {id: 'z', name: ''}}]});
   assert.equal(bad.status, 400);
 });
+
+test('saves report how full the account is', async () => {
+  const env = environment();
+  const first = await call(env, 'PUT', {data: base(), revision: null});
+  assert.equal(typeof first.data.used, 'number');
+  assert.ok(first.data.used < 0.01);
+  const d = first.data.data;
+  const next = await call(env, 'PATCH', {revision: first.data.revision, ops: [edit(d, 'a', {price: 21})]});
+  assert.equal(typeof next.data.used, 'number');
+});

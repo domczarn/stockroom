@@ -232,7 +232,7 @@ export default {
           const {revision,updatedAt}=saved;
           await recordNewItems(env,owner,added);
           await audit(env,user,owner,'workspace_save');
-          return json({data,revision,updatedAt,owner});
+          return json({data,revision,updatedAt,owner,used:saved.used});
         }
         if(request.method==='PATCH') {
           // Change-based save: only what changed travels; each record is checked on its own (see ops.js).
@@ -257,7 +257,7 @@ export default {
             await recordNewItems(env,owner,added);
             await audit(env,user,owner,'workspace_save');
             const merged=(stored?.revision||null)!==body.revision;
-            return json({revision:saved.revision,updatedAt:saved.updatedAt,owner,changes:touchedRecords(data,result.touched),...(merged?{data}:{})});
+            return json({revision:saved.revision,updatedAt:saved.updatedAt,owner,used:saved.used,changes:touchedRecords(data,result.touched),...(merged?{data}:{})});
           }
           throw new HttpError(409,'Another device is saving right now. Try again in a moment.');
         }

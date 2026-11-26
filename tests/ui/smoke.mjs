@@ -290,6 +290,12 @@ for (const viewport of [{width: 390, height: 844}, {width: 1440, height: 900}]) 
     assert.match(out.nudge, /report your \d{4} sales to HMRC/);
     assert.match(out.card, /HMRC platform reporting/);
   });
+  await check('warns before the account gets full', viewport, async page => {
+    const msgs = await page.evaluate(() => { const seen = []; const t = toast; toast = m => seen.push(m); storageWarning.shown = 0; storageWarning(0.5); storageWarning(0.8); storageWarning(0.81); storageWarning(0.93); toast = t; return seen; });
+    assert.equal(msgs.length, 2);
+    assert.match(msgs[0], /80% full/);
+    assert.match(msgs[1], /93% full/);
+  });
   await check('saves send changes only, queue offline, then sync', viewport, async page => {
     const bodies = [];
     page.on('request', r => { if (r.url().endsWith('/api/workspace') && ['PATCH', 'PUT'].includes(r.method())) bodies.push({m: r.method(), size: (r.postData() || '').length}); });

@@ -45,5 +45,8 @@ export async function saveWorkspace(env, ownerId, data, previousRevision) {
     return {conflict: true};
   }
   await env.DB.prepare('DELETE FROM workspace_parts WHERE owner_id = ? AND revision <> ?').bind(ownerId, revision).run();
-  return {revision, updatedAt, size: coreJson.length + textJson.length};
+  // How full the account is (0–1), so the app can warn well before a save is ever refused.
+  const used = Math.round(Math.max(coreJson.length / CORE_LIMIT, textJson.length / TEXT_LIMIT) * 100) / 100;
+  if (used >= 0.75) console.warn('Workspace nearly full', ownerId, used);
+  return {revision, updatedAt, size: coreJson.length + textJson.length, used};
 }
