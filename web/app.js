@@ -133,7 +133,7 @@ function workspacePickerView(loading=false){
   if(picker.hidden)return;
   const choice=(id,label,detail)=>'<button type="button" data-workspace-choice="'+esc(id)+'" '+(id===workspaceOwner?'aria-current="true"':'')+'><strong>'+esc(label)+'</strong><small>'+esc(detail)+'</small></button>';
   $('workspaceChoices').innerHTML=choice(account.id,'My Stockroom','Main account')+
-    (loading?'<p role="status">Loading member accounts…</p>':members.filter(row=>row.user_id&&row.status==='active').map(row=>choice(row.user_id,row.name,'Member · read-only')).join('')+
+    (loading?srWait('Finding member accounts…',{small:true}):members.filter(row=>row.user_id&&row.status==='active').map(row=>choice(row.user_id,row.name,'Member · read-only')).join('')+
       (members.some(row=>row.user_id&&row.status==='active')?'':'<p>No active member workspaces yet.</p>'))+
     '<button type="button" data-tab="Admin"><strong>Manage accounts</strong><small>Manage member access</small></button>';
 }

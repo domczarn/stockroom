@@ -33,9 +33,17 @@ function loadScript(src) {
     document.head.appendChild(el);
   });
 }
+// The waiting animation. lines: one label, or several that take turns. ghost: faint rows of the screen to come.
+function srWait(lines = 'Getting it ready…', {small = false, ghost = true} = {}) {
+  const list = (Array.isArray(lines) ? lines : [lines]).slice(0, 3).map(l => '<span>' + String(l).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c])) + '</span>').join('');
+  return '<div class="sr-wait' + (small ? ' small' : '') + '" role="status" aria-busy="true"><div class="sr-wait-stage"><span class="sr-wait-ring"></span><span class="sr-wait-shadow"></span>' +
+    '<i class="sr-wait-spark"></i><i class="sr-wait-spark"></i><i class="sr-wait-spark"></i><img src="/pip-orb.svg" alt=""></div>' +
+    '<div class="sr-wait-lines' + (Array.isArray(lines) && lines.length > 1 ? '' : ' one') + '">' + list + '</div>' +
+    (ghost ? '<div class="sr-wait-ghost" aria-hidden="true"><i></i><i></i><i></i></div>' : '') + '</div>';
+}
 function lazyViewHtml(src) {
   loadScript(src).then(() => render(), error => toast(error.message));
-  return '<section class="panel lazy-loading" aria-busy="true"><p>Loading…</p></section>';
+  return '<section class="panel lazy-loading">' + srWait(['Opening it up…', 'Nearly there…', 'Just a second…']) + '</section>';
 }
 function onHook(name, fn) { (srHooks[name] ||= []).push(fn); }
 function runHooks(name, ...args) {

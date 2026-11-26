@@ -57,7 +57,7 @@ function profileView() {
 
 const friendAction = (friend, action, label) => '<button type="button" class="secondary" data-friend="'+esc(friend.id)+'" data-friend-action="'+action+'">'+label+'</button>';
 function friendsMarkup() {
-  if (!friendsLoaded) return '<p class="footnote">Loading connections…</p>';
+  if (!friendsLoaded) return srWait('Finding your connections…', {small: true});
   if (!friends.length) return '<p class="footnote">No connections yet. Add someone by their Stockroom username or their Instagram @handle.</p>';
   return friends.map(friend => {
     const state = friend.state === 'accepted' ? (activityLabel(friend.lastActiveAt)||'Connected') : friend.state === 'blocked' ? 'Blocked' : friend.incoming ? 'Request received' : 'Request sent';
@@ -93,7 +93,7 @@ function loadFriends() {
 }
 
 function leaderboardView(){
-  return '<section class="panel"><span class="eyebrow">STOCKROOM COMMUNITY</span><h2>All-time sales revenue</h2><p>Ranks use recorded sales after refunds, in GBP. Members choose whether to publish their total.</p><button class="secondary" type="button" data-tab="Profile">Manage my visibility</button><div id="leaderboardList" aria-live="polite">Loading leaderboard…</div></section>';
+  return '<section class="panel"><span class="eyebrow">STOCKROOM COMMUNITY</span><h2>All-time sales revenue</h2><p>Ranks use recorded sales after refunds, in GBP. Members choose whether to publish their total.</p><button class="secondary" type="button" data-tab="Profile">Manage my visibility</button><div id="leaderboardList" aria-live="polite">'+srWait('Ranking sellers…',{small:true})+'</div></section>';
 }
 
 async function loadLeaderboard(page) {

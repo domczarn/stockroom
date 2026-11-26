@@ -41,7 +41,7 @@ function adminView() {
     '<button type="button" role="tab" data-adm-tab="' + k + '" aria-selected="' + (k === adminTab) + '">' + l +
     (k === 'members' && adminData.people ? ' <span class="view-count">' + adminData.people.members.length + '</span>' : '') + '</button>').join('') + '</div>';
   if (adminError) return head + '<section class="panel"><p>' + esc(adminError) + '</p><button class="secondary" data-adm-reload>Try again</button></section>';
-  if (!adminData.overview) return head + '<section class="panel"><p class="footnote">Loading the admin console…</p></section>';
+  if (!adminData.overview) return head + '<section class="panel">' + srWait(['Loading members…', 'Adding up the numbers…', 'Nearly there…']) + '</section>';
   const body = {overview: admOverview, members: admMembers, invite: admInvite, activity: admActivity, settings: admSettings}[adminTab]();
   return head + '<div class="adm-body">' + body + '</div>';
 }
@@ -189,7 +189,7 @@ const admDevice = ua => !ua ? 'Unknown device' : /iPhone/.test(ua) ? 'iPhone' : 
 
 async function admOpen(id) {
   const dialog = admSheet();
-  dialog.innerHTML = '<p class="footnote">Loading…</p>';
+  dialog.innerHTML = srWait('Opening…', {small: true, ghost: false});
   if (!dialog.open) dialog.showModal();
   try { adminMember = await api('/api/admin/people/' + encodeURIComponent(id)); dialog.innerHTML = admMemberHtml(adminMember); }
   catch (error) { dialog.innerHTML = '<p>' + esc(error.message) + '</p><button class="secondary" data-close-dialog="admMemberDialog">Close</button>'; }

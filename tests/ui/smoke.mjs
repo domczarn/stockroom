@@ -306,6 +306,27 @@ for (const viewport of [{width: 390, height: 844}, {width: 1440, height: 900}]) 
     });
     assert.deepEqual(out, {card: false, deltas: 0});
   });
+  await check('waiting animation and pull to refresh on any tab', viewport, async page => {
+    const loader = await page.evaluate(() => { const box = document.createElement('div'); box.innerHTML = srWait(['A', 'B']); document.body.append(box);
+      const ok = !!box.querySelector('.sr-wait-stage img') && box.querySelectorAll('.sr-wait-lines span').length === 2; box.remove();
+      return ok && !document.querySelector('#view .lazy-loading p'); });
+    assert.ok(loader);
+    if (viewport.width > 500) return;   // pull to refresh is a touch gesture
+    const spun = await page.evaluate(async () => {
+      navigate('Stock'); render(); window.scrollTo(0, 0);
+      const target = document.querySelector('#view h1, #view h2, #view') ;
+      const touch = y => new Touch({identifier: 1, target, clientX: 180, clientY: y});
+      window.dispatchEvent(new TouchEvent('touchstart', {touches: [touch(120)], bubbles: true}));
+      target.dispatchEvent(new TouchEvent('touchstart', {touches: [touch(120)], bubbles: true}));
+      window.dispatchEvent(new TouchEvent('touchmove', {touches: [touch(320)], bubbles: true}));
+      window.dispatchEvent(new TouchEvent('touchend', {touches: [], bubbles: true}));
+      const ptr = document.querySelector('.ptr');
+      const spinning = ptr.classList.contains('spin');
+      for (let i = 0; i < 50 && ptr.classList.contains('spin'); i++) await new Promise(r => setTimeout(r, 100));
+      return {spinning, done: !ptr.classList.contains('spin')};
+    });
+    assert.deepEqual(spun, {spinning: true, done: true});
+  });
   await check('saves send changes only, queue offline, then sync', viewport, async page => {
     const bodies = [];
     page.on('request', r => { if (r.url().endsWith('/api/workspace') && ['PATCH', 'PUT'].includes(r.method())) bodies.push({m: r.method(), size: (r.postData() || '').length}); });

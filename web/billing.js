@@ -15,7 +15,7 @@ async function loadBilling() {
 
 function billingPanel() {
   const b = billingInfo;
-  if (!b) return '<div class="billing-box" id="billingBox"><p class="footnote">Loading your plan…</p></div>';
+  if (!b) return '<div class="billing-box" id="billingBox">' + srWait('Checking your plan…', {small: true, ghost: false}) + '</div>';
   if (b.owner) return '<div class="billing-box" id="billingBox"><div class="plan-head"><span class="plan-badge pro">Owner</span><strong>Everything included</strong></div><p class="footnote">The owner account always has every Pro feature.</p></div>';
   if (b.plan === 'pro') {
     const date = b.until ? new Date(b.until).toLocaleDateString('en-GB', {day: 'numeric', month: 'long', year: 'numeric'}) : '';

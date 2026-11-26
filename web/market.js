@@ -5,7 +5,7 @@ async function loadMarketResearch(){
   if(marketLoading)return;
   marketLoading=true;
   const panel=$('marketResearch');
-  if(panel&&!marketReport)panel.innerHTML='<section class="panel" role="status">Loading Vinted UK market data…</section>';
+  if(panel&&!marketReport)panel.innerHTML='<section class="panel">'+srWait(['Reading the Vinted UK market…','Finding what sells fastest…','Working out the prices…'])+'</section>';
   try{
     const {report}=await api('/api/market-research');
     marketReport=report;
@@ -37,3 +37,5 @@ function renderMarketResearch(){
     '<button type="button" class="secondary" data-tab="Buying insights">See my recorded sales ↗</button>';
   labelViewCells($('marketResearch'));
 }
+
+onHook('pullRefresh', t => { if (typeof marketReport !== 'undefined' && /market/i.test(String(t))) { marketReport = null; } });

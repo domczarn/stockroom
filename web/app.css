@@ -3275,3 +3275,62 @@ body.is-new-seller .kpi-strip,body.is-new-seller .revenue-studio{display:none!im
 
 /* The chart tooltip never takes the pointer, or it hides itself when it appears under the cursor. */
 .mh-tip{pointer-events:none}
+
+/* ---------- Waiting: one animated loader everywhere (launch, screens loading, refresh) ----------
+   Pip bobs and squashes, three sparks orbit him, a glowing arc sweeps round, and the status line cycles. */
+.sr-wait { display: grid; justify-items: center; align-content: center; gap: 14px; text-align: center; padding: 28px 16px; min-height: 38vh; color: var(--muted, #a49cb0); }
+.sr-wait-stage { position: relative; width: 116px; height: 116px; }
+.sr-wait-stage img { position: absolute; inset: 18px; width: 80px; height: 80px; animation: srBob 1.6s cubic-bezier(.45,0,.55,1) infinite; transform-origin: 50% 85%; }
+.sr-wait-ring { position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(from 0deg, transparent 0 62%, rgba(183,140,255,.0) 62%, rgba(183,140,255,.85) 92%, #fff 100%);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px)); mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
+  animation: srSpin 1.15s linear infinite; }
+.sr-wait-spark { position: absolute; left: 50%; top: 50%; width: 7px; height: 7px; margin: -3.5px; border-radius: 50%; background: #e7d6ff; box-shadow: 0 0 10px 2px rgba(183,140,255,.75);
+  animation: srOrbit 2.4s linear infinite; }
+.sr-wait-spark:nth-child(3) { animation-delay: -.8s; width: 5px; height: 5px; margin: -2.5px; }
+.sr-wait-spark:nth-child(4) { animation-delay: -1.6s; width: 4px; height: 4px; margin: -2px; opacity: .8; }
+.sr-wait-shadow { position: absolute; left: 34px; right: 34px; bottom: 6px; height: 8px; border-radius: 50%; background: rgba(0,0,0,.35); filter: blur(3px); animation: srShadow 1.6s cubic-bezier(.45,0,.55,1) infinite; }
+.sr-wait-lines { position: relative; height: 1.4em; min-width: 16em; font-size: 14px; }
+.sr-wait-lines span { position: absolute; inset: 0; opacity: 0; animation: srLine 4.5s infinite; }
+.sr-wait-lines span:nth-child(2) { animation-delay: 1.5s; }
+.sr-wait-lines span:nth-child(3) { animation-delay: 3s; }
+.sr-wait-lines.one span { animation: none; opacity: 1; }
+.sr-wait.small { min-height: 0; padding: 18px 12px; gap: 10px; }
+.sr-wait.small .sr-wait-stage { width: 72px; height: 72px; }
+.sr-wait.small .sr-wait-stage img { inset: 12px; width: 48px; height: 48px; }
+.sr-wait.small .sr-wait-shadow { left: 22px; right: 22px; bottom: 3px; }
+/* Faint shapes of the screen that's on its way, so nothing jumps when it lands */
+.sr-wait-ghost { display: grid; gap: 8px; width: min(100%, 420px); margin-top: 6px; }
+.sr-wait-ghost i { display: block; height: 12px; border-radius: 8px; background: linear-gradient(90deg, rgba(255,255,255,.05) 0%, rgba(255,255,255,.12) 50%, rgba(255,255,255,.05) 100%); background-size: 220% 100%; animation: srShimmer 1.3s ease-in-out infinite; }
+.sr-wait-ghost i:nth-child(2) { width: 82%; } .sr-wait-ghost i:nth-child(3) { width: 64%; }
+@keyframes srBob { 0%, 100% { transform: translateY(0) scale(1, 1); } 40% { transform: translateY(-14px) scale(.96, 1.04); } 55% { transform: translateY(-15px) scale(1, 1); } 88% { transform: translateY(0) scale(1.07, .93); } }
+@keyframes srShadow { 0%, 100% { transform: scaleX(1); opacity: .9; } 50% { transform: scaleX(.6); opacity: .45; } }
+@keyframes srSpin { to { transform: rotate(360deg); } }
+@keyframes srOrbit { from { transform: rotate(0deg) translateX(54px) rotate(0deg); } to { transform: rotate(360deg) translateX(54px) rotate(-360deg); } }
+.sr-wait.small .sr-wait-spark { animation-name: srOrbitSmall; }
+@keyframes srOrbitSmall { from { transform: rotate(0deg) translateX(34px); } to { transform: rotate(360deg) translateX(34px); } }
+@keyframes srLine { 0% { opacity: 0; transform: translateY(6px); } 6%, 30% { opacity: 1; transform: none; } 36%, 100% { opacity: 0; transform: translateY(-6px); } }
+@keyframes srShimmer { 0% { background-position: 120% 0; } 100% { background-position: -120% 0; } }
+
+/* Launch: covers everything (header and tab bar too) until your real data has loaded */
+.pip-launch-screen { z-index: 1000 !important; }
+.pip-launch-screen .sr-wait { min-height: 0; color: #decfe7; }
+.pip-launch-screen .sr-wait-stage { width: 170px; height: 170px; }
+.pip-launch-screen .sr-wait-stage img { inset: 26px; width: 118px; height: 118px; }
+.pip-launch-screen .sr-wait-spark { animation-name: srOrbitBig; }
+@keyframes srOrbitBig { from { transform: rotate(0deg) translateX(80px); } to { transform: rotate(360deg) translateX(80px); } }
+.pip-launch-screen .sr-wait-shadow { left: 52px; right: 52px; bottom: 10px; }
+
+/* Pull to refresh: Pip comes down with you, then the arc spins while it refreshes */
+.ptr { width: 46px !important; height: 46px !important; margin-left: -23px !important; overflow: visible; }
+.ptr img { width: 30px; height: 30px; }
+.ptr::after { content: ''; position: absolute; inset: -3px; border-radius: 50%; background: conic-gradient(from 0deg, transparent 0 60%, rgba(183,140,255,.9) 95%, #fff 100%);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px)); mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px)); opacity: 0; }
+.ptr.ready::after { opacity: .5; }
+.ptr.spin::after { opacity: 1; animation: srSpin .9s linear infinite; }
+.ptr.spin img { animation: srBob 1.2s cubic-bezier(.45,0,.55,1) infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .sr-wait-stage img, .sr-wait-ring, .sr-wait-spark, .sr-wait-shadow, .sr-wait-ghost i, .ptr.spin::after, .ptr.spin img { animation: none !important; }
+  .sr-wait-lines span { animation: none; } .sr-wait-lines span:first-child { opacity: 1; }
+}
+.ptr { z-index: 60 !important; }
+.ptr img { width: 44px !important; height: 44px !important; }

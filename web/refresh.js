@@ -1,18 +1,18 @@
 'use strict';
-// Pull down at the top of Home to refresh: new app version, Vinted emails, cloud data.
+// Pull down at the top of any tab to refresh: new app version, Vinted emails, cloud data, and the screen you're on.
 
 (() => {
   const indicator = document.createElement('div');
   indicator.className = 'ptr';
   indicator.setAttribute('aria-hidden', 'true');
-  indicator.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 4v5h-5"/></svg>';
+  indicator.innerHTML = '<img src="/pip-orb.svg" alt="">';
   document.body.append(indicator);
 
   const THRESHOLD = 70;
   let startY = null, pull = 0, refreshing = false;
 
   const place = (distance, opacity) => {
-    indicator.style.transform = 'translateY(' + distance + 'px) rotate(' + distance * 3 + 'deg)';
+    indicator.style.transform = 'translateY(' + distance + 'px) rotate(' + distance * 2 + 'deg)';
     indicator.style.opacity = String(opacity);
   };
   const reset = () => {
@@ -21,8 +21,12 @@
     indicator.classList.remove('ready', 'spin');
     setTimeout(() => { indicator.style.transition = ''; }, 260);
   };
-  const eligible = () => typeof tab !== 'undefined' && tab === 'Dashboard' && !refreshing && window.scrollY <= 0 &&
-    !document.querySelector('dialog[open]') && db && account;
+  // Any tab, as long as you're at the very top and not dragging something that moves on its own
+  // (the chart, a text field, a sideways-scrolling row, an open sheet).
+  const eligible = target => typeof tab !== 'undefined' && !refreshing && window.scrollY <= 0 &&
+    !document.querySelector('dialog[open], .qr-view') && db && account &&
+    !target?.closest?.('input, textarea, select, .mh-chart-wrap, .rc-chart, canvas, [data-no-ptr]') && !sideways(target);
+  const sideways = el => { for (let n = el; n && n !== document.body; n = n.parentElement) { if (n.scrollWidth > n.clientWidth + 4 && /auto|scroll/.test(getComputedStyle(n).overflowX)) return true; if (n.scrollTop > 0) return true; } return false; };
 
   async function refreshNow() {
     refreshing = true;
@@ -39,6 +43,7 @@
       if (gmail?.enabled && gmail.state !== 'reconnect') jobs.push(changeGmail('/api/gmail/check', {method: 'POST'}, true));
       await Promise.allSettled(jobs);
       await Promise.allSettled([refreshImports()]);
+      runHooks('pullRefresh', tab);   // screens with their own data (market, leaderboard…) reload it here
       render();
       toast('Up to date');
     } finally {
@@ -48,7 +53,7 @@
   }
 
   window.addEventListener('touchstart', event => {
-    startY = eligible() && event.touches.length === 1 ? event.touches[0].clientY : null;
+    startY = eligible(event.target) && event.touches.length === 1 ? event.touches[0].clientY : null;
     pull = 0;
   }, {passive: true});
   window.addEventListener('touchmove', event => {

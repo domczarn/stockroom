@@ -22,7 +22,7 @@ document.addEventListener('click',event=>{const b=event.target.closest('[data-se
 // Sign-in & security: passkeys (Face ID / Touch ID / fingerprint) and signing out.
 let securityKeys=null;
 function securityPanel(){
-  const list=securityKeys===null?'<p class="footnote">Loading passkeys…</p>':securityKeys.length?'<ul class="passkey-list">'+securityKeys.map(k=>'<li><span><strong>'+esc(k.name||'Passkey')+'</strong><small>Added '+esc(String(k.created_at).slice(0,10))+'</small></span><button type="button" class="link" data-passkey-remove="'+esc(k.id)+'">Remove</button></li>').join('')+'</ul>':'<p class="footnote">No passkeys yet. Add one to sign in with Face ID, Touch ID or your fingerprint.</p>';
+  const list=securityKeys===null?srWait('Checking your passkeys…',{small:true,ghost:false}):securityKeys.length?'<ul class="passkey-list">'+securityKeys.map(k=>'<li><span><strong>'+esc(k.name||'Passkey')+'</strong><small>Added '+esc(String(k.created_at).slice(0,10))+'</small></span><button type="button" class="link" data-passkey-remove="'+esc(k.id)+'">Remove</button></li>').join('')+'</ul>':'<p class="footnote">No passkeys yet. Add one to sign in with Face ID, Touch ID or your fingerprint.</p>';
   return '<div class="security-box" id="securityBox"><div class="settings-action-row"><div><h3>Passkeys</h3><p>Sign in without codes on this device.</p></div><button type="button" class="secondary" data-passkey-add>Add passkey</button></div>'+list+
     '<div class="settings-action-row"><div><h3>Sign out</h3><p>Sign out of Stockroom on this device.</p></div><button type="button" class="secondary" data-sign-out>Sign out</button></div></div>';
 }
