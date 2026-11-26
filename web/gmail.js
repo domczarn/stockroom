@@ -15,7 +15,7 @@ function gmailSetup(step){
 
 function gmailView(settings=false){
   if(isReadOnly())return '<section class="panel"><h2>Personal Vinted inbox</h2><p>Return to your workspace to manage your Gmail connection.</p></section>';
-  const connection='<section class="panel vinted-email-panel"><span class="eyebrow">YOUR VINTED INBOX</span><h2>Gmail connection <span class="beta-tag">Beta</span></h2><p>Connect the Gmail inbox that receives your Vinted emails. You can choose a different Google account from your Stockroom sign-in.</p><div id="personalGmailPanel">Checking connection…</div><p id="gmailCheckMessage" class="footnote" role="status"></p><p class="footnote">Stockroom searches for recent Vinted emails and saves a private summary for you to review. <a href="/privacy.html" target="_blank" rel="noopener">Gmail data & privacy</a></p></section>';
+  const connection='<section class="panel vinted-email-panel"><span class="eyebrow">YOUR VINTED INBOX</span><h2>Sales track themselves</h2><p>Send Stockroom your Vinted, courier, eBay and Depop emails and every sale, label, QR code and delivery appears here by itself.</p><div id="personalGmailPanel">Checking connection…</div><p id="gmailCheckMessage" class="footnote" role="status"></p><p class="footnote">Stockroom searches for recent Vinted emails and saves a private summary for you to review. <a href="/privacy.html" target="_blank" rel="noopener">Gmail data & privacy</a></p></section>';
   return (settings?connection:'<section class="panel"><h2>Vinted updates</h2><p>Review recent emails from your connected inbox.</p><button class="secondary" data-settings-section="connections">Manage Gmail connection</button></section><div hidden>'+connection+'</div>')+'<section class="panel" id="personalGmailUpdates" hidden aria-label="Vinted email updates"></section>';
 }
 
@@ -27,12 +27,18 @@ function renderGmail(){
   const renderPart=(target,markup)=>{if(target.dataset.markup!==markup){target.innerHTML=markup;target.dataset.markup=markup;}};
   if(!connection){
     updates.hidden=true;
+    if(personalGmail.forwarding){
+      renderPart(panel,'<div class="fwd-choice"><button type="button" class="fwd-option primary" data-gmail-action="forward"'+(gmailBusy?' disabled':'')+'><b>Forward my sale emails</b><span>Recommended. Works with Gmail, Outlook and more. Stockroom never sees the rest of your inbox.</span></button>'+
+        (available&&location.origin===url?'<button type="button" class="fwd-option" data-gmail-action="connect"'+(gmailBusy?' disabled':'')+'><b>Connect Gmail in one tap</b><span>Google asks to let Stockroom read your Vinted emails. Limited spaces while in beta.</span></button>':'')+'</div>');
+      return;
+    }
     const action=!available?'<p class="footnote">Personal Gmail connection is unavailable until Stockroom’s Google setup is complete. You can still find your receipts in Gmail and record items in Stockroom.</p>':
       location.origin!==url?'<a class="action" href="'+esc(url)+'/?open=Vinted%20updates">Continue on stockroom.bookednpaid.com</a>':
       '<button type="button" class="action" data-gmail-action="connect"'+(gmailBusy?' disabled':'')+'>Choose Gmail account</button>';
     renderPart(panel,gmailSetup(0)+action+' <a class="secondary" href="https://mail.google.com/mail/u/0/#search/from%3Ano-reply%40vinted.co.uk" target="_blank" rel="noopener noreferrer">Find Vinted emails in Gmail ↗</a>');
     return;
   }
+  if(connection.mode==='forward'){renderPart(panel,forwardPanel(connection));gmailReceiptsView(connection,updates,gmailBusy?' disabled':'');return;}
   const locked=gmailBusy?' disabled':'';
   const optionsLocked=!available||gmailBusy?' disabled':'';
   const status=!available?'Google authorisation unavailable':!connection.enabled?'Paused':
@@ -48,6 +54,12 @@ function renderGmail(){
     '<div class="gmail-options"><label><input type="checkbox" data-gmail-option="enabled"'+(connection.enabled?' checked':'')+optionsLocked+'> Check while Stockroom is open</label>'+
     '<label><input type="checkbox" data-gmail-option="alerts"'+(connection.alerts?' checked':'')+optionsLocked+'> Push alerts on enabled devices</label>'+
     '<label>Search window <select data-gmail-option="days"'+optionsLocked+'>'+[1,3,7].map(day=>'<option value="'+day+'"'+(day===connection.days?' selected':'')+'>'+day+' '+(day===1?'day':'days')+'</option>').join('')+'</select></label></div>');
+  gmailReceiptsView(connection,updates,optionsLocked,needsCheck);
+}
+
+function gmailReceiptsView(connection,updates,optionsLocked,needsCheck=!connection.checkedAt){
+  const renderPart=(target,markup)=>{if(target.dataset.markup!==markup){target.innerHTML=markup;target.dataset.markup=markup;}};
+  const forward=connection.mode==='forward';
   updates.hidden=false;
   const filtered=connection.receipts.filter(item=>!item.quiet&&item.category!=='Order update'&&!/confirmation needed|order confirmed|payment successful|purchase confirmed/i.test(item.subject)&&(gmailFilters.category==='All'||item.category===gmailFilters.category)&&
     (gmailFilters.review==='all'||item.reviewed===(gmailFilters.review==='reviewed')));
@@ -56,11 +68,29 @@ function renderGmail(){
     '<label>Update type <select data-gmail-filter="category">'+options+'</select></label>'+
     '<label>Review status <select data-gmail-filter="review">'+[['unreviewed','To review'],['reviewed','Reviewed'],['all','All updates']].map(([key,label])=>'<option value="'+key+'"'+(gmailFilters.review===key?' selected':'')+'>'+label+'</option>').join('')+'</select></label></div>'+
     '<ul class="gmail-receipts">'+filtered.map(item=>'<li id="gmail-receipt-'+esc(item.id)+'" tabindex="-1"><div><small>'+esc(item.category)+' · '+esc(new Date(item.receivedAt).toLocaleDateString('en-GB'))+'</small><strong>'+esc(item.subject)+'</strong></div>'+
-    '<div class="gmail-actions"><a class="secondary" href="https://mail.google.com/mail/u/'+encodeURIComponent(connection.mailbox)+'/#all/'+encodeURIComponent(item.id)+'" target="_blank" rel="noopener noreferrer">Open email ↗</a>'+
+    '<div class="gmail-actions">'+(forward?'':'<a class="secondary" href="https://mail.google.com/mail/u/'+encodeURIComponent(connection.mailbox)+'/#all/'+encodeURIComponent(item.id)+'" target="_blank" rel="noopener noreferrer">Open email ↗</a>')+
     '<button class="secondary" type="button" data-gmail-review="'+esc(item.id)+'"'+optionsLocked+'>'+(item.reviewed?'Mark to review':'Mark reviewed')+'</button></div></li>').join('')+'</ul>'+
     (filtered.length?'':'<p class="footnote">'+(connection.receipts.length?'No updates match these filters.':
       needsCheck?'Your first successful check will show any verified Vinted emails here.':
       'No verified Vinted emails found. Check that this is the inbox Vinted uses, or try a longer search window.')+'</p>'));
+}
+// Forwarding setup: copy the address, confirm Gmail's code (it lands here), then one filter. Outlook: one rule.
+function forwardPanel(c){
+  const copy=(label,value,key)=>'<div class="fwd-copy"><small>'+label+'</small><code>'+esc(value)+'</code><button type="button" class="secondary" data-fwd-copy="'+key+'">Copy</button></div>';
+  const working=c.state==='connected';
+  const code=c.confirm?'<div class="fwd-code"><small>Gmail’s confirmation code</small><b>'+esc(c.confirm.code)+'</b></div>':'<p class="fwd-wait"><i></i>Waiting for Gmail’s code… it appears here a few seconds after step 2.</p>';
+  return '<div class="fwd">'+
+    '<p class="fwd-status '+(working?'on':'')+'">'+(working?'✓ Working · last email '+esc(new Date(c.checkedAt).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})):'Set up once, then new Vinted, courier, eBay and Depop emails arrive by themselves.')+'</p>'+
+    copy('Your private Stockroom address',c.address,'address')+
+    '<details class="fwd-steps"'+(working?'':' open')+'><summary>Gmail setup (on a computer, about 2 minutes)</summary><ol>'+
+      '<li>Gmail → ⚙️ Settings → <b>See all settings</b> → <b>Forwarding and POP/IMAP</b> → <b>Add a forwarding address</b> → paste your address → Next → Proceed.</li>'+
+      '<li>Gmail sends a code to Stockroom. '+code+'</li>'+
+      '<li>Type the code into Gmail → <b>Verify</b>. Leave “Disable forwarding” selected: you only want the filter, not all your mail.</li>'+
+      '<li>Settings → <b>Filters and Blocked Addresses</b> → <b>Create a new filter</b> → paste this into “From” → Create filter → tick <b>Forward it to</b> your Stockroom address → <b>Create filter</b>.'+copy('From',c.filter.replace(/^from:\(|\)$/g,'').replace(/ OR /g,' OR '),'filter')+'</li>'+
+    '</ol></details>'+
+    '<details class="fwd-steps"><summary>Outlook / Hotmail</summary><ol><li>Outlook → ⚙️ Settings → <b>Mail</b> → <b>Rules</b> → <b>Add new rule</b>.</li><li>Condition: <b>From</b> → add no-reply@vinted.co.uk (and your courier: evri.com, royalmail.com, inpost.co.uk).</li><li>Action: <b>Redirect to</b> → your Stockroom address → Save.</li></ol></details>'+
+    '<p class="footnote">Only emails your filter sends reach Stockroom, and only ones that really came from Vinted, couriers, eBay or Depop are read. Emails from before you set this up aren’t forwarded.</p>'+
+    '<div class="gmail-actions"><label><input type="checkbox" data-gmail-option="alerts"'+(c.alerts?' checked':'')+'> Push alerts on enabled devices</label><button type="button" class="secondary" data-gmail-action="disconnect">Stop forwarding</button></div></div>';
 }
 
 async function loadGmail(auto=false){
@@ -68,7 +98,7 @@ async function loadGmail(auto=false){
   personalGmail=await api('/api/gmail');
   renderGmail();renderDailyActions();renderNotifications();
   const row=personalGmail.connection;
-  if(auto&&personalGmail.available&&row?.enabled&&row.state!=='reconnect'&&(!row.checkedAt||Date.now()-Date.parse(row.checkedAt)>=30*60000))
+  if(auto&&personalGmail.available&&row?.mode!=='forward'&&row?.enabled&&row.state!=='reconnect'&&(!row.checkedAt||Date.now()-Date.parse(row.checkedAt)>=30*60000))
     await changeGmail('/api/gmail/check',{method:'POST'},true);
 }
 
@@ -98,6 +128,8 @@ function initialiseGmail(){
     toast(gmailOutcomes[gmailResult]);
   }
   document.addEventListener('click',event=>{
+    const copyKey=event.target.closest('[data-fwd-copy]')?.dataset.fwdCopy;
+    if(copyKey){const c=personalGmail?.connection;const v=copyKey==='address'?c?.address:c?.filter?.replace(/^from:\(|\)$/g,'');if(v)navigator.clipboard?.writeText(v).then(()=>toast('Copied'),()=>toast(v));return;}
     const jump=event.target.closest('[data-gmail-jump]');
     if(jump&&!isReadOnly()){
       gmailFilters.category='All';gmailFilters.review='unreviewed';
@@ -110,6 +142,7 @@ function initialiseGmail(){
     if(!gmailTabs.includes(tab)||isReadOnly()||gmailBusy)return;
     const action=event.target.closest('[data-gmail-action]')?.dataset.gmailAction;
     if(action==='connect')void changeGmail('/api/gmail/connect',{method:'POST'});
+    else if(action==='forward')void changeGmail('/api/gmail/forward',{method:'POST'});
     else if(action==='check')void changeGmail('/api/gmail/check',{method:'POST'});
     else if(action==='disconnect'){
       if(confirm('Disconnect Gmail and remove its Vinted email summaries from Stockroom?'))void changeGmail('/api/gmail',{method:'DELETE'});

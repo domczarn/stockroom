@@ -347,6 +347,25 @@ for (const viewport of [{width: 390, height: 844}, {width: 1440, height: 900}]) 
     assert.equal(out.sameScreen, true, 'screen was rebuilt');
     assert.ok(out.line && out.swapped, JSON.stringify(out));
   });
+  await check('email forwarding setup: choice, address, Gmail code', viewport, async page => {
+    const out = await page.evaluate(async () => {
+      const saved = personalGmail;
+      tab = 'Vinted updates'; render();
+      await new Promise(r => setTimeout(r, 300));   // let the screen's own Gmail load finish first
+      personalGmail = {available: true, forwarding: true, url: location.origin, connection: null};
+      renderGmail();
+      const choice = [...document.querySelectorAll('.fwd-option b')].map(x => x.textContent);
+      personalGmail = {available: true, forwarding: true, url: location.origin, connection: {mode: 'forward', address: 'k3j4h5g6f7d8s9a0@in.stockroom.test', filter: 'from:(no-reply@vinted.co.uk OR @evri.com)', confirm: {code: '738201934'}, state: 'waiting', receipts: [], alerts: true, enabled: true, days: 30}};
+      renderGmail();
+      const res = {choice, address: document.querySelector('.fwd-copy code')?.textContent, code: document.querySelector('.fwd-code b')?.textContent, overflow: document.documentElement.scrollWidth > innerWidth + 1};
+      personalGmail = saved; navigate('Dashboard'); render();
+      return res;
+    });
+    assert.deepEqual(out.choice.slice(0, 1), ['Forward my sale emails']);
+    assert.equal(out.address, 'k3j4h5g6f7d8s9a0@in.stockroom.test');
+    assert.equal(out.code, '738201934');
+    assert.equal(out.overflow, false, 'page scrolls sideways');
+  });
   await check('saves send changes only, queue offline, then sync', viewport, async page => {
     const bodies = [];
     page.on('request', r => { if (r.url().endsWith('/api/workspace') && ['PATCH', 'PUT'].includes(r.method())) bodies.push({m: r.method(), size: (r.postData() || '').length}); });

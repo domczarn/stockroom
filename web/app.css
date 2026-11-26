@@ -3338,3 +3338,23 @@ body.is-new-seller .kpi-strip,body.is-new-seller .revenue-studio{display:none!im
 .sr-swapped .mh-line, .sr-swapped .rc-line, .sr-swapped .rc-prev { animation: none !important; stroke-dashoffset: 0 !important; stroke-dasharray: none !important; }
 .sr-swapped .mh-area, .sr-swapped .rc-area, .sr-swapped .rc-now, .sr-swapped .rc-now-halo { animation: none !important; opacity: 1; }
 .mh-range button, .rc-ranges button { transition: background-color .2s ease, color .2s ease; }
+
+/* Email forwarding setup */
+.fwd-choice { display: grid; gap: 10px; margin-top: 12px; }
+.fwd-option { display: grid; gap: 4px; text-align: left; padding: 14px 16px; border-radius: 14px; border: 1px solid var(--line); background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.fwd-option b { font-size: 15px; }
+.fwd-option span { color: var(--muted); font-size: 13px; line-height: 1.4; }
+.fwd-option.primary { border-color: rgba(183,140,255,.55); background: rgba(183,140,255,.1); }
+.fwd { display: grid; gap: 12px; margin-top: 10px; }
+.fwd-status { margin: 0; color: var(--muted); }
+.fwd-status.on { color: #7fe0a6; font-weight: 600; }
+.fwd-copy { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; align-items: center; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; margin-top: 8px; }
+.fwd-copy small { grid-column: 1 / -1; color: var(--muted); font-size: 12px; }
+.fwd-copy code { overflow-wrap: anywhere; font-size: 13px; }
+.fwd-steps summary { cursor: pointer; font-weight: 600; padding: 6px 0; }
+.fwd-steps ol { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 10px; line-height: 1.45; font-size: 14px; }
+.fwd-code { display: inline-grid; gap: 2px; margin-top: 6px; padding: 8px 14px; border-radius: 12px; background: rgba(127,224,166,.12); border: 1px solid rgba(127,224,166,.4); }
+.fwd-code small { color: var(--muted); font-size: 12px; }
+.fwd-code b { font-size: 22px; letter-spacing: .12em; font-variant-numeric: tabular-nums; }
+.fwd-wait { display: flex; align-items: center; gap: 8px; margin: 6px 0 0; color: var(--muted); font-size: 13px; }
+.fwd-wait i { width: 10px; height: 10px; border-radius: 50%; background: #b78cff; box-shadow: 0 0 10px #b78cff; animation: srBob 1.2s ease-in-out infinite; }

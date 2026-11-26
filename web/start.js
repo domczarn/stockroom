@@ -43,6 +43,8 @@ function startCardHtml() {
 }
 
 async function startGmail() {
+  // With forwarding switched on, the choice (forward or connect Gmail) lives in Settings → Connections.
+  if (personalGmail?.forwarding && !personalGmail.connection) { const b = document.createElement('button'); b.dataset.settingsSection = 'connections'; b.hidden = true; document.body.append(b); b.click(); b.remove(); return; }
   if (typeof changeGmail === 'function') await changeGmail('/api/gmail/connect', {method: 'POST'});
   else navigate('Vinted updates');
 }

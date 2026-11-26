@@ -1,6 +1,7 @@
 import {isPro} from './billing.js';
 import {HttpError,readBody} from './security.js';
 import {notifyAccount} from './push.js';
+import {startForwarding,forwardFilter,FORWARD_PREFIX} from './inbound.js';
 
 const origin='https://stockroom.bookednpaid.com';
 const callback=origin+'/api/gmail/callback';
@@ -35,9 +36,11 @@ async function unprotect(env,id,value){
   }catch{throw new HttpError(409,'Reconnect Gmail to continue.');}
 }
 function publicConnection(row,env){
-  return {available:configured(env),url:origin,connection:row?{
+  const forward=!!row?.connection_id?.startsWith(FORWARD_PREFIX), all=row?JSON.parse(row.receipts):[];
+  return {available:configured(env),forwarding:!!env.FORWARD_DOMAIN,url:origin,connection:row?{
     mailbox:row.mailbox,enabled:!!row.enabled,alerts:!!row.alerts,days:row.days,
-    state:row.state,checkedAt:row.checked_at,receipts:JSON.parse(row.receipts)
+    state:row.state,checkedAt:row.checked_at,receipts:all.filter(r=>r.category!=='Setup'),
+    ...(forward?{mode:'forward',address:row.mailbox,filter:forwardFilter(),confirm:all.find(r=>r.id==='fwdconfirm')?.forward||null}:{mode:'gmail'})
   }:null};
 }
 async function googleJSON(url,options={}){
@@ -192,11 +195,11 @@ export function messageParts(payload){
   return out;
 }
 const b64urlText=data=>{try{return new TextDecoder().decode(Uint8Array.from(atob(data.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0)));}catch{return '';}};
-async function saveAttachment(env,owner,access_token,messageId,file,onQr){
+// load(file) returns the attachment's bytes: fetched from Gmail for synced mail, already in hand for forwarded mail.
+async function saveAttachment(env,owner,file,load,onQr){
   if(!file||file.size>2_000_000||!['application/pdf','image/png','image/jpeg'].includes(file.type))return '';
-  const body=await getGmail('messages/'+messageId+'/attachments/'+file.id,access_token);
-  if(typeof body?.data!=='string')return '';
-  const bytes=Uint8Array.from(atob(body.data.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0));
+  const bytes=await load(file);
+  if(!(bytes instanceof Uint8Array)||!bytes.length)return '';
   const pdf=bytes[0]===37&&bytes[1]===80&&bytes[2]===68&&bytes[3]===70, png=bytes[0]===137&&bytes[1]===80, jpeg=bytes[0]===255&&bytes[1]===216;
   if(!((file.type==='application/pdf'&&pdf)||(file.type==='image/png'&&png)||(file.type==='image/jpeg'&&jpeg)))return '';
   const id=crypto.randomUUID();
@@ -235,11 +238,17 @@ export function pdfCodeImage(bytes){
 // Read the full email for label and courier messages: tracking number, label PDF, InPost QR code.
 async function enrichReceipt(env,owner,access_token,receipt){
   const full=await getGmail('messages/'+receipt.id,access_token,{format:'full'});
-  const {text,files}=messageParts(full.payload);
+  return enrichFromParts(env,owner,receipt,messageParts(full.payload),async file=>{
+    const body=await getGmail('messages/'+receipt.id+'/attachments/'+file.id,access_token);
+    return typeof body?.data==='string'?Uint8Array.from(atob(body.data.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0)):null;
+  });
+}
+// Turn a full email (text + attachments) into its update. Shared by Gmail sync and forwarded mail.
+export async function enrichFromParts(env,owner,receipt,{text,files},load){
   if(receipt.platformSale){const event=platformSaleEvent(receipt.platformSale,text,receipt.receivedAt);return {...receipt,needsBody:undefined,...(event?{event}:{})};}
   if(receipt.courier){
     const event=courierEvent(receipt.subject,text,receipt.receivedAt,receipt.courier);
-    if(event?.type==='qr'){const qr=files.find(f=>/^image\//.test(f.type)&&/qr/i.test(f.name))||files.find(f=>/^image\//.test(f.type));event.qrMedia=await saveAttachment(env,owner,access_token,receipt.id,qr);}
+    if(event?.type==='qr'){const qr=files.find(f=>/^image\//.test(f.type)&&/qr/i.test(f.name))||files.find(f=>/^image\//.test(f.type));event.qrMedia=await saveAttachment(env,owner,qr,load);}
     return {...receipt,needsBody:undefined,...(event?{event}:{})};
   }
   if(receipt.event?.type==='label'){
@@ -247,7 +256,7 @@ async function enrichReceipt(env,owner,access_token,receipt){
     const deadline=(receipt.subject.match(/use by (\d{2})\/(\d{2})\/(\d{4})/)||[]);
     const pdf=files.find(f=>f.type==='application/pdf');
     let qrMedia='';
-    const labelMedia=pdf?await saveAttachment(env,owner,access_token,receipt.id,pdf,path=>{qrMedia=path;}):'';
+    const labelMedia=pdf?await saveAttachment(env,owner,pdf,load,path=>{qrMedia=path;}):'';
     return {...receipt,needsBody:undefined,event:{...receipt.event,tracking,...(deadline[0]?{deadline:deadline[3]+'-'+deadline[2]+'-'+deadline[1]}:{}),...(labelMedia?{labelMedia}:{}),...(qrMedia?{qrMedia}:{})}};
   }
   return {...receipt,needsBody:undefined};
@@ -301,6 +310,8 @@ export function capFreeSales(receipts,pro){
   return out;
 }
 export async function check(env,user,context,row){
+  // Forwarded mail arrives by itself (see inbound.js): there's nothing to fetch.
+  if(row.connection_id?.startsWith(FORWARD_PREFIX))return {added:0,...publicConnection(row,env)};
   if(!row.enabled)throw new HttpError(409,'Resume Gmail sync before checking.');
   if(row.state==='reconnect')throw new HttpError(409,'Reconnect Gmail to continue.');
   const now=Date.now();
@@ -380,14 +391,16 @@ export async function gmailRoute(request,url,env,user,context){
     await env.DB.prepare('DELETE FROM gmail_connections WHERE owner_id=?').bind(user.id).run();
     return publicConnection(null,env);
   }
-  if(!configured(env))throw new HttpError(503,'Google authorization has not been configured for Stockroom.');
+  // Forwarding needs no Google setup at all.
+  if(path==='/api/gmail/forward'&&method==='POST')return publicConnection(await startForwarding(env,user),env);
+  if(!configured(env)&&!(await connection(env,user.id))?.connection_id?.startsWith(FORWARD_PREFIX))throw new HttpError(503,'Google authorization has not been configured for Stockroom.');
   if(path==='/api/gmail/connect'&&method==='POST'){
     // Gmail is in beta: until Google verifies the app, only a limited number of people can connect.
     if(!user.admin){
       const mine=await env.DB.prepare('SELECT 1 FROM gmail_connections WHERE owner_id=?').bind(user.id).first();
       if(!mine){
         const cap=Number((await env.DB.prepare("SELECT value FROM app_settings WHERE key='gmail_cap'").first().catch(()=>null))?.value??90);
-        const used=(await env.DB.prepare('SELECT COUNT(*) AS n FROM gmail_connections').first())?.n||0;
+        const used=(await env.DB.prepare("SELECT COUNT(*) AS n FROM gmail_connections WHERE connection_id NOT LIKE 'fwd:%'").first())?.n||0;
         if(used>=cap)throw new HttpError(403,'Gmail auto-updates are in beta and all spaces are taken right now. You’ll be able to connect as soon as more open up.');
       }
     }
@@ -399,7 +412,7 @@ export async function gmailRoute(request,url,env,user,context){
   if(path==='/api/gmail/check'&&method==='POST')return check(env,user,context,row);
   if(path==='/api/gmail'&&method==='PUT'){
     const {enabled,alerts,days}=await readBody(request,1000);
-    if(typeof enabled!=='boolean'||typeof alerts!=='boolean'||![1,3,7].includes(days))throw new HttpError(400,'Choose valid Gmail sync options.');
+    if(typeof enabled!=='boolean'||typeof alerts!=='boolean'||!(row.connection_id?.startsWith(FORWARD_PREFIX)?days===row.days:[1,3,7].includes(days)))throw new HttpError(400,'Choose valid Gmail sync options.');
     const reset=Number(enabled)!==row.enabled||days!==row.days;
     await env.DB.prepare('UPDATE gmail_connections SET enabled=?,alerts=?,days=?,checked_at=CASE WHEN ? THEN NULL ELSE checked_at END,lease=CASE WHEN ? THEN 0 ELSE lease END WHERE owner_id=? AND connection_id=?')
       .bind(Number(enabled),Number(alerts),days,Number(reset),Number(reset),user.id,row.connection_id).run();
@@ -497,7 +510,7 @@ export function pickDue(rows,now=Date.now()){
 export async function scheduledGmail(env,context){
   const rows=(await env.DB.prepare(`SELECT g.*, COALESCE(p.owner,0) AS owner, CASE WHEN p.owner=1 OR (a.plan='pro' AND (a.plan_until IS NULL OR a.plan_until>?)) THEN 1 ELSE 0 END AS pro
     FROM gmail_connections g LEFT JOIN accounts a ON a.id=g.owner_id LEFT JOIN profiles p ON p.user_id=g.owner_id
-    WHERE g.enabled=1 AND g.state<>'reconnect'`).bind(new Date().toISOString()).all()).results||[];
+    WHERE g.enabled=1 AND g.state<>'reconnect' AND g.connection_id NOT LIKE 'fwd:%'`).bind(new Date().toISOString()).all()).results||[];
   const row=pickDue(rows);
   if(!row)return;
   try{await check(env,{id:row.owner_id,admin:Boolean(row.owner)},context,row);}
