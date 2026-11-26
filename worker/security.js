@@ -63,6 +63,7 @@ function validateTrades(data, itemIds) {
       (trade.paidAt&&!paid(trade.paidAmount))||(trade.orderId&&(!tx(trade.orderId)||orders.has(trade.orderId)))||
       (trade.batchId&&!uuid(trade.batchId))||(trade.soldTime!=null&&trade.soldTime!==''&&(typeof trade.soldTime!=='string'||!/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d{1,3})?Z$/.test(trade.soldTime)))||(trade.extraCost!=null&&(!paid(trade.extraCost)||trade.extraCost<0))||!Array.isArray(trade.refunds)||trade.refunds.length>60)
       throw new HttpError(400,'Invalid order details.');
+    if(trade.platform!==undefined&&!['Vinted','eBay','Depop'].includes(trade.platform))throw new HttpError(400,'Invalid order details.');
     ids.add(trade.id);
     if(trade.orderId)orders.add(trade.orderId);
     const stages=[trade.soldAt,trade.postedAt,trade.completedAt,trade.paidAt].filter(Boolean);

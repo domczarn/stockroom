@@ -35,6 +35,7 @@ function reportingStatus(year = todayUK().slice(0, 4)) {
   return {year, platform, sales, money: gross, reported: sales >= REPORT_SALES || gross >= REPORT_GROSS, close: sales >= 20 || gross >= 1000};
 }
 function reportingNudgeHtml() {
+  if (typeof reportingPlatforms !== 'function') return '';   // grow.js may still be loading on the very first render
   const r = reportingStatus();
   if (!r.close) return '';
   const text = r.reported ? r.platform + ' will report your ' + r.year + ' sales to HMRC' : (REPORT_SALES - r.sales) + ' sales or ' + gbp(Math.max(0, REPORT_GROSS - r.money)) + ' until ' + r.platform + ' reports you to HMRC';

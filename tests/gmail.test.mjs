@@ -41,7 +41,7 @@ globalThis.fetch=async(input,options)=>{
   assert.equal(options.headers.Authorization,'Bearer fixture-access');
   if(url.pathname.endsWith('/profile'))return Response.json({emailAddress:'vinted-inbox@example.test'});
   if(url.pathname.endsWith('/messages')){
-    assert.match(url.searchParams.get('q'),/^\(from:no-reply@vinted\.co\.uk OR from:@relay\.vinted\.com OR from:@evri\.com OR from:@royalmail\.com.* newer_than:7d$/);
+    assert.match(url.searchParams.get('q'),/^\(from:no-reply@vinted\.co\.uk OR from:ebay@ebay\.com OR from:sold@alerts\.depop\.com OR from:@relay\.vinted\.com OR from:@evri\.com OR from:@royalmail\.com.* newer_than:7d$/);
     return Response.json({messages:[{id},{id:fake}]});
   }
   assert.equal(url.searchParams.get('format'),'metadata');

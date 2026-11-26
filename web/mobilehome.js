@@ -95,7 +95,8 @@ function mhChart(points) {
   document.addEventListener('pointerdown', e => { const wrap = e.target.closest('.mh-chart-wrap'); if (wrap) { wrap.setPointerCapture?.(e.pointerId); show(wrap, e.clientX); } });
   document.addEventListener('pointermove', e => { const wrap = e.target.closest('.mh-chart-wrap'); if (wrap && (e.pointerType === 'mouse' || e.buttons)) show(wrap, e.clientX); });
   document.addEventListener('pointerup', e => { const wrap = e.target.closest('.mh-chart-wrap'); if (wrap && e.pointerType !== 'mouse') setTimeout(() => hide(wrap), 1600); });
-  document.addEventListener('pointerleave', e => { if (e.target.closest?.('.mh-chart-wrap') && e.pointerType === 'mouse') hide(e.target.closest('.mh-chart-wrap')); }, true);
+  // Only leaving the chart itself hides it (moving between its parts, or the press capturing the pointer, doesn't).
+  document.addEventListener('pointerleave', e => { if (e.target?.classList?.contains('mh-chart-wrap') && e.pointerType === 'mouse' && !e.target.hasPointerCapture?.(e.pointerId)) hide(e.target); }, true);
 })();
 function mhPulses(today) {
   const out = [];

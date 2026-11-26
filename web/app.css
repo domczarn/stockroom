@@ -3272,3 +3272,6 @@ body.is-new-seller .kpi-strip,body.is-new-seller .revenue-studio{display:none!im
 .hmrc-nudge{display:flex;align-items:center;gap:.5rem;width:100%;margin:.5rem 0;padding:.6rem .8rem;border:1px solid var(--line);border-radius:12px;background:transparent;color:inherit;font:inherit;font-size:.85rem;text-align:left}
 .hmrc-nudge span:nth-child(2){flex:1}
 .hmrc-nudge b{white-space:nowrap;font-weight:600}
+
+/* The chart tooltip never takes the pointer, or it hides itself when it appears under the cursor. */
+.mh-tip{pointer-events:none}

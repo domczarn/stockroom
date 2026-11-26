@@ -87,7 +87,8 @@ function auApply(event, item, data) {
     case 'sold': {
       const next = recordSale(data, item.id, event.amount, date < (item.purchasedAt || '') ? item.purchasedAt : date, event.at ? {at: event.at} : undefined);
       const trade = next.trades.at(-1); trade.emailId = event.id;
-      return {next, line: {icon: '£', tone: 'go', title: 'Sold · ' + gbp(event.amount), body: '#' + item.id + ' ' + item.name + (event.buyer ? ' to ' + event.buyer : '')}};
+      if (event.platform) { trade.platform = event.platform; const it = next.items.find(i => i.id === item.id); if (it && !it.platform) it.platform = event.platform; }
+      return {next, line: {icon: '£', tone: 'go', title: 'Sold' + (event.platform ? ' on ' + event.platform : '') + ' · ' + gbp(event.amount), body: '#' + item.id + ' ' + item.name + (event.buyer ? ' to ' + event.buyer : '')}};
     }
     case 'completed': {
       const trade = (data.trades || []).filter(t => t.itemId === item.id).at(-1);

@@ -52,3 +52,22 @@ import {rateLimit} from '../worker/security.js';
   assert.equal(calls,2);
   console.log('edge rate limit ok');
 }
+import {platformSaleEvent,receiptUpdate,verifiedSender} from '../worker/gmail.js';
+{
+  const auth = d => 'mx.google.com; dkim=pass; spf=pass; dmarc=pass (p=REJECT) header.from=' + d;
+  assert.equal(verifiedSender('eBay <ebay@ebay.com>', auth('ebay.com')), 'ebay.com');
+  assert.equal(verifiedSender('Depop <sold@alerts.depop.com>', auth('depop.com')), 'alerts.depop.com');
+  assert.equal(verifiedSender('eBay - someone <x@members.ebay.co.uk>', auth('members.ebay.co.uk')), null, 'member messages are ignored');
+  assert.equal(verifiedSender('eBay <ebay@ebay.com>', 'mx.google.com; dmarc=fail header.from=ebay.com'), null);
+  const msg = (from, d, subject) => ({id: '197a1365344ca3d7', internalDate: String(Date.parse('2026-11-20T09:13:00Z')), snippet: '', payload: {headers: [{name: 'From', value: from}, {name: 'Subject', value: subject}, {name: 'Authentication-Results', value: auth(d)}]}});
+  const e = receiptUpdate(msg('eBay <ebay@ebay.com>', 'ebay.com', 'You made the sale for Nike Tech Fleece Hoodie Grey M'), 30, Date.parse('2026-11-21T00:00:00Z'));
+  assert.equal(e.category, 'Sale'); assert.equal(e.platformSale.platform, 'eBay'); assert.equal(e.platformSale.title, 'Nike Tech Fleece Hoodie Grey M'); assert.ok(e.needsBody);
+  assert.equal(receiptUpdate(msg('eBay <ebay@ebay.com>', 'ebay.com', 'Nike Tech... has been listed'), 30, Date.parse('2026-11-21T00:00:00Z')), null);
+  const ebay = platformSaleEvent(e.platformSale, '# Great news – your item has sold.\n| #### Sold: | £350.00 |\n| #### Date sold: | 24 Jun 2025 10:12 |\n| #### Buyer: | mariam8820[](https://x) |', '2026-11-20T09:13:00Z');
+  assert.deepEqual([ebay.type, ebay.amount, ebay.buyer, ebay.platform], ['sold', 350, 'mariam8820', 'eBay']);
+  const d = receiptUpdate(msg('Depop <sold@alerts.depop.com>', 'depop.com', 'Your Evri shipping label and sale confirmation for @ponte290.'), 30, Date.parse('2026-11-21T00:00:00Z'));
+  assert.equal(d.platformSale.buyer, 'ponte290');
+  const depop = platformSaleEvent(d.platformSale, ' Order details\n\n Item\n:\nBlack north face puffer jacket\nWomen’s\nSize M\n...\n Item price\n:\n£65.00\n\n Payment details', '2026-11-20T09:13:00Z');
+  assert.deepEqual([depop.title, depop.amount, depop.platform], ['Black north face puffer jacket', 65, 'Depop']);
+  console.log('eBay and Depop sale emails ok');
+}

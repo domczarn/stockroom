@@ -11,7 +11,7 @@ const messageId=/^[a-f0-9]{10,40}$/;
 const dayMs=86400000;
 const BACKFILL_DAYS=45;
 // Label and courier emails need one full read; older saved ones that already have a tracking number count as read.
-const needsFullRead=r=>(!r.read&&(r.courier||(r.event?.type==='label'&&!r.event.tracking)))||(r.event?.type==='label'&&(r.read||0)<2&&!r.event.qrMedia);
+const needsFullRead=r=>(!r.read&&(r.courier||r.platformSale||(r.event?.type==='label'&&!r.event.tracking)))||(r.event?.type==='label'&&(r.read||0)<2&&!r.event.qrMedia);
 const b64=bytes=>btoa(String.fromCharCode(...bytes));
 const b64url=bytes=>b64(bytes).replaceAll('+','-').replaceAll('/','_').replace(/=+$/,'');
 const decode=value=>Uint8Array.from(atob(value),c=>c.charCodeAt(0));
@@ -116,6 +116,14 @@ export function receiptUpdate(message,days,now=Date.now()){
   const received=Number(message.internalDate);
   if(!Number.isFinite(received)||received<now-days*dayMs||received>now+60000)return null;
   const subject=header('subject').replace(/\s+/g,' ').trim().slice(0,230);
+  // eBay and Depop sales: the price is only in the body, so they're read in full and become a sale then.
+  if(PLATFORM_NAMES[sender]){
+    const platform=PLATFORM_NAMES[sender];
+    const ebay=platform==='eBay'&&subject.match(/^you made the sale for (.+)$/i);
+    const depop=platform==='Depop'&&subject.match(/sale confirmation for @([\w.-]+)/i);
+    if(!ebay&&!depop)return null;
+    return {id:message.id,subject,category:'Sale',receivedAt:new Date(received).toISOString(),platformSale:{platform,title:ebay?title(ebay[1]):'',buyer:depop?depop[1].replace(/\.$/,'').slice(0,60):''},needsBody:true};
+  }
   // Courier emails (InPost via Vinted, Evri, Royal Mail…) are read in full later and matched by tracking number.
   if(sender!=='vinted.co.uk'){
     if(!/(drop|locker|posted|ready|collect|deliver|on its way|heading|qr code|received your parcel|in transit|label)/i.test(subject))return null;
@@ -137,12 +145,15 @@ export function receiptUpdate(message,days,now=Date.now()){
 }
 
 // Who sent it, but only if Gmail confirms the sender's domain (DMARC pass). Vinted and the couriers Vinted uses in the UK.
+// Sale emails from other marketplaces, so sales there track themselves too. Only these exact senders are trusted.
+export const PLATFORM_SENDERS={'ebay@ebay.com':'ebay.com','sold@alerts.depop.com':'alerts.depop.com'};
+const PLATFORM_NAMES={'ebay.com':'eBay','alerts.depop.com':'Depop'};
 export const COURIER_DOMAINS=['relay.vinted.com','evri.com','royalmail.com','inpost.co.uk','yodel.co.uk','dpd.co.uk','dpdlocal.co.uk','parcelforce.com','ups.com'];
 export function verifiedSender(from,auth){
   const address=(String(from).match(/<([^<>\s]+@[^<>\s]+)>\s*$/)||String(from).trim().match(/^([^<>\s]+@[^<>\s]+)$/)||[])[1]?.toLowerCase();
   if(!address)return null;
   const domain=address.split('@')[1];
-  if(!(domain==='vinted.co.uk'&&address==='no-reply@vinted.co.uk')&&!COURIER_DOMAINS.includes(domain))return null;
+  if(!(domain==='vinted.co.uk'&&address==='no-reply@vinted.co.uk')&&!COURIER_DOMAINS.includes(domain)&&PLATFORM_SENDERS[address]!==domain)return null;
   if(!/^mx\.google\.com\s*;/i.test(auth||''))return null;
   const passed=[...String(auth).matchAll(/(?:^|[;\s])dmarc=pass\b[^;]*\bheader\.from=([a-z0-9.-]+)/gi)].map(m=>m[1].toLowerCase());
   return passed.some(d=>d===domain||domain.endsWith('.'+d))?domain:null;
@@ -225,6 +236,7 @@ export function pdfCodeImage(bytes){
 async function enrichReceipt(env,owner,access_token,receipt){
   const full=await getGmail('messages/'+receipt.id,access_token,{format:'full'});
   const {text,files}=messageParts(full.payload);
+  if(receipt.platformSale){const event=platformSaleEvent(receipt.platformSale,text,receipt.receivedAt);return {...receipt,needsBody:undefined,...(event?{event}:{})};}
   if(receipt.courier){
     const event=courierEvent(receipt.subject,text,receipt.receivedAt,receipt.courier);
     if(event?.type==='qr'){const qr=files.find(f=>/^image\//.test(f.type)&&/qr/i.test(f.name))||files.find(f=>/^image\//.test(f.type));event.qrMedia=await saveAttachment(env,owner,access_token,receipt.id,qr);}
@@ -246,6 +258,21 @@ const snippetEntities={amp:'&',lt:'<',gt:'>',quot:'"',apos:"'",nbsp:' ',pound:'�
 const decodeSnippet=text=>String(text||'').replace(/&#(\d+);/g,(_,n)=>String.fromCharCode(Number(n))).replace(/&([a-z]+);/gi,(m,n)=>snippetEntities[n.toLowerCase()]??m).replace(/\s+/g,' ').trim();
 const ukDate=iso=>new Date(iso).toLocaleDateString('en-CA',{timeZone:'Europe/London'});
 const title=text=>String(text||'').replace(/^["“”']+|["“”']+$/g,'').trim().slice(0,160);
+// eBay: "Sold: | £350.00 |", "Buyer: | name". Depop: "Item : <title>" … "Item price : £65.00".
+export function platformSaleEvent(sale,text,receivedAt){
+  const t=String(text||'').replace(/\u00ad|\u034f/g,'').replace(/[ \t]+/g,' ');
+  const money=v=>v==null?null:Number(String(v).replace(/,/g,''));
+  let amount=null,name=sale.title||'',buyer=sale.buyer||'';
+  if(sale.platform==='eBay'){
+    amount=money((t.match(/Sold:\s*\|?\s*£\s?([\d,]+(?:\.\d{1,2})?)/i)||[])[1]);
+    buyer=buyer||((t.match(/Buyer:\s*\|?\s*([\w.-]{2,40})/i)||[])[1]||'');
+  }else{
+    amount=money((t.match(/Item price\s*:?\s*£\s?([\d,]+(?:\.\d{1,2})?)/i)||[])[1]);
+    name=name||((t.match(/\bItem\s*\n?\s*:\s*\n?\s*([^\n]{2,160})/i)||[])[1]||'').trim();
+  }
+  if(!(amount>0)||!name)return null;
+  return {type:'sold',title:title(name),amount,buyer:String(buyer).slice(0,60),platform:sale.platform,date:ukDate(receivedAt)};
+}
 export function vintedEvent(subject,snippet,receivedAt){
   const text=decodeSnippet(snippet), date=ukDate(receivedAt);
   let m;
@@ -301,7 +328,7 @@ export async function check(env,user,context,row){
     const {access_token}=await googleToken(env,{refresh_token:token,grant_type:'refresh_token'});
     let budget=38-await renewWatch(env,row,access_token);
     // Cloudflare allows ~50 outside requests per run, so spend them carefully and pick up the rest next check.
-    const senders=['no-reply@vinted.co.uk',...COURIER_DOMAINS.map(d=>'@'+d)].map(f=>'from:'+f).join(' OR ');
+    const senders=['no-reply@vinted.co.uk',...Object.keys(PLATFORM_SENDERS),...COURIER_DOMAINS.map(d=>'@'+d)].map(f=>'from:'+f).join(' OR ');
     const list=await getGmail('messages',access_token,{q:'('+senders+') newer_than:'+row.days+'d',maxResults:'40',fields:'messages(id)'});
     // Also look further back for completed orders and labels, so older sales still close properly.
     const older=await getGmail('messages',access_token,{q:'from:no-reply@vinted.co.uk (subject:"order is completed" OR subject:"shipping label") newer_than:'+BACKFILL_DAYS+'d',maxResults:'30',fields:'messages(id)'}).catch(()=>({}));
