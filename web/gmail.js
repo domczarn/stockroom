@@ -97,6 +97,7 @@ async function loadGmail(auto=false){
   if(!account||isReadOnly()||gmailBusy)return;
   personalGmail=await api('/api/gmail');
   renderGmail();renderDailyActions();renderNotifications();
+  if(typeof revealMaybe==='function')revealMaybe();
   const row=personalGmail.connection;
   if(auto&&personalGmail.available&&row?.mode!=='forward'&&row?.enabled&&row.state!=='reconnect'&&(!row.checkedAt||Date.now()-Date.parse(row.checkedAt)>=30*60000))
     await changeGmail('/api/gmail/check',{method:'POST'},true);
@@ -116,7 +117,7 @@ async function changeGmail(path,options,automatic=false){
     gmailCheckMessage=error.message;
     if(!automatic&&!gmailTabs.includes(tab))toast(error.message);
     try{personalGmail=await api('/api/gmail');}catch{}
-  }finally{gmailBusy=false;renderGmail();renderDailyActions();renderNotifications();}
+  }finally{gmailBusy=false;renderGmail();renderDailyActions();renderNotifications();if(typeof revealMaybe==='function')revealMaybe();}
 }
 
 // The Gmail section appears on Vinted updates and in Settings (tab 'Account').

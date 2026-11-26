@@ -108,10 +108,14 @@ export async function checkNewItems(env, user, previousItems, nextItems) {
   const before = new Set((previousItems || []).map(item => item.id));
   const added = (nextItems || []).map(item => item.id).filter(id => !before.has(id));
   if (!added.length || await isPro(env, user)) return added;
+  // Past sales added from your own sale emails are history, not new stock: they don't use up the free allowance.
+  const history = new Set((nextItems || []).filter(item => item.source === 'email' && item.status === 'Sold').map(item => item.id));
+  const counted = added.filter(id => !history.has(id));
+  if (!counted.length) return [];
   const used = await itemsThisMonth(env, user.id), cap = await freeLimit(env);
-  if (used + added.length > cap)
+  if (used + counted.length > cap)
     throw new HttpError(402, 'You’ve added ' + used + ' of ' + cap + ' free items this month. Go Pro for unlimited stock.');
-  return added;
+  return counted;
 }
 export async function recordNewItems(env, ownerId, added) {
   for (const id of added) await env.DB.prepare('INSERT OR IGNORE INTO item_adds (owner_id, item_id, month) VALUES (?, ?, ?)').bind(ownerId, id, month()).run();

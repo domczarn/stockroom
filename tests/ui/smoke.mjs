@@ -366,6 +366,33 @@ for (const viewport of [{width: 390, height: 844}, {width: 1440, height: 900}]) 
     assert.equal(out.code, '738201934');
     assert.equal(out.overflow, false, 'page scrolls sideways');
   });
+  await check('first email sync reveal adds past sales in one tap', viewport, async page => {
+    const out = await page.evaluate(async () => {
+      const savedDb = db, savedGmail = personalGmail;
+      db = {...cloneWorkspace(db), trades: []};
+      db.items = db.items.filter(i => i.status !== 'Sold');
+      const now = new Date().toISOString(), today = todayUK();
+      personalGmail = {available: true, url: location.origin, connection: {mode: 'gmail', receipts: [
+        {id: 'aa11bb22cc33dd44', category: 'Sale', receivedAt: now, event: {type: 'sold', title: 'Zz Unmatched Vintage Fleece', amount: 31, date: today, buyer: 'jo'}},
+        {id: 'aa11bb22cc33dd45', category: 'Sale', receivedAt: now, event: {type: 'label', tracking: 'H00AB12345678901', date: today}},
+      ]}};
+      try { localStorage.removeItem(revealKey()); } catch {}
+      revealMaybe();
+      const dialog = document.getElementById('srReveal');
+      const shown = !!dialog, addLabel = dialog?.querySelector('[data-rv-add]')?.textContent;
+      dialog?.querySelector('[data-rv-add]')?.click();
+      for (let i = 0; i < 40 && document.getElementById('srReveal'); i++) await new Promise(r => setTimeout(r, 100));
+      const added = db.items.find(i => i.name === 'Zz Unmatched Vintage Fleece');
+      const trade = (db.trades || []).find(t => t.itemId === added?.id);
+      const res = {shown, addLabel, status: added?.status, emailId: trade?.emailId, amount: trade?.amount, again: (revealMaybe(), !!document.getElementById('srReveal'))};
+      document.getElementById('srReveal')?.remove();
+      db = savedDb; personalGmail = savedGmail; render();
+      return res;
+    });
+    assert.equal(out.shown, true);
+    assert.match(out.addLabel, /Add my 1 sale/);
+    assert.deepEqual([out.status, out.emailId, out.amount, out.again], ['Sold', 'aa11bb22cc33dd44', 31, false]);
+  });
   await check('saves send changes only, queue offline, then sync', viewport, async page => {
     const bodies = [];
     page.on('request', r => { if (r.url().endsWith('/api/workspace') && ['PATCH', 'PUT'].includes(r.method())) bodies.push({m: r.method(), size: (r.postData() || '').length}); });

@@ -53,3 +53,11 @@ test('forwarding helpers', () => {
   assert.equal(forwardedSender('Vinted <no-reply@vinted.co.uk>', ['mx.google.com; dmarc=fail header.from=vinted.co.uk']), null);
   assert.equal(forwardedSender('Scam <no-reply@vinted.co.uk.evil.com>', ['mx.google.com; dmarc=pass header.from=vinted.co.uk.evil.com']), null);
 });
+
+test('past sales added from emails do not use the free item allowance', async () => {
+  const {checkNewItems} = await import('../worker/billing.js');
+  const env = environment();
+  const items = n => Array.from({length: n}, (_, i) => ({id: String(i + 1).padStart(4, '0'), name: 'x', status: 'Sold', source: 'email'}));
+  assert.deepEqual(await checkNewItems(env, {id: 'free-hist', email: 'f@example.test'}, [], items(40)), []);
+  await assert.rejects(checkNewItems(env, {id: 'free-hist', email: 'f@example.test'}, [], items(40).map(i => ({...i, source: undefined, status: 'In Stock'}))), e => e.status === 402);
+});
