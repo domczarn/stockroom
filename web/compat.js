@@ -23,6 +23,48 @@ function openExternal(url) {
   if (isNativeApp() && browser) return browser.open({url});
   location.assign(url);
 }
+// Smooth chart changes. Instead of rebuilding a chart (which flashes and replays the draw-in), the line morphs from
+// its old shape into the new one, the shaded area fades across, and headline numbers count to their new values.
+const srCalm = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+function srSample(path, n = 90) {
+  try { const len = path.getTotalLength(); if (!(len > 0)) return null; const out = []; for (let i = 0; i < n; i++) { const p = path.getPointAtLength(len * i / (n - 1)); out.push([p.x, p.y]); } return out; } catch { return null; }
+}
+const srEase = t => 1 - Math.pow(1 - t, 3);
+// host: element whose inner HTML is replaced. line/area: selectors inside it. numbers: selectors whose text counts up.
+function srSwap(host, html, {line, area, numbers = [], ms = 520} = {}) {
+  if (!host) return;
+  const oldLine = line && host.querySelector(line), from = oldLine && srSample(oldLine);
+  const oldNums = numbers.map(sel => [...host.querySelectorAll(sel)].map(el => el.textContent));
+  host.innerHTML = html;
+  host.classList.add('sr-swapped');   // no draw-in animation on a swap
+  if (srCalm()) return;
+  numbers.forEach((sel, k) => host.querySelectorAll(sel).forEach((el, i) => srCountTo(el, oldNums[k][i], el.textContent, ms)));
+  const newLine = line && host.querySelector(line), to = newLine && srSample(newLine);
+  // The shading is already its final shape, so it waits for the line to land, then fades in under it.
+  host.querySelectorAll(area || '.sr-none').forEach(el => el.animate([{opacity: 0}, {opacity: 0, offset: .6}, {opacity: 1}], {duration: ms * 1.5, easing: 'ease-out'}));
+  host.querySelectorAll('text').forEach(el => el.animate([{opacity: 0}, {opacity: 1}], {duration: ms * .8, easing: 'ease-out'}));
+  if (!from || !to) { newLine?.animate([{opacity: 0}, {opacity: 1}], {duration: ms}); return; }
+  const finalD = newLine.getAttribute('d'), start = performance.now();
+  const step = now => {
+    const t = Math.min(1, (now - start) / ms), e = srEase(t);
+    if (t >= 1) { newLine.setAttribute('d', finalD); return; }
+    newLine.setAttribute('d', to.map(([x, y], i) => (i ? 'L' : 'M') + (from[i][0] + (x - from[i][0]) * e).toFixed(1) + ' ' + (from[i][1] + (y - from[i][1]) * e).toFixed(1)).join(''));
+    requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+// "£1,234.50" → "£2,010.00": counts between the two, keeping the format (prefix, decimals, thousands commas).
+function srCountTo(el, fromText, toText, ms = 520) {
+  const num = s => { const m = String(s || '').match(/-?[\d,]*\.?\d+/); return m ? Number(m[0].replace(/,/g, '')) : null; };
+  const a = num(fromText), b = num(toText);
+  if (a === null || b === null || a === b || srCalm()) return;
+  const m = toText.match(/-?[\d,]*\.?\d+/), pre = toText.slice(0, m.index), post = toText.slice(m.index + m[0].length);
+  const decimals = (m[0].split('.')[1] || '').length, commas = m[0].includes(',');
+  const fmt = v => pre + (commas ? v.toLocaleString('en-GB', {minimumFractionDigits: decimals, maximumFractionDigits: decimals}) : v.toFixed(decimals)) + post;
+  const start = performance.now();
+  const step = now => { const t = Math.min(1, (now - start) / ms); el.textContent = t >= 1 ? toText : fmt(a + (b - a) * srEase(t)); if (t < 1) requestAnimationFrame(step); };
+  requestAnimationFrame(step);
+}
 // Rarely used screens (admin console, photo studio) load the first time they're opened, not on every launch.
 const srLoaded = {};
 function loadScript(src) {

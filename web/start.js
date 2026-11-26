@@ -21,7 +21,8 @@ function startSteps() {
   ];
 }
 // New until the first sale, or until every step is done.
-function startIsNew() { return !(db?.trades || []).length && !(db?.items || []).some(i => i.status === 'Sold' && !i.deletedAt); }
+// New = no sale recorded anywhere: orders, items marked sold, or the older sales list.
+function startIsNew() { return !(db?.trades || []).length && !(db?.sales || []).length && !(db?.items || []).some(i => i.status === 'Sold' && !i.deletedAt); }
 // Only brand-new sellers see it: once you've sold anything it never shows, and it waits until
 // the account has actually loaded so it can't flash up on launch.
 function startVisible() { return !isReadOnly() && startLoaded() && startIsNew() && !startHidden() && startSteps().some(s => !s.done); }

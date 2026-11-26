@@ -151,7 +151,7 @@ function mobileHome() {
       '<div class="mh-stat"><small>Profit on sales</small><b>' + gbp(tNow.profit) + '</b>' + delta(pct(tNow.profit, tBefore.profit)) + '</div>' +
       '<div class="mh-stat"><small>Sold</small><b>' + soldNow + '</b>' + delta(pct(soldNow, soldBefore)) + '</div>' +
     '</div>' +
-    '<p class="mh-range-note">' + (mhRange === 1 ? 'Last 24 hours · % vs the 24 hours before' : 'Last ' + mhRange + ' days · % vs the ' + mhRange + ' days before') + '</p>' +
+    '<p class="mh-range-note">' + (mhRange === 1 ? 'Last 24 hours' : 'Last ' + mhRange + ' days') + '</p>' +
     '<div class="mh-chart-wrap">' + mhChart(mhSeries(rows, mhRange, today)) + '</div>' +
     '<div class="mh-pills"><div class="mh-range" role="group" aria-label="Chart range">' + [1, 7, 30, 90].map(r => '<button type="button" data-mh-range="' + r + '" aria-pressed="' + (r === mhRange) + '">' + (r === 1 ? '24H' : r + 'D') + '</button>').join('') + '</div>' +
       '<button type="button" class="mh-pill" data-tab="Reports"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h10l4 4v12H5z"/><path d="M9 13h6M9 17h4"/></svg>View report</button></div>' +
@@ -169,13 +169,25 @@ function mobileHome() {
     '<button class="action" id="add" type="button" hidden>＋ Add stock</button>' +
   '</section>';
 }
+// Switching 24H/7D/30D/90D: only the numbers, the note and the chart change, smoothly. Nothing else is rebuilt.
+function mhSwitchRange() {
+  const home = document.querySelector('#view .mh');
+  if (!home) { render(); return; }
+  const tmp = document.createElement('div');
+  tmp.innerHTML = mobileHome();
+  const fresh = tmp.querySelector('.mh');
+  home.querySelectorAll('.mh-stat b').forEach((el, i) => { const next = fresh.querySelectorAll('.mh-stat b')[i]?.textContent; if (next != null) { const before = el.textContent; el.textContent = next; srCountTo(el, before, next); } });
+  const note = home.querySelector('.mh-range-note'); if (note) note.textContent = fresh.querySelector('.mh-range-note')?.textContent || '';
+  home.querySelectorAll('[data-mh-range]').forEach(b => b.setAttribute('aria-pressed', String(Number(b.dataset.mhRange) === mhRange)));
+  srSwap(home.querySelector('.mh-chart-wrap'), fresh.querySelector('.mh-chart-wrap').innerHTML, {line: '.mh-line', area: '.mh-area'});
+}
 function dashboardPhone() {
   return (isReadOnly() ? '' : '<section class="daily-actions" aria-labelledby="dailyActionTitle"><div class="daily-heading"><h2 id="dailyActionTitle">To do</h2></div><div class="daily-grid" id="dailyActionCards"></div></section>') + pipBrainView();
 }
 document.addEventListener('click', event => {
   const t = event.target;
   const range = t.closest('[data-mh-range]');
-  if (range) { mhRange = Number(range.dataset.mhRange); try { localStorage.setItem('mh-range', String(mhRange)); } catch {} if (typeof rc !== 'undefined') { rc.range = MH_TO_RC[mhRange]; rc.grain = ''; rc.selected = -1; if (typeof rcSave === 'function') rcSave(); } render(); return; }
+  if (range) { mhRange = Number(range.dataset.mhRange); try { localStorage.setItem('mh-range', String(mhRange)); } catch {} if (typeof rc !== 'undefined') { rc.range = MH_TO_RC[mhRange]; rc.grain = ''; rc.selected = -1; if (typeof rcSave === 'function') rcSave(); } mhSwitchRange(); return; }
   if (t.closest('[data-mh-next]')) { mhPulse++; render(); return; }
   if (t.closest('[data-mh-add]')) { openItem(null); return; }
   const scroll = t.closest('[data-mh-scroll]');

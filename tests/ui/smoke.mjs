@@ -327,6 +327,26 @@ for (const viewport of [{width: 390, height: 844}, {width: 1440, height: 900}]) 
     });
     assert.deepEqual(spun, {spinning: true, done: true});
   });
+  await check('chart range buttons morph the chart instead of rebuilding the screen', viewport, async page => {
+    const out = await page.evaluate(async () => {
+      navigate('Dashboard'); render();
+      if (startIsNew()) { const it = db.items.find(i => i.status === 'In Stock' && !i.deletedAt); db = recordSale(db, it.id, 20, todayUK()); render(); }
+      const phone = !!document.querySelector('#view .mh');
+      const marker = phone ? document.querySelector('#view .mh') : document.querySelector('#financeChart .revenue-studio')?.parentElement?.parentElement || document.getElementById('view');
+      const view = document.getElementById('view').firstElementChild;
+      const btn = phone ? document.querySelector('[data-mh-range="7"]') : document.querySelector('[data-rc-range]:not([aria-pressed="true"])');
+      btn.click();
+      await new Promise(r => setTimeout(r, 700));
+      return {
+        sameScreen: document.getElementById('view').firstElementChild === view,
+        pressed: btn.getAttribute('aria-pressed') === 'true' || btn.classList.contains('on') || !!btn.closest('[aria-pressed="true"]'),
+        line: !!document.querySelector('.mh-line, .rc-line'),
+        swapped: !!document.querySelector('.sr-swapped'),
+      };
+    });
+    assert.equal(out.sameScreen, true, 'screen was rebuilt');
+    assert.ok(out.line && out.swapped, JSON.stringify(out));
+  });
   await check('saves send changes only, queue offline, then sync', viewport, async page => {
     const bodies = [];
     page.on('request', r => { if (r.url().endsWith('/api/workspace') && ['PATCH', 'PUT'].includes(r.method())) bodies.push({m: r.method(), size: (r.postData() || '').length}); });

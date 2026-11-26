@@ -3334,3 +3334,7 @@ body.is-new-seller .kpi-strip,body.is-new-seller .revenue-studio{display:none!im
 }
 .ptr { z-index: 60 !important; }
 .ptr img { width: 44px !important; height: 44px !important; }
+/* A chart that was swapped in place doesn't replay its draw-in */
+.sr-swapped .mh-line, .sr-swapped .rc-line, .sr-swapped .rc-prev { animation: none !important; stroke-dashoffset: 0 !important; stroke-dasharray: none !important; }
+.sr-swapped .mh-area, .sr-swapped .rc-area, .sr-swapped .rc-now, .sr-swapped .rc-now-halo { animation: none !important; opacity: 1; }
+.mh-range button, .rc-ranges button { transition: background-color .2s ease, color .2s ease; }

@@ -338,6 +338,16 @@ function rcUndated(rows) {
 }
 
 let rcLastModel = null;
+// Range, metric or step changes on the web chart: morph instead of redrawing.
+function rcRefreshSmooth() {
+  const host = document.getElementById('financeChart');
+  if (!host || !db || !host.querySelector('.rc-line')) return rcRefresh();
+  const today = todayUK();
+  srSwap(host, revenueChart(accountingRows(db), today), {line: '.rc-line', area: '.rc-area, .rc-prev, .rc-now, .rc-now-halo', numbers: ['.rc-hero']});
+  rcLastModel = rcModel(accountingRows(db), today);
+  const plot = host.querySelector('.rc-plot');
+  if (plot && rc.selected >= 0) { rcCross(rc.selected, plot); rcLive(rc.selected); }
+}
 function rcRefresh(animate = true) {
   const host = document.getElementById('financeChart');
   if (!host || !db) return;
@@ -449,20 +459,20 @@ document.addEventListener('click', event => {
   if (pop && !pop.hidden && !t.closest('.rc-pop')) pop.hidden = true;
   if (t.closest('[data-rc-pop-close]')) { pop.hidden = true; return; }
   const preset = t.closest('[data-rc-preset]');
-  if (preset) { const [f, to] = rcPreset(preset.dataset.rcPreset, todayUK()); rcSetCustom(f, to); rcRefresh(); return; }
+  if (preset) { const [f, to] = rcPreset(preset.dataset.rcPreset, todayUK()); rcSetCustom(f, to); rcRefreshSmooth(); return; }
   if (t.closest('[data-rc-apply]')) {
     const f = pop.querySelector('[data-rc-from]').value, to = pop.querySelector('[data-rc-to]').value;
     if (!f || !to) { toast('Pick both dates.'); return; }
-    rcSetCustom(f, to); rcRefresh(); return;
+    rcSetCustom(f, to); rcRefreshSmooth(); return;
   }
   const range = t.closest('[data-rc-range]');
-  if (range) { rc.range = range.dataset.rcRange; rc.grain = ''; rc.selected = -1; rcSave(); rcRefresh(); return; }
+  if (range) { rc.range = range.dataset.rcRange; rc.grain = ''; rc.selected = -1; rcSave(); rcRefreshSmooth(); return; }
   const metric = t.closest('[data-rc-metric]');
-  if (metric) { rc.metric = metric.dataset.rcMetric; rcSave(); rcRefresh(); return; }
+  if (metric) { rc.metric = metric.dataset.rcMetric; rcSave(); rcRefreshSmooth(); return; }
   const grain = t.closest('[data-rc-grain]');
-  if (grain) { rc.grain = grain.dataset.rcGrain; rc.selected = -1; rcSave(); rcRefresh(); return; }
-  if (t.closest('[data-rc-compare]')) { rc.compare = !rc.compare; rcSave(); rcRefresh(); return; }
-  if (t.closest('[data-rc-running]')) { rc.running = !rc.running; rcSave(); rcRefresh(); return; }
+  if (grain) { rc.grain = grain.dataset.rcGrain; rc.selected = -1; rcSave(); rcRefreshSmooth(); return; }
+  if (t.closest('[data-rc-compare]')) { rc.compare = !rc.compare; rcSave(); rcRefreshSmooth(); return; }
+  if (t.closest('[data-rc-running]')) { rc.running = !rc.running; rcSave(); rcRefreshSmooth(); return; }
   const fix = t.closest('[data-rc-fix]');
   if (fix) {
     const id = fix.dataset.rcFix, input = document.querySelector('[data-rc-date="' + CSS.escape(id) + '"]');
