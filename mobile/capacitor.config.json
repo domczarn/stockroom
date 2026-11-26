@@ -1,0 +1,12 @@
+{
+  "appId": "com.bookednpaid.stockroom",
+  "appName": "Stockroom",
+  "webDir": "www",
+  "server": {
+    "url": "https://stockroom.bookednpaid.com",
+    "cleartext": false,
+    "allowNavigation": ["stockroom.bookednpaid.com"]
+  },
+  "ios": {"contentInset": "always", "limitsNavigationsToAppBoundDomains": true},
+  "android": {"allowMixedContent": false}
+}

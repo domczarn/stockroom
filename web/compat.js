@@ -15,6 +15,14 @@ onHook('afterRender', () => {
   if (el && el !== document.activeElement && el.closest('#view')) { el.focus({preventScroll: true}); try { el.setSelectionRange(srFocus.s, srFocus.e); } catch {} }
   srFocus = null;
 });
+// Inside the App Store / Play Store app (Capacitor). Google sign-in can't run inside an app's web view, so it opens
+// in the phone's browser; store rules mean plans aren't sold inside the app.
+const isNativeApp = () => !!window.Capacitor?.isNativePlatform?.();
+function openExternal(url) {
+  const browser = window.Capacitor?.Plugins?.Browser;
+  if (isNativeApp() && browser) return browser.open({url});
+  location.assign(url);
+}
 // Rarely used screens (admin console, photo studio) load the first time they're opened, not on every launch.
 const srLoaded = {};
 function loadScript(src) {

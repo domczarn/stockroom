@@ -77,7 +77,7 @@ async function changeGmail(path,options,automatic=false){
   gmailBusy=true;gmailCheckMessage='';renderGmail();
   try{
     const result=await api(path,options);
-    if(result.authorizeUrl){location.assign(result.authorizeUrl);return;}
+    if(result.authorizeUrl){openExternal(result.authorizeUrl);return;}
     personalGmail=result;
     if(path.endsWith('/check'))gmailCheckMessage=result.added?result.added+' new Vinted '+(result.added===1?'update':'updates')+' ready to review.':
       result.connection?.state==='connected'?'Vinted inbox up to date.':result.connection?.state==='check_failed'?'The last check failed. Try again in a minute.':'';
@@ -131,3 +131,6 @@ function initialiseGmail(){
   });
   setInterval(()=>{if(!document.hidden)loadGmail(true).catch(()=>{});},5*60000);
 }
+
+// App version: after connecting Gmail in the phone's browser, coming back to the app picks up the connection.
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&typeof isNativeApp==='function'&&isNativeApp()&&account&&typeof loadGmail==='function')loadGmail(true).then(()=>render()).catch(()=>{});});
