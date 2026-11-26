@@ -296,6 +296,16 @@ for (const viewport of [{width: 390, height: 844}, {width: 1440, height: 900}]) 
     assert.match(msgs[0], /80% full/);
     assert.match(msgs[1], /93% full/);
   });
+  await check('getting started never shows once you have sales; no change % on the chart', viewport, async page => {
+    const out = await page.evaluate(() => {
+      navigate('Dashboard'); render();
+      if (startIsNew()) { const it = db.items.find(i => i.status === 'In Stock' && !i.deletedAt); db = recordSale(db, it.id, 20, todayUK()); }
+      // Some steps still undone (no Gmail, items without photos) must not bring it back.
+      render();
+      return {card: !!document.querySelector('.start-card'), deltas: document.querySelectorAll('.mh-delta,.rc-delta').length};
+    });
+    assert.deepEqual(out, {card: false, deltas: 0});
+  });
   await check('saves send changes only, queue offline, then sync', viewport, async page => {
     const bodies = [];
     page.on('request', r => { if (r.url().endsWith('/api/workspace') && ['PATCH', 'PUT'].includes(r.method())) bodies.push({m: r.method(), size: (r.postData() || '').length}); });

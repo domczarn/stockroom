@@ -134,7 +134,8 @@ function mobileHome() {
   const tNow = reportTotals(onSales(now)), tBefore = reportTotals(onSales(before));
   const soldNow = now.filter(r => r.kind === 'Sale').length, soldBefore = before.filter(r => r.kind === 'Sale').length;
   const pct = (a, b) => b ? Math.round((a - b) / Math.abs(b) * 100) : null;
-  const delta = v => v == null ? '' : '<span class="mh-delta ' + (v >= 0 ? 'up' : 'down') + '">' + (v >= 0 ? '+' : '') + v + '%</span>';
+  // No green/red change percentages on Home: they read as noise on small numbers.
+  const delta = () => '';
   const inStock = db.items.filter(i => !i.deletedAt && i.status === 'In Stock').length;
   const trades = db.trades || [];
   const owed = trades.filter(t => ['Sold', 'Posted', 'Completed'].includes(tradeStatus(t))).reduce((n, t) => n + saleRemaining(t), 0);

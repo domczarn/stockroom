@@ -88,7 +88,9 @@ function rcNiceMax(max, kind) {
   return Math.max(kind === 'count' ? 3 : 0, step * 3);
 }
 
+// Change badges (▲/▼ %) are switched off on the chart; the comparison line stays when Compare is on.
 function rcDelta(now, before, kind) {
+  return '';
   if (now === null || before === null || before === undefined) return '';
   if (kind === 'pct') {
     const diff = now - before;
@@ -297,7 +299,7 @@ function revenueChart(rows, today) {
       (prevTotal ? rcDelta(v, prevTotal[key], m.kind) : '') + '</button>';
   }).join('');
   const customLabel = win.custom ? rcDayFmt.format(win.start) + ' – ' + rcDayFmt.format(win.end) : 'Custom';
-  const sub = '<span class="rc-hero-label">' + esc(meta.label) + '</span>' + (prevTotal ? ' ' + rcDelta(total[rc.metric], prevTotal[rc.metric], meta.kind) + ' <span class="rc-vs">vs previous ' + (win.hourly ? '24 hours' : win.days + ' days') + '</span>' : '');
+  const sub = '<span class="rc-hero-label">' + esc(meta.label) + '</span>' + '';
   return '<section class="revenue-studio" aria-label="Revenue chart" data-accent="' + rc.metric + '">' +
     '<header class="rc-head"><div class="rc-hero-wrap"><p class="rc-eyebrow" data-base="' + esc(rangeText) + '">' + esc(rangeText) + '</p>' +
       '<h2 class="rc-hero" data-base="' + esc(rcValue(total[rc.metric], meta.kind)) + '">' + rcValue(total[rc.metric], meta.kind) + '</h2>' +
@@ -399,7 +401,7 @@ function rcLive(i) {
   const b = model.buckets[i], v = model.series[i], p = model.prevSeries[i];
   hero.textContent = rcValue(v, model.meta.kind);
   eyebrow.textContent = rcLabel(b, model.win.grain, true) + (model.running ? ' · running total' : '');
-  sub.innerHTML = '<span class="rc-hero-label">' + esc(model.meta.label) + '</span>' + (rc.compare && model.prevSeries.length ? ' ' + rcDelta(v, p, model.meta.kind) + ' <span class="rc-vs">vs ' + rcValue(p, model.meta.kind) + ' before</span>' : '') +
+  sub.innerHTML = '<span class="rc-hero-label">' + esc(model.meta.label) + '</span>' + (rc.compare && model.prevSeries.length ? ' <span class="rc-vs">vs ' + rcValue(p, model.meta.kind) + ' before</span>' : '') +
     ' <span class="rc-vs">· ' + b.stats.sold + ' sold</span>';
   studio.classList.add('live');
 }

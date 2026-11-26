@@ -22,7 +22,10 @@ function startSteps() {
 }
 // New until the first sale, or until every step is done.
 function startIsNew() { return !(db?.trades || []).length && !(db?.items || []).some(i => i.status === 'Sold' && !i.deletedAt); }
-function startVisible() { return !isReadOnly() && !startHidden() && startSteps().some(s => !s.done); }
+// Only brand-new sellers see it: once you've sold anything it never shows, and it waits until
+// the account has actually loaded so it can't flash up on launch.
+function startVisible() { return !isReadOnly() && startLoaded() && startIsNew() && !startHidden() && startSteps().some(s => !s.done); }
+function startLoaded() { return typeof cloudRevision !== 'undefined' && (cloudRevision !== null || cloudAvailable === true); }
 
 function startCardHtml() {
   const steps = startSteps(), done = steps.filter(s => s.done).length, next = steps.find(s => !s.done);
@@ -58,7 +61,7 @@ document.addEventListener('click', event => {
 // Put the card on Home (phone and web). While you're new, the empty charts and widgets step aside.
 if (typeof render === 'function') {
   onHook('afterRender', () => {
-    const isNew = startIsNew();
+    const isNew = startIsNew() && startLoaded();
     document.body.classList.toggle('is-new-seller', isNew && tab === 'Dashboard');
     if (tab === 'Dashboard' && startVisible()) {
       const view = document.getElementById('view');
