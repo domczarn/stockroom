@@ -44,3 +44,11 @@ import {verifyGoogleJwt} from '../worker/gmail.js';
   const t=await sign(good);assert.equal(await verifyGoogleJwt(t.slice(0,-4)+'AAAA',env,now,keys),null);
   console.log('google push token check ok');
 }
+import {rateLimit} from '../worker/security.js';
+{
+  let calls=0;const env={SAVE_LIMITER:{async limit({key}){calls++;return {success:key!=='blocked'};}}};
+  await rateLimit(env,'someone');
+  await assert.rejects(rateLimit(env,'blocked'),e=>e.status===429);
+  assert.equal(calls,2);
+  console.log('edge rate limit ok');
+}

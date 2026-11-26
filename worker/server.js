@@ -96,6 +96,20 @@ async function importPhotos(purchase, env, existing) {
   }
   return photos.slice(0,4);
 }
+const AI_ROUTES={
+  '/api/pip/studio':{pro:true,run:studioRoute},
+  '/api/pip/offer':{pro:true,run:offerRoute},
+  '/api/pip/ask':{pro:true,run:askRoute},
+  '/api/pip/scan':{pro:true,run:scanRoute},
+  '/api/pip/measure':{pro:true,run:measureRoute},
+  '/api/pip/snap':{pro:true,run:snapRoute},
+  '/api/pip/flaws':{pro:true,run:flawsRoute},
+  '/api/pip/command':{pro:true,run:commandRoute},
+  '/api/pip/crosslist':{pro:true,run:crosslistRoute},
+  '/api/pip/price':{pro:false,run:priceRoute},   // free accounts get a few a day (see priceRoute)
+  '/api/vision/listing':{pro:true,run:visionRoute},
+  '/api/vision/write-listing':{pro:true,run:writeListingRoute},
+};
 export default {
   async fetch(request, env, context) {
     const url = new URL(request.url);
@@ -161,21 +175,11 @@ export default {
         const result=await gmailRoute(request,url,env,user,context);
         return result instanceof Response?result:json(result);
       }
-      if((url.pathname.startsWith('/api/vision/')||(url.pathname.startsWith('/api/pip/')&&!url.pathname.startsWith('/api/pip/weekly')&&url.pathname!=='/api/pip/price'))&&request.method==='POST')await requirePro(env,user,'Pip AI');
-      if(url.pathname==='/api/pip/studio')return json(await studioRoute(request,env,user));
-      if(url.pathname==='/api/pip/offer')return json(await offerRoute(request,env,user));
-      if(url.pathname==='/api/pip/ask')return json(await askRoute(request,env,user));
-      if(url.pathname==='/api/pip/scan')return json(await scanRoute(request,env,user));
-      if(url.pathname==='/api/pip/measure')return json(await measureRoute(request,env,user));
-      if(url.pathname==='/api/pip/snap')return json(await snapRoute(request,env,user));
-      if(url.pathname==='/api/pip/flaws')return json(await flawsRoute(request,env,user));
-      if(url.pathname==='/api/pip/command')return json(await commandRoute(request,env,user));
-      if(url.pathname==='/api/pip/crosslist')return json(await crosslistRoute(request,env,user));
-      if(url.pathname==='/api/pip/price')return json(await priceRoute(request,env,user));
+      // Pip and vision: one table says which handler runs and whether it needs Pro (checked on POST).
+      const ai=AI_ROUTES[url.pathname];
+      if(ai){if(ai.pro&&request.method==='POST')await requirePro(env,user,'Pip AI');return json(await ai.run(request,env,user));}
       if(url.pathname==='/api/price-index'&&request.method==='GET')return json(await priceIndexRoute(request,env,user));
       if(url.pathname.startsWith('/api/pip/weekly'))return json(await weeklyRoute(request,url,env,user));
-      if(url.pathname==='/api/vision/listing')return json(await visionRoute(request,env,user));
-      if(url.pathname==='/api/vision/write-listing')return json(await writeListingRoute(request,env,user));
       if(url.pathname==='/api/market-research')return json(await marketResearchRoute(request,env,user));
       if (importRoute && user && !user.admin) return json(url.pathname==='/api/purchases'?{purchases:[]}:{error:'Admin access required'},url.pathname==='/api/purchases'?200:403);
       if(url.pathname==='/api/notification-reads'){

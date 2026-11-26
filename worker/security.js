@@ -215,6 +215,8 @@ export async function audit(env,user,owner,action) {
 }
 
 export async function rateLimit(env,key){
+ // Cloudflare's rate limiter counts in memory at the edge: no database write on every request.
+ if(env.SAVE_LIMITER){const {success}=await env.SAVE_LIMITER.limit({key:String(key)});if(!success)throw new HttpError(429,'Too many changes. Wait a minute and try again.');return;}
  const window=Math.floor(Date.now()/60000);
  const row=await env.DB.prepare('INSERT INTO rate_limits (key,window,count) VALUES (?,?,1) ON CONFLICT(key) DO UPDATE SET count = CASE WHEN window = excluded.window THEN count + 1 ELSE 1 END, window=excluded.window RETURNING count').bind(key,window).first();
  if(row.count>60)throw new HttpError(429,'Too many changes. Wait a minute and try again.');

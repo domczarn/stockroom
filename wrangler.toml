@@ -17,6 +17,12 @@ directory = "dist/client"
 binding = "ASSETS"
 run_worker_first = ["/*", "!/s/*"]
 
+# Per-account limit on saves and other changes (60 a minute), counted at the edge instead of in D1.
+[[ratelimits]]
+name = "SAVE_LIMITER"
+namespace_id = "1001"
+simple = { limit = 60, period = 60 }
+
 [observability]
 enabled = true
 
