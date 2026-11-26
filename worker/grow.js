@@ -157,7 +157,14 @@ eBay rules: title max 80 characters, keyword-rich, Brand + Item type + key detai
 
 // Price suggestion for anyone, even with no sales yet: community sold prices if we have them,
 // otherwise Pip's estimate of what it sells for on Vinted UK from the details (and photo, if given).
-export const FREE_PRICE_CHECKS = 5;
+export const FREE_PRICE_CHECKS = 5, FREE_SCANS = 3;
+// Free accounts get a few goes a day at some Pip tools, so everyone can try them. Pro and admin are unlimited.
+export async function freeDaily(env, user, name, limit, message) {
+  if (!user || user.admin || !env.DB || await isPro(env, user)) return;
+  const day = Math.floor(Date.now() / 86400000);
+  const row = await env.DB.prepare('INSERT INTO rate_limits (key,window,count) VALUES (?,?,1) ON CONFLICT(key) DO UPDATE SET count = CASE WHEN window = excluded.window THEN count + 1 ELSE 1 END, window=excluded.window RETURNING count').bind(name + ':' + user.id, day).first();
+  if (row.count > limit) throw new HttpError(402, message);
+}
 export async function priceRoute(request, env, user) {
   if (request.method !== 'POST') throw new HttpError(405, 'Method not allowed.');
   const body = await readBody(request, 1_200_000) || {};
@@ -165,11 +172,7 @@ export async function priceRoute(request, env, user) {
   const details = {Brand: text(item.brand, 60), 'Item type': text(item.garment, 40), Name: text(item.name, 120), Size: text(item.size, 20), Colour: text(item.color, 30), Condition: text(item.condition, 40), Flaws: text(item.flaws, 200)};
   if (!details.Brand && !details['Item type'] && !details.Name) throw new HttpError(400, 'Pick a brand or category first.');
   // Free accounts: a few price checks a day, so everyone can try Pip.
-  if (!user.admin && env.DB && !(await isPro(env, user))) {
-    const day = Math.floor(Date.now() / 86400000);
-    const row = await env.DB.prepare('INSERT INTO rate_limits (key,window,count) VALUES (?,?,1) ON CONFLICT(key) DO UPDATE SET count = CASE WHEN window = excluded.window THEN count + 1 ELSE 1 END, window=excluded.window RETURNING count').bind('pip-price:' + user.id, day).first();
-    if (row.count > FREE_PRICE_CHECKS) throw new HttpError(402, 'You’ve used today’s ' + FREE_PRICE_CHECKS + ' free price checks. Go Pro for unlimited Pip.');
-  }
+  await freeDaily(env, user, 'pip-price', FREE_PRICE_CHECKS, 'You’ve used today’s ' + FREE_PRICE_CHECKS + ' free price checks. Go Pro for unlimited Pip.');
   const community = await lookupIndex(env, details.Brand, garmentType(details['Item type'] || details.Name));
   await aiAllowance(env, user);
   const image = imageFromDataUrl(body.photo, 1_100_000);
@@ -183,5 +186,5 @@ low/high: realistic sold range in GBP; suggested: a good listing price that leav
   const n = v => { const x = Math.round(Number(v) * 2) / 2; return Number.isFinite(x) && x > 0 && x < 5000 ? x : null; };
   const low = n(data.low), high = n(data.high), suggested = n(data.suggested);
   if (!low || !high || !suggested || low > high) throw new HttpError(502, 'Pip couldn’t price that. Add a brand or category and try again.');
-  return {low, high, suggested: Math.min(Math.max(suggested, low), high * 1.2), why: text(data.why, 200), community: community ? {median: community.median, count: community.n} : null};
+  return {low, high, suggested: Math.min(Math.max(suggested, low), high * 1.2), why: text(data.why, 200), community: community ? {median: community.median, count: community.n, days: community.days ?? null} : null};
 }

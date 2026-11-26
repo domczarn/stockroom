@@ -100,7 +100,7 @@ const AI_ROUTES={
   '/api/pip/studio':{pro:true,run:studioRoute},
   '/api/pip/offer':{pro:true,run:offerRoute},
   '/api/pip/ask':{pro:true,run:askRoute},
-  '/api/pip/scan':{pro:true,run:scanRoute},
+  '/api/pip/scan':{pro:false,run:scanRoute},     // free accounts get a few a day (see scanRoute)
   '/api/pip/measure':{pro:true,run:measureRoute},
   '/api/pip/snap':{pro:true,run:snapRoute},
   '/api/pip/flaws':{pro:true,run:flawsRoute},

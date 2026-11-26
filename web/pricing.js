@@ -100,7 +100,7 @@ document.addEventListener('click', async event => {
     const cost = f.cost && f.cost.value !== '' ? Number(String(f.cost.value).replace(/[£,\s]/g, '')) : null;
     const profit = Number.isFinite(cost) && cost !== null ? r.suggested - cost : null;
     box.innerHTML = '<span class="pg-line"><span class="pg-pip" aria-hidden="true"></span><span><strong>Pip suggests ' + gbp(r.suggested) + '</strong>' +
-      '<small>Usually sells for ' + gbp(r.low) + '–' + gbp(r.high) + (profit !== null ? ' · ' + (profit >= 0 ? '+' : '') + gbp(profit) + ' profit' : '') + '</small>' +
+      '<small>Usually sells for ' + gbp(r.low) + '–' + gbp(r.high) + (r.community?.days != null ? ' · sells in about ' + r.community.days + ' days' : '') + (profit !== null ? ' · ' + (profit >= 0 ? '+' : '') + gbp(profit) + ' profit' : '') + '</small>' +
       (r.why ? '<small class="pg-ex">' + esc(r.why) + '</small>' : '') + '</span><button type="button" class="pg-use" data-pg-use="' + r.suggested + '">Use ' + gbp(r.suggested) + '</button></span>';
-  } catch (error) { btn.disabled = false; btn.textContent = 'Ask Pip'; toast(error.message || 'Pip couldn’t price that.'); }
+  } catch (error) { btn.disabled = false; btn.textContent = 'Ask Pip'; if (error.status === 402 && typeof openUpgrade === 'function') openUpgrade(error.message); else toast(error.message || 'Pip couldn’t price that.'); }
 });

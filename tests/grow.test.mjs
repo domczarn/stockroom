@@ -98,3 +98,19 @@ test('Pip price needs something to go on', async () => {
   const req = body => new Request('https://x/api/pip/price', {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify(body)});
   await assert.rejects(() => priceRoute(req({item: {}}), {DB: {}}, {id: 'u'}), /brand or category/);
 });
+
+test('free accounts get a few Pip price checks and Buy or pass scans a day, then Pro', async () => {
+  const {environment} = await import('./support.mjs');
+  const app = (await import('../dist/server/app.js')).default;
+  const env = environment();
+  env.ANTHROPIC_API_KEY = 'test'; env.ANTHROPIC_FETCH = async () => new Response(JSON.stringify({content: [{type: 'text', text: '{"low":10,"high":20,"suggested":15,"why":"ok","name":"Tee","brand":"Nike","category":"T-shirt","confidence":"medium"}'}]}), {status: 200});
+  const call = (path, body) => app.fetch(new Request('https://x' + path, {method: 'POST', headers: {'content-type': 'application/json', 'oai-authenticated-user-id': 'free-1', 'oai-authenticated-user-email': 'free@example.test'}, body: JSON.stringify(body)}), env);
+  const statuses = [];
+  for (let i = 0; i < 6; i++) statuses.push((await call('/api/pip/price', {item: {brand: 'Nike', garment: 'T-shirt'}})).status);
+  assert.deepEqual(statuses, [200, 200, 200, 200, 200, 402]);
+  const photo = 'data:image/png;base64,' + Buffer.from('fakeimage').toString('base64');
+  const scans = [];
+  for (let i = 0; i < 4; i++) scans.push((await call('/api/pip/scan', {image: photo, price: 3})).status);
+  assert.equal(scans[3], 402);
+  assert.ok(scans.slice(0, 3).every(s => s !== 402), scans.join());
+});

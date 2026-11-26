@@ -1,5 +1,5 @@
 // Pip's AI helpers: offer advice, Ask Pip chat, buy-or-pass verdicts and the weekly report.
-import {lookupIndex, garmentType} from './grow.js';
+import {lookupIndex, garmentType, freeDaily, FREE_SCANS} from './grow.js';
 import {HttpError, readBody} from './security.js';
 import {ask, jsonFrom, aiAllowance, imageFromDataUrl} from './llm.js';
 import seed from './market-seed.json' with {type: 'json'};
@@ -164,6 +164,7 @@ export async function scanRoute(request, env, user) {
   const image = imageFromDataUrl(body.image, 5_600_000);
   if (!image) throw new HttpError(400, 'Take a photo of the item first.');
   const price = money(body.price);
+  await freeDaily(env, user, 'pip-scan', FREE_SCANS, 'You’ve used today’s ' + FREE_SCANS + ' free Buy or pass scans. Go Pro for unlimited scans.');
   const digest = workspaceDigest((await loadWorkspace(env, user.id))?.data || {});
   const market = await env.DB.prepare("SELECT payload FROM market_research WHERE id='vinted-uk'").first().then(r => r ? JSON.parse(r.payload) : seed).catch(() => seed);
   await aiAllowance(env, user);

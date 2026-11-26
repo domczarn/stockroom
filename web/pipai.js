@@ -110,14 +110,14 @@ async function scanResize(file) {
   } finally { URL.revokeObjectURL(url); }
 }
 function openScan() {
-  if (account?.plan !== 'pro') { openUpgrade('Buy or pass is part of Stockroom Pro.'); return; }
+  // Free accounts get 3 scans a day; the server says when they've run out.
   scanState = {photo: null, result: null, busy: false}; scanRender();
   const d = scanSheet(); if (!d.open) d.showModal();
 }
 async function runScan() {
   scanState.busy = true; scanState.error = ''; scanRender();
   try { scanState.result = await api('/api/pip/scan', {method: 'POST', body: JSON.stringify({image: scanState.photo, price: scanState.price})}); }
-  catch (error) { scanState.error = error.message; }
+  catch (error) { if (error.status === 402 && typeof openUpgrade === 'function') { document.getElementById('scanDialog')?.close(); openUpgrade(error.message); } scanState.error = error.message; }
   scanState.busy = false; scanRender();
 }
 document.addEventListener('input', event => {
