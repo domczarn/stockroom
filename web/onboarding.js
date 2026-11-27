@@ -3,10 +3,10 @@
 
 const TOUR = [
   {icon: '＋', tone: 'violet', title: 'Add your stock', body: 'Tap <b>＋</b> to add a piece. Snap the item and its label and Pip fills in the brand, size, condition and a resale price for you.', chips: ['Snap to stock', 'Reads labels', 'Spots flaws']},
-  {icon: '✍️', tone: 'blue', title: 'Listings that sell', body: '<b>Write with Pip</b> turns your photo into a Vinted-ready title, description and hashtags. Photo studio gives you clean backgrounds in one tap.', chips: ['Search-ready titles', 'Photo studio', 'Depop & eBay copy']},
-  {icon: '📷', tone: 'green', title: 'Know what to pay', body: 'At a charity shop or car boot? Open <b>Buy or pass</b>, snap a piece and Pip tells you what it sells for and the most to pay.', chips: ['Sold-price data', 'Max buy price', 'What to check']},
-  {icon: '✉️', tone: 'amber', title: 'Sales track themselves', body: 'Connect your email and Pip reads your Vinted emails: every sale, shipping label and QR code lands in the app. No rush: when you make your first sale, Pip offers to track the rest for you.', chips: ['Sold → recorded', 'QR codes', 'Posted & delivered']},
-  {icon: '💬', tone: 'pink', title: 'Just tell Pip', body: 'Type or say what happened: <b>“Sold the black Nike hoodie for £25.”</b> Pip shows the changes and saves them when you tap Do it.', chips: ['Type or speak', 'You confirm first', 'Works in seconds']}
+  {icon: uiIcon('pen', 34), tone: 'blue', title: 'Listings that sell', body: '<b>Write with Pip</b> turns your photo into a Vinted-ready title, description and hashtags. Photo studio gives you clean backgrounds in one tap.', chips: ['Search-ready titles', 'Photo studio', 'Depop & eBay copy']},
+  {icon: uiIcon('camera', 34), tone: 'green', title: 'Know what to pay', body: 'At a charity shop or car boot? Open <b>Buy or pass</b>, snap a piece and Pip tells you what it sells for and the most to pay.', chips: ['Sold-price data', 'Max buy price', 'What to check']},
+  {icon: uiIcon('mail', 34), tone: 'amber', title: 'Sales track themselves', body: 'Connect your email and Pip reads your Vinted emails: every sale, shipping label and QR code lands in the app. No rush: when you make your first sale, Pip offers to track the rest for you.', chips: ['Sold → recorded', 'QR codes', 'Posted & delivered']},
+  {icon: uiIcon('chat', 34), tone: 'pink', title: 'Just tell Pip', body: 'Type or say what happened: <b>“Sold the black Nike hoodie for £25.”</b> Pip shows the changes and saves them when you tap Do it.', chips: ['Type or speak', 'You confirm first', 'Works in seconds']}
 ];
 const tourKey = () => 'sr-onboarded:' + (account?.id || 'guest');
 const tourDone = () => { try { return !!localStorage.getItem(tourKey()); } catch { return true; } };

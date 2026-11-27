@@ -319,7 +319,7 @@ function revenueChart(rows, today) {
         (win.comparable ? '<button type="button" class="rc-toggle" data-rc-compare aria-pressed="' + rc.compare + '"><i class="rc-key prev"></i>Previous period</button>' : '') +
         (meta.additive ? '<button type="button" class="rc-toggle" data-rc-running aria-pressed="' + rc.running + '">Running total</button>' : '') +
       '</div></div>' +
-    '<div class="rc-plot">' + rcSvg(model, width) + '<div class="rc-tip" role="status" hidden></div><div class="rc-flag" hidden></div></div>' +
+    '<div class="rc-plot">' + rcSvg(model, width) + (total?.sold ? '' : '<p class="chart-empty">No sales in this range yet. Sales you record chart here.</p>') + '<div class="rc-tip" role="status" hidden></div><div class="rc-flag" hidden></div></div>' +
     rcNavigator(rows, today, width, win) +
     rcInsights(model) + rcDetail(model) +
     rcUndated(rows) +

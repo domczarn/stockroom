@@ -88,7 +88,7 @@ function forwardPanel(c){
   return '<div class="fwd">'+
     '<p class="fwd-status '+(working?'on':'')+'">'+(working?'✓ Working · last email '+esc(new Date(c.checkedAt).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})):'Takes about 2 minutes, once.')+'</p>'+
     copy('Your private Stockroom address',c.address,'address')+
-    (working?'':'<button type="button" class="secondary fwd-mail" data-fwd-mail>✉️ On your phone? Email me these steps</button>')+
+    (working?'':'<button type="button" class="secondary fwd-mail" data-fwd-mail>'+uiIcon('mail',16)+' On your phone? Email me these steps</button>')+
     '<details class="fwd-steps"'+(working?'':' open')+'><summary>Gmail setup (on a computer, about 2 minutes)</summary><ol>'+
       '<li>Gmail → ⚙️ Settings → <b>See all settings</b> → <b>Forwarding and POP/IMAP</b> → <b>Add a forwarding address</b> → paste your address → Next → Proceed.</li>'+
       '<li>Gmail sends a code to Stockroom. '+code+'</li>'+

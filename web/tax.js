@@ -56,7 +56,7 @@ function reportingNudgeHtml() {
   const r = reportingStatus();
   if (!r.close) return '';
   const text = r.reported ? r.platform + ' will report your ' + r.year + ' sales to HMRC' : (REPORT_SALES - r.sales) + ' sales or ' + gbp(Math.max(0, REPORT_GROSS - r.money)) + ' until ' + r.platform + ' reports you to HMRC';
-  return '<button type="button" class="hmrc-nudge" data-hmrc-open><span aria-hidden="true">🧾</span><span>' + esc(text) + '</span><b>Tax pack →</b></button>';
+  return '<button type="button" class="hmrc-nudge" data-hmrc-open><span aria-hidden="true">' + uiIcon('receipt') + '</span><span>' + esc(text) + '</span><b>Tax pack →</b></button>';
 }
 onHook('afterRender', () => {
   // Page rules block inline styles, so meter widths are set here.

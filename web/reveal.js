@@ -36,7 +36,7 @@ function revealOpen(f) {
   el.innerHTML = '<div class="rv-pip"><span class="sr-wait-ring"></span><i class="sr-wait-spark"></i><i class="sr-wait-spark"></i><i class="sr-wait-spark"></i><img src="/pip-orb.svg" alt=""></div>' +
     '<h2>Pip went through your emails</h2><p class="rv-sub">Here’s what he found. From now on, new ones land by themselves.</p>' +
     '<div class="rv-hero"><small>Sales found</small><b data-rv-to="' + gbp(f.money) + '">£0.00</b><span>' + f.sold.length + ' sale' + (f.sold.length === 1 ? '' : 's') + '</span></div>' +
-    '<div class="rv-rows">' + row('📦', 'Parcels to post', String(f.toPost.length), f.toPost.length ? 'QR codes are ready in Stock' : '') + row('✅', 'Delivered or paid out', String(f.delivered.length)) + '</div>' +
+    '<div class="rv-rows">' + row(uiIcon('package'), 'Parcels to post', String(f.toPost.length), f.toPost.length ? 'QR codes are ready in Stock' : '') + row('✅', 'Delivered or paid out', String(f.delivered.length)) + '</div>' +
     (f.unmatched.length ? '<button type="button" class="action rv-add" data-rv-add>Add my ' + f.unmatched.length + ' sale' + (f.unmatched.length === 1 ? '' : 's') + ' to Stockroom</button><p class="rv-note">They’re added as sold items. Add what you paid later to see your real profit.</p>' : '') +
     (!pro && !isNativeApp() ? '<div class="rv-pro"><b>Keep every sale tracking itself</b><span>Free tracks 20 sales a month. Pro tracks all of them, with labels and QR codes.</span><button type="button" class="secondary" data-rv-pro>See Pro</button></div>' : '') +
     '<button type="button" class="' + (f.unmatched.length ? 'secondary' : 'action') + ' rv-done" data-rv-done>' + (f.unmatched.length ? 'Not now' : 'Nice') + '</button>';

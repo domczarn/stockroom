@@ -329,14 +329,8 @@ function moneyDetail() {
   const line = ([label, amount]) => '<div class="finance-line"><span>' + label + '</span><strong>' + gbp(amount || 0) + '</strong></div>';
   const openOrders = (db.bulkOrders || []).filter(order => ['Ordered','Dispatched'].includes(order.stage)).length;
   const today = todayUK(), rows = accountingRows(db);
-  return '<div class="finance-insights">'+financeProjection(rows,today)+platformReporting(db,today)+'</div>'+
-    '<section class="finance-overview" aria-label="Spending overview">' +
-    '<div class="finance-overview-heading"><h2>Spending</h2><span class="profit-period">All time</span></div>' +
-    '<div class="finance-kpis">' +
-    metric('Clothing spend', gbp(spend.clothing), 'Stock purchases and bulk orders') +
-    metric('Business expenses', gbp(spend.overhead), 'Packaging, postage and other costs') +
-    metric('Total spent', gbp(spend.total), 'Stock and business expenses', 'finance-net') +
-    '</div></section>' +
+  // Reports: projection, then profit and stock. Spending lives in Expenses; HMRC limits and the allowance in their own cards below.
+  return '<div class="finance-insights">'+financeProjection(rows,today)+'</div>'+
     '<div class="finance-detail"><section class="panel"><div class="panel-heading"><h2>Profit breakdown</h2></div>' +
     '<div class="finance-lines">' + breakdown.map(line).join('') + '</div>' +
     '<p class="footnote">Clothing spend includes unsold stock. Profit uses the cost of clothes already sold.</p>' +
@@ -402,11 +396,11 @@ function expensesView() {
   const thisMonth = total(db.expenses.filter(row=>row[4]?.startsWith(todayUK().slice(0,7))),row=>row[1]);
   const categories=[...new Set(db.expenses.map(row=>row[2]||'Other'))];
   const clothing=clothingSpendRows(db);
-  const tabs=viewTabs('expense',[['all','Overview'],['clothing','Clothing'],['business','Business costs']],expenseView,{clothing:clothing.length,business:db.expenses.length});
+  const tabs=viewTabs('expense',[['all','Overview'],['clothing','Clothing'],['business','Business expenses']],expenseView,{clothing:clothing.length,business:db.expenses.length});
   const expenseTable=rows=>table(['Description','Category','Date','Amount','Notes',''],rows.map(([row,index])=>
       '<tr><td>'+esc(row[0])+'</td><td><span class="tag neutral-tag">'+esc(row[2]||'Other')+'</span></td><td>'+esc(row[4]?dateLabel(row[4]):'Date needed')+
       '</td><td>'+gbp(row[1])+'</td><td class="expense-notes">'+esc(row[5]||'—')+'</td><td><button class="link" data-ledger="expense" data-index="'+index+'">Edit</button><button class="link expense-remove" data-expense-remove="'+index+'">Remove</button></td></tr>'
-     ).join('')||'<tr><td colspan="6">Add your first expense to track business costs.</td></tr>');
+     ).join('')||'<tr><td colspan="6">Add your first expense to track business expenses.</td></tr>');
   if(expenseView==='clothing'){
     const clothingRows=sortList('clothing',clothing.map((r,order)=>({...r,order:-order})),'newest',DATE_SORTS);
     return '<div class="tools view-tools">'+tabs+sortControl('clothing','newest',DATE_SORTS)+'</div><div class="metrics expense-metrics">'+metric('Clothing spend',gbp(spend.clothing),'Stock purchases and bulk orders','featured')+
@@ -418,14 +412,14 @@ function expensesView() {
     const EXPENSE_SORTS=['added','added-old','newest','oldest','high','low','name'];
     const rows=sortList('expenses',db.expenses.map((row,index)=>({row,index,date:row[4],amount:row[1],name:row[0],order:index})).filter(({row})=>expenseCategory==='All'||(row[2]||'Other')===expenseCategory),'added',EXPENSE_SORTS).map(r=>[r.row,r.index]);
     return '<div class="tools view-tools">'+tabs+sortControl('expenses','added',EXPENSE_SORTS)+'<button class="secondary" data-ledger="expense">＋ Add expense</button></div>'+
-      '<div class="metrics expense-metrics">'+metric('Business costs',gbp(spend.overhead),db.expenses.length+' recorded','featured')+metric('This month',gbp(thisMonth),'By expense date')+'</div>'+
+      '<div class="metrics expense-metrics">'+metric('Business expenses',gbp(spend.overhead),db.expenses.length+' recorded','featured')+metric('This month',gbp(thisMonth),'By expense date')+'</div>'+
       '<div class="chip-row">'+chips.map(c=>'<button type="button" class="chip" data-expense-category="'+esc(c)+'" aria-pressed="'+(c===expenseCategory)+'">'+esc(c)+'</button>').join('')+'</div>'+
       expenseTable(rows)+removedExpensesView();
   }
   const parts=[['Clothing',spend.clothing],...categories.map(c=>[c,total(db.expenses.filter(r=>(r[2]||'Other')===c),r=>r[1])])].filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
   const max=Math.max(1,...parts.map(([,v])=>v));
-  return '<div class="tools view-tools">'+tabs+'</div><div class="metrics expense-metrics">'+metric('Total spent',gbp(spend.total),'Clothing and business costs','featured')+metric('Clothing',gbp(spend.clothing),'Stock and bulk orders')+metric('Business costs',gbp(spend.overhead),db.expenses.length+' recorded')+
-    metric('Business costs this month',gbp(thisMonth),'By expense date')+'</div>'+
+  return '<div class="tools view-tools">'+tabs+'</div><div class="metrics expense-metrics">'+metric('Total spent',gbp(spend.total),'Clothing and business expenses','featured')+metric('Clothing',gbp(spend.clothing),'Stock and bulk orders')+metric('Business expenses',gbp(spend.overhead),db.expenses.length+' recorded')+
+    metric('Business expenses this month',gbp(thisMonth),'By expense date')+'</div>'+
     '<section class="panel spend-breakdown"><div class="panel-heading"><h2>Where the money goes</h2><span class="profit-period">All time</span></div>'+
     (parts.length?'<div class="bars">'+parts.map(([label,value])=>'<div class="bar-row" title="'+esc(label)+': '+gbp(value)+'"><span class="bar-label">'+esc(label)+'</span><span class="bar-track"><span class="bar-fill" data-w="'+Math.max(2,value/max*100).toFixed(1)+'"></span></span><span class="bar-value">'+gbp(value)+'</span></div>').join('')+'</div>':'<p>No spending recorded yet.</p>')+
     '</section>';

@@ -67,7 +67,7 @@ function mountFlaws() {
   if (!input || document.getElementById('flawBtn')) return;
   const wrap = document.createElement('div');
   wrap.className = 'measure-tool';
-  wrap.innerHTML = '<button type="button" class="secondary measure-btn" id="flawBtn">🔍 Check photos for flaws</button><small id="flawNote">Pip zooms in on your photos for stains, holes, bobbling and fading, so you can disclose them and avoid returns.</small>';
+  wrap.innerHTML = '<button type="button" class="secondary measure-btn" id="flawBtn">' + uiIcon('search', 16) + ' Check photos for flaws</button><small id="flawNote">Pip zooms in on your photos for stains, holes, bobbling and fading, so you can disclose them and avoid returns.</small>';
   input.closest('label').after(wrap);
   wrap.querySelector('#flawBtn').onclick = async () => {
     if (account?.plan !== 'pro') { openUpgrade('Flaw finder is part of Stockroom Pro.'); return; }
@@ -93,8 +93,8 @@ function mountFlaws() {
 let tellState = {busy: false, result: null, text: ''};
 function tellPipBar() {
   return '<section class="tell-pip" id="tellPip"><form id="tellPipForm"><span class="island-pip">' + pipFaceSvg(30) + '</span>' +
-    '<input id="tellPipInput" name="say" maxlength="600" autocomplete="off" placeholder="Tell Pip what happened…" aria-label="Tell Pip what happened" value="' + esc(tellState.text) + '">' +
-    ((window.SpeechRecognition || window.webkitSpeechRecognition) ? '<button type="button" class="tell-mic" data-tell-mic aria-label="Speak to Pip">🎙</button>' : '') +
+    '<input id="tellPipInput" name="say" maxlength="600" autocomplete="off" placeholder="Tell Pip what happened, or ask a question…" aria-label="Tell Pip what happened, or ask a question" value="' + esc(tellState.text) + '">' +
+    ((window.SpeechRecognition || window.webkitSpeechRecognition) ? '<button type="button" class="tell-mic" data-tell-mic aria-label="Speak to Pip">' + uiIcon('mic') + '</button>' : '') +
     '<button type="submit" class="tell-go" aria-label="Send">↑</button></form>' +
     '<div class="tell-examples">' + ['Sold the black Nike hoodie for £25', 'Bought 3 jumpers for £12 at BHF', 'Drop everything over 60 days by 20%', '£4.50 on mailing bags'].map(e => '<button type="button" data-tell-example>' + esc(e) + '</button>').join('') + '</div>' +
     '<div id="tellPipOut">' + tellOutput() + '</div></section>';
@@ -106,7 +106,7 @@ function tellLabel(a) {
     case 'mark_sold': return ['£', 'Sold ' + (item(a.itemId)?.name || 'item'), gbp(a.amount) + (a.buyer ? ' to ' + a.buyer : '') + ' · ' + dateLabel(a.soldAt)];
     case 'set_price': { const i = item(a.itemId); return ['↘', 'Price ' + (i?.name || 'item'), (Number.isFinite(i?.price) ? gbp(i.price) + ' → ' : '') + gbp(a.price)]; }
     case 'mark_listed': return ['◉', 'Listed ' + (item(a.itemId)?.name || 'item'), dateLabel(a.listedAt)];
-    case 'mark_received': return ['📦', 'Arrived: ' + (item(a.itemId)?.name || 'item'), dateLabel(a.receivedAt)];
+    case 'mark_received': return [uiIcon('package', 16), 'Arrived: ' + (item(a.itemId)?.name || 'item'), dateLabel(a.receivedAt)];
     case 'log_expense': return ['−', 'Expense: ' + a.description, gbp(a.amount) + ' · ' + a.category + ' · ' + dateLabel(a.date)];
   }
   return ['•', a.type, ''];
@@ -163,7 +163,12 @@ document.addEventListener('submit', event => {
   if (event.target.id !== 'tellPipForm') return;
   event.preventDefault();
   const text = document.getElementById('tellPipInput').value.trim();
-  if (text && !tellState.busy) void askTell(text);
+  if (!text || tellState.busy) return;
+  // One box for Pip: questions go to Ask Pip, everything else is something that happened.
+  if (typeof askPip === 'function' && (/\?\s*$/.test(text) || /^(what|which|how|why|when|who|should|is|are|do|does|can|could|will|would)\b/i.test(text))) {
+    tellState.text = ''; document.getElementById('tellPipInput').value = ''; void askPip(text); return;
+  }
+  void askTell(text);
 });
 document.addEventListener('click', async event => {
   const t = event.target;
@@ -199,7 +204,7 @@ if (typeof render === 'function') {
   onHook('beforeRender', () => { typing = document.activeElement?.id === 'tellPipInput' ? document.activeElement.selectionStart : null; });
   onHook('afterRender', () => {
     if (tab === 'Dashboard' && !isReadOnly() && !document.getElementById('tellPip')) {
-      const view = document.getElementById('view'), anchor = view?.querySelector('.welcome, section');
+      const view = document.getElementById('view'), anchor = (view?.querySelector('.mh') && view.querySelector('.daily-actions')) || view?.querySelector('.welcome, section');   // phone: To do first, then Pip
       if (anchor) anchor.insertAdjacentHTML('afterend', tellPipBar());
       if (typing != null) { const input = document.getElementById('tellPipInput'); input?.focus(); input?.setSelectionRange(typing, typing); }
     }

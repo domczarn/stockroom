@@ -27,9 +27,7 @@ function financeProjection(rows,today) {
     '<div><dt>Projected to 5 April '+(taxYear+1)+'</dt><dd>'+(ytd.length?forecast(y.profit,duration/elapsed):'—')+'</dd></div>'+
     '<div><dt>Monthly profit at current pace</dt><dd>'+(ytd.length?forecast(y.profit,duration/(12*elapsed)):'—')+'</dd></div></dl>'+
     '<p class="finance-note">Projects recorded net profit at the same daily pace. '+(m.missing||y.missing?'Provisional while sale costs are missing.':'')+'</p></section>'+
-    '<section class="finance-dark"><div class="finance-dark-heading"><h2>Trading allowance</h2><span>'+taxYear+'/'+String(taxYear+1).slice(-2)+'</span></div>'+
-    '<div class="finance-ring" style="--used:'+(allowance?Math.min(100,100*gross/allowance):0)+'%"><div><strong>'+gbp(gross)+'</strong><span>'+(allowance?'of '+gbp(allowance).replace('.00',''):'Recorded gross sales')+'</span></div></div>'+
-    '<p class="finance-note">'+(allowance?gbp(allowance).replace('.00','')+' allowance for eligible individuals. Include qualifying income from other trades when checking your total.':'Check the applicable allowance with HMRC.')+' <a href="https://www.gov.uk/guidance/check-if-you-need-to-tell-hmrc-about-your-income-from-online-platforms" target="_blank" rel="noopener">HMRC guidance ↗</a></p></section></div>';
+    '</div>';
 }
 
 function platformReporting(data,today) {

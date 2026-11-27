@@ -18,9 +18,9 @@ function readyToPostHtml(where = 'home') {
     '<div class="ship-qr-list">' + rows.slice(0, where === 'home' ? 4 : 12).map(({item, ship}) => {
       const photo = (item.photos || [])[0];
       return '<article class="ship-qr-row' + (item.shipQr ? ' has-qr' : '') + (ship.level ? ' ship-' + ship.level : '') + '">' +
-        (photo ? '<img class="ship-qr-thumb" src="' + esc(photo) + '" alt="" loading="lazy">' : '<span class="ship-qr-thumb none" aria-hidden="true">📦</span>') +
+        (photo ? '<img class="ship-qr-thumb" src="' + esc(photo) + '" alt="" loading="lazy">' : '<span class="ship-qr-thumb none" aria-hidden="true">' + uiIcon('package', 22) + '</span>') +
         '<span class="ship-qr-text"><b>' + esc(item.name) + '</b><small>' + esc([String(ship.label || '').replace(/ working days? left/, 'd left').replace(/ working day left/, 'd left'), item.shipCarrier].filter(Boolean).join(' · ')) + '</small></span>' +
-        (!item.shipQr && item.shipLabel ? '<button type="button" class="ship-qr-show label" data-label-show="' + esc(item.id) + '">🏷 Label</button>' : '') +
+        (!item.shipQr && item.shipLabel ? '<button type="button" class="ship-qr-show label" data-label-show="' + esc(item.id) + '">' + uiIcon('tag', 15) + ' Label</button>' : '') +
         (item.shipQr
           ? '<button type="button" class="ship-qr-show" data-qr-show="' + esc(item.id) + '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 14h2M14 18h2v2M18 18h2v2"/></svg>Show QR</button>'
           : '<button type="button" class="ship-qr-add" data-qr-add="' + esc(item.id) + '">＋ ' + (item.shipLabel ? 'QR' : 'Add QR') + '</button>') +
@@ -47,7 +47,7 @@ function onTheWayHtml(where = 'home') {
       '<span class="ship-way-steps" aria-label="' + (s === 2 ? 'Delivered' : 'In transit') + '"><i class="on"></i><i class="' + (s === 2 ? 'on' : 'pulse') + '"></i><i class="' + (s === 2 ? 'pulse' : '') + '"></i></span></article>';
   }).join('');
   // Stock: one slim line you can tap open. Home: a short list.
-  if (where === 'stock') return '<details class="ship-way-mini"><summary><span class="swm-icon" aria-hidden="true">🚚</span><span><b>On the way</b> · ' + rows.length + (delivered ? ' · ' + delivered + ' delivered' : '') + '</span><em aria-hidden="true">›</em></summary><div class="ship-way-list">' + rowsHtml(20) + '</div></details>';
+  if (where === 'stock') return '<details class="ship-way-mini"><summary><span class="swm-icon" aria-hidden="true">' + uiIcon('truck') + '</span><span><b>On the way</b> · ' + rows.length + (delivered ? ' · ' + delivered + ' delivered' : '') + '</span><em aria-hidden="true">›</em></summary><div class="ship-way-list">' + rowsHtml(20) + '</div></details>';
   return '<section class="ship-way-panel"><header><h2>On the way <span class="daily-count">' + rows.length + '</span></h2></header><div class="ship-way-list">' + rowsHtml(3) + '</div>' +
     (rows.length > 3 ? '<button type="button" class="link ship-qr-more" data-tab="Stock">See all ' + rows.length + ' ↗</button>' : '') + '</section>';
   // eslint-disable-next-line no-unreachable

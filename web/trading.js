@@ -146,9 +146,10 @@ function reportsView() {
   return '<div class="tools"><label>Period <select id="reportMonth"><option value="">All time</option>'+options(months,reportMonth)+'</select></label>'+
     tradeButton('csv','Export CSV')+tradeButton('print','Print report')+'</div><div class="metrics">'+metric('Sales revenue',gbp(summary.revenue),'After recorded sale refunds','featured')+
     metric('Net profit',gbp(summary.profit),summary.missing?summary.missing+' sale costs missing · provisional':'After costs, expenses and returns')+
-    metric('Net expenses',gbp(summary.expense),'Includes return adjustments')+metric('Awaiting payout',gbp(pending),'Across all recorded orders')+'</div>'+moneyDetail()+(typeof reportingCard==='function'?reportingCard():'')+(typeof taxCard==='function'?taxCard():'')+'<div class="report-table-head"><h2 class="report-table-title">Transactions</h2>'+sortControl('reports','newest',DATE_SORTS)+'</div>'+
+    metric('Net expenses',gbp(summary.expense),'Includes return adjustments')+metric('Awaiting payout',gbp(pending),'Across all recorded orders')+'</div>'+(typeof taxCard==='function'?taxCard():'')+moneyDetail()+(typeof reportingCard==='function'?reportingCard():'')+
+    '<details class="report-ledger"'+(reportLedgerOpen?' open':'')+'><summary><span class="report-table-title">All transactions</span><span class="view-count">'+rows.length+'</span></summary><div class="report-table-head">'+sortControl('reports','newest',DATE_SORTS)+'</div>'+
     '<p class="footnote">'+all.filter(row=>!row.date).length+' undated entries are included in All time.</p>'+
-    table(['Transaction','Date','Revenue','Cost','Expenses','Profit'],sorted.map(row=>'<tr><td><b>'+esc(row.name)+'</b><br>'+row.kind+'</td><td>'+esc(row.date?dateLabel(row.date):'Undated')+'</td><td>'+gbp(row.revenue)+'</td><td>'+gbp(row.cost)+'</td><td>'+gbp(row.expense)+'</td><td>'+gbp(row.cost===null?null:row.revenue-row.cost-row.expense)+'</td></tr>').join('')||'<tr><td colspan="6">No entries in this period.</td></tr>');
+    table(['Transaction','Date','Revenue','Cost','Expenses','Profit'],sorted.map(row=>'<tr><td><b>'+esc(row.name)+'</b><br>'+row.kind+'</td><td>'+esc(row.date?dateLabel(row.date):'Undated')+'</td><td>'+gbp(row.revenue)+'</td><td>'+gbp(row.cost)+'</td><td>'+gbp(row.expense)+'</td><td>'+gbp(row.cost===null?null:row.revenue-row.cost-row.expense)+'</td></tr>').join('')||'<tr><td colspan="6">No entries in this period.</td></tr>')+'</details>';
 }
 
 
@@ -555,3 +556,7 @@ function initialiseTrading() {
     finally{save.disabled=false;}
   });
 }
+
+// Reports: the full transaction list is folded away; remember if it was opened.
+let reportLedgerOpen = false;
+if (typeof document !== 'undefined') document.addEventListener('toggle', event => { if (event.target.classList?.contains('report-ledger')) reportLedgerOpen = event.target.open; }, true);

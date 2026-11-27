@@ -71,7 +71,7 @@ function notificationItems(){
   const messages=friends.filter(row=>row.unread);
   const unread=messages.reduce((sum,row)=>sum+row.unread,0);
   const requests=friends.filter(row=>row.state==='pending'&&row.incoming);
-  if(unread)entries.push({id:'messages',title:unread+' unread '+(unread===1?'message':'messages'),text:'Open your conversations.',tab:'Profile',symbol:'✉',chat:messages.length===1?messages[0].id:null,keys:messages.map(row=>'message:'+row.id+':'+row.lastMessageAt)});
+  if(unread)entries.push({id:'messages',title:unread+' unread '+(unread===1?'message':'messages'),text:'Open your conversations.',tab:'Profile',symbol:uiIcon('mail'),chat:messages.length===1?messages[0].id:null,keys:messages.map(row=>'message:'+row.id+':'+row.lastMessageAt)});
   if(requests.length)entries.push({id:'friends',title:requests.length+' friend '+(requests.length===1?'request':'requests'),text:'Review your incoming requests.',tab:'Profile',symbol:'＋',keys:requests.map(row=>'friend:'+row.id)});
   if(account.role==='admin'){
     const waiting=saleReceipts.filter(row=>!(db.receiptsReviewed||[]).includes(row.id));
@@ -79,7 +79,7 @@ function notificationItems(){
     if(purchaseNoticeKeys.length)entries.push({id:'purchases',title:'Recent Vinted purchases',text:'See verified purchases and available reference photos.',tab:'Stock',symbol:'↗',keys:purchaseNoticeKeys});
   }
   const gmail=personalGmail?.connection?.receipts.filter(row=>!row.reviewed)||[];
-  if(gmail.length)entries.push({id:'gmail',title:'Vinted email updates',text:'Review your connected Gmail inbox.',tab:'Vinted updates',symbol:'✉',keys:gmail.map(row=>'gmail:'+row.id)});
+  if(gmail.length)entries.push({id:'gmail',title:'Vinted email updates',text:'Review your connected Gmail inbox.',tab:'Vinted updates',symbol:uiIcon('mail'),keys:gmail.map(row=>'gmail:'+row.id)});
   const returns=db.items.filter(item=>!item.deletedAt&&item.status==='Refund pending');
   if(returns.length)entries.push({id:'returns',title:returns.length+' pending '+(returns.length===1?'refund':'refunds'),text:'Check the return status in Stock.',tab:'Stock',symbol:'↺',keys:returns.map(item=>'refund:'+item.id)});
   return entries.map(entry=>({...entry,unreadKeys:notificationReads?entry.keys.filter(key=>!notificationReads.has(key)):[]}));

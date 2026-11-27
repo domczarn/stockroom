@@ -24,7 +24,7 @@ let securityKeys=null;
 function securityPanel(){
   const list=securityKeys===null?srWait('Checking your passkeys…',{small:true,ghost:false}):securityKeys.length?'<ul class="passkey-list">'+securityKeys.map(k=>'<li><span><strong>'+esc(k.name||'Passkey')+'</strong><small>Added '+esc(String(k.created_at).slice(0,10))+'</small></span><button type="button" class="link" data-passkey-remove="'+esc(k.id)+'">Remove</button></li>').join('')+'</ul>':'<p class="footnote">No passkeys yet. Add one to sign in with Face ID, Touch ID or your fingerprint.</p>';
   return '<div class="security-box" id="securityBox"><div class="settings-action-row"><div><h3>Passkeys</h3><p>Sign in without codes on this device.</p></div><button type="button" class="secondary" data-passkey-add>Add passkey</button></div>'+list+
-    '<div class="settings-action-row"><div><h3>Sign out</h3><p>Sign out of Stockroom on this device.</p></div><button type="button" class="secondary" data-sign-out>Sign out</button></div></div>';
+    '<div class="settings-action-row"><div><h3>Sign out</h3><p>Sign out of Stockroom on this device.</p></div><button type="button" class="link sign-out-link" data-sign-out>Sign out</button></div></div>';
 }
 async function loadPasskeys(remove){
   try{const r=await fetch('/auth/passkeys',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify(remove?{remove}:{})});securityKeys=r.ok?(await r.json()).passkeys:[];}catch{securityKeys=[];}

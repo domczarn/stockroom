@@ -9,7 +9,7 @@ let stockBrand = '';
 let stockLocation = '';
 let layoutPreference;
 const stockWorkflows = [
-  ['all','All stock'], ['arriving','Arriving'], ['photos','Needs photos'],
+  ['all','Everything'], ['arriving','Arriving'], ['photos','Needs photos'],
   ['ready','Ready to list'], ['listed','Listed'], ['sold','Sold'], ['returns','Returns']
 ];
 
@@ -208,14 +208,14 @@ function stockPage() {
     '<button type="button" data-guide>Open Pip review <span aria-hidden="true">↗</span></button></div></aside>';
   const viewSwitch='<div class="stock-view-switch" role="group" aria-label="Stock view">'+
     '<button type="button" data-stock-view="collection" aria-pressed="'+!stockAgeView+'">Collection</button>'+
-    '<button type="button" data-stock-view="ageing" aria-pressed="'+stockAgeView+'">Oldest first</button></div>';
+    '<button type="button" data-stock-view="ageing" aria-pressed="'+stockAgeView+'">By age</button></div>';
   return (stockAgeView?'<section class="stock-overview" aria-label="Ageing summary"><div><span>Cash tied up in unsold stock</span><strong>'+gbp(cost)+
       '</strong></div><div><span>Listed 30+ days</span><strong>'+ageing.length+'</strong><small>'+gbp(total(ageing,item=>item.cost))+
       ' at purchase cost</small></div><div><span>Active listings</span><strong>'+listed.length+'</strong><small>'+
       listed.filter(item=>daysListed(item,asOf)===null).length+' without a listing date</small></div></section>'+
       '<p class="stock-age-explainer">Review older listings first. Listing age uses your recorded listed date. Asking price updates are recorded from now on.</p>':
       '<section class="stock-overview" aria-label="Stock summary"><div><span>In stock</span><strong>'+active.length+'</strong></div>'+
-      '<div><span>You paid</span><strong>'+gbp(cost)+'</strong></div><div><span>Profit if it sells</span>'+
+      '<div><span>You paid</span><strong>'+gbp(cost)+'</strong></div><div><span>Profit if sold</span>'+
       (active.some(item=>Number.isFinite(item.price))?'<strong>'+gbp(total(active.filter(item=>Number.isFinite(item.price)),item=>profit(item)))+'</strong>':'<strong class="muted-value">—</strong><small>Add selling prices</small>')+'</div></section>')+
     '<section class="stock-controls" aria-label="Stock filters"><div class="stock-toolbar">'+viewSwitch+
     '<div class="stock-toolbar-actions">'+

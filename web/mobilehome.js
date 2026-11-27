@@ -152,19 +152,19 @@ function mobileHome() {
       '<div class="mh-stat"><small>Sold</small><b>' + soldNow + '</b>' + delta(pct(soldNow, soldBefore)) + '</div>' +
     '</div>' +
     '<p class="mh-range-note">' + (mhRange === 1 ? 'Last 24 hours' : 'Last ' + mhRange + ' days') + '</p>' +
-    '<div class="mh-chart-wrap">' + mhChart(mhSeries(rows, mhRange, today)) + '</div>' +
+    '<div class="mh-chart-wrap">' + mhChart(mhSeries(rows, mhRange, today)) + (soldNow || tNow.revenue ? '' : '<p class="chart-empty">No sales ' + (mhRange === 1 ? 'in the last 24 hours' : 'in the last ' + mhRange + ' days') + '. Your sales chart here as they come in.</p>') + '</div>' +
     '<div class="mh-pills"><div class="mh-range" role="group" aria-label="Chart range">' + [1, 7, 30, 90].map(r => '<button type="button" data-mh-range="' + r + '" aria-pressed="' + (r === mhRange) + '">' + (r === 1 ? '24H' : r + 'D') + '</button>').join('') + '</div>' +
       '<button type="button" class="mh-pill" data-tab="Reports"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h10l4 4v12H5z"/><path d="M9 13h6M9 17h4"/></svg>View report</button></div>' +
     '<div class="mh-sheet">' +
       '<h2>' + greeting + '! Here’s your activity</h2>' +
       '<div class="mh-tiles">' +
         '<button type="button" class="mh-tile" data-tab="Activity"><small>Money on the way</small><b>' + gbp(owed) + '</b><span aria-hidden="true">£</span></button>' +
-        '<button type="button" class="mh-tile" ' + (typeof awaitingPost === 'function' && awaitingPost().some(r => r.item.shipQr) ? 'data-dropoff' : 'data-mh-scroll="todo"') + '><small>Parcels to post</small><b>' + toPost + '</b><span aria-hidden="true">📦</span></button>' +
+        '<button type="button" class="mh-tile" ' + (typeof awaitingPost === 'function' && awaitingPost().some(r => r.item.shipQr) ? 'data-dropoff' : 'data-mh-scroll="todo"') + '><small>Parcels to post</small><b>' + toPost + '</b><span aria-hidden="true">' + uiIcon('package') + '</span></button>' +
       '</div>' +
       '<div class="mh-pulse"><div class="mh-pulse-head"><span class="mh-pulse-orb"></span>Pip’s tip' + (pulses.length > 1 ? '<span class="mh-dots">' + pulses.map((_, i) => '<i class="' + (i === mhPulse % pulses.length ? 'on' : '') + '"></i>').join('') + '</span>' : '') + '</div>' +
         '<div class="mh-pulse-body" ' + (pulses.length > 1 ? 'data-mh-next' : '') + '><h3>' + p.title + '</h3><p>' + p.body + '</p></div>' +
         '<button type="button" class="mh-pulse-cta" ' + p.act + '>' + p.cta + '<span aria-hidden="true">→</span></button></div>' +
-      (ro ? '' : '<div class="mh-quick"><button type="button" data-scan-open><span>📷</span>Buy or pass</button><button type="button" data-shot-import><span>🖼️</span>Screenshots</button><button type="button" data-mh-add><span>＋</span>Add stock</button></div>') +
+      (ro ? '' : '<div class="mh-quick"><button type="button" data-scan-open><span>' + uiIcon('camera', 20) + '</span>Buy or pass</button><button type="button" data-shot-import><span>' + uiIcon('image', 20) + '</span>Screenshots</button><button type="button" data-mh-add><span>＋</span>Add stock</button></div>') +
     '</div>' +
     '<button class="action" id="add" type="button" hidden>＋ Add stock</button>' +
   '</section>';

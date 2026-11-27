@@ -5,3 +5,4 @@ dist/
 .env.*
 !.env.example
 mobile/node_modules
+.rv/

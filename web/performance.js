@@ -106,7 +106,7 @@ function pfAfterCosts(pieces, all) {
   if (!all.sold) return 'no sales yet';
   const from = pf.range === 'all' ? '' : new Date(Date.parse(todayUK()) - (Number(pf.range) - 1) * pfDay).toISOString().slice(0, 10);
   const spend = (db.expenses || []).filter(e => Array.isArray(e) && (!from || String(e[4] || '') >= from)).reduce((n, e) => n + (Number(e[1]) || 0), 0);
-  return pfMoney((all.totalProfit - spend) / all.sold) + ' after business costs';
+  return pfMoney((all.totalProfit - spend) / all.sold) + ' after business expenses';
 }
 const pfMoney = v => v === null ? '—' : gbp(v);
 const pfPct = v => v === null ? '—' : Math.round(v * 100) + '%';
@@ -210,7 +210,7 @@ function insightsView() {
       pfRankList('Best flips', 'Highest profit per piece', best, 'best') + '</div>' +
     '<div class="pf-grid">' + pfRankList('Weakest flips', sold.length > 5 ? 'Lowest profit per piece' : 'Shows once you have more than 5 sales', worst, 'worst') +
       pfRankList('Slowest movers', 'Unsold the longest', stale, 'stale') + '</div>' +
-    '<p class="pf-foot">Profit per piece is sale price minus what you paid and any costs recorded on that sale. “After business costs” also spreads your expenses (bags, labels, tools) across the pieces sold. Tap any item to open it.</p>' +
+    '<p class="pf-foot">Profit per piece is sale price minus what you paid and any costs recorded on that sale. “After business expenses” also spreads your expenses (bags, labels, tools) across the pieces sold. Tap any item to open it.</p>' +
     '</section>';
 }
 

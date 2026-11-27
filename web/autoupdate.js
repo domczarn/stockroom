@@ -101,7 +101,7 @@ function auApply(event, item, data) {
     case 'delivered': {
       const next = cloneWorkspace(data), current = next.items.find(row => row.id === item.id);
       Object.assign(current, {receivedAt: date, stage: current.photos?.some(photoUrl) ? 'Ready to list' : 'Ready to photograph'});
-      return {next, line: {icon: '📦', tone: 'info', title: 'Delivered', body: '#' + item.id + ' ' + item.name + ' · marked received'}};
+      return {next, line: {icon: uiIcon('package', 16), tone: 'info', title: 'Delivered', body: '#' + item.id + ' ' + item.name + ' · marked received'}};
     }
     case 'refund': {
       const next = cloneWorkspace(data), current = next.items.find(row => row.id === item.id);
@@ -109,14 +109,14 @@ function auApply(event, item, data) {
       return {next, line: {icon: '↩', tone: 'warn', title: 'Refunded · ' + gbp(item.cost), body: '#' + item.id + ' ' + item.name + ' · purchase cancelled. Check the amount.'}};
     }
     case 'label': {
-      if (!event.tracking && !event.labelMedia) return {next: data, line: {icon: '🏷', tone: 'info', title: 'Label ready', body: '#' + item.id + ' ' + item.name + ' · post it within 5 days'}};
+      if (!event.tracking && !event.labelMedia) return {next: data, line: {icon: uiIcon('tag', 16), tone: 'info', title: 'Label ready', body: '#' + item.id + ' ' + item.name + ' · post it within 5 days'}};
       const next = cloneWorkspace(data), current = next.items.find(row => row.id === item.id);
       if (event.tracking && !next.items.some(row => row.id !== item.id && row.shipTracking === event.tracking)) Object.assign(current, {shipTracking: event.tracking, shipCarrier: auCarrier(event.tracking)});
       if (event.deadline) current.shipDeadline = event.deadline;
       if (event.labelMedia) current.shipLabel = event.labelMedia;
       // Relay / Evri labels: the scan code comes out of the label PDF itself.
       if (event.qrMedia && !current.shipQr) Object.assign(current, {shipQr: event.qrMedia, shipQrAt: todayUK()});
-      return {next, line: {icon: '🏷', tone: 'info', title: 'Label ready · ' + (current.shipCarrier || 'Vinted'), body: '#' + item.id + ' ' + item.name + ' · label saved to the item'}};
+      return {next, line: {icon: uiIcon('tag', 16), tone: 'info', title: 'Label ready · ' + (current.shipCarrier || 'Vinted'), body: '#' + item.id + ' ' + item.name + ' · label saved to the item'}};
     }
   }
   return null;
@@ -202,7 +202,7 @@ async function auRun() {
         if (!seen && event.amount > 0) {
           next = cloneWorkspace(next);
           next.expenses.push([event.title, event.amount, 'Promotion', null, event.date, '', null, mark]);
-          lines.push({tone: 'info', icon: '📣', title: 'Expense added: ' + gbp(event.amount), body: event.title});
+          lines.push({tone: 'info', icon: uiIcon('megaphone', 16), title: 'Expense added: ' + gbp(event.amount), body: event.title});
           applied.push(event);
         }
         auDone.add(event.id);

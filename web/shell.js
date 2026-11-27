@@ -115,7 +115,6 @@ function pipBrainView() {
     '<div class="pip-brain-visual">' + pipBrainArt() + '<img class="pip-brain-face" src="/pip.svg" alt="" width="96" height="90"></div>' +
     '<div class="pip-brain-copy"><span class="pip-brain-eyebrow"><span class="pip-live"></span>About your numbers</span>' +
     '<h2 id="pipBrainTitle">Ask Pip</h2><p class="pip-brain-summary">' + esc(brain.summary) + '</p>' +
-    '<form class="ask-pip-bar" data-ask-pip-form><span class="ask-pip-spark" aria-hidden="true">✦</span><input name="q" autocomplete="off" maxlength="500" placeholder="Ask Pip about your numbers…" aria-label="Ask Pip a question"><button type="submit" aria-label="Ask">↑</button></form>' +
     '<div class="ask-pip-starters">' + ['What made me most money this month?', 'Which brands should I buy more of?', 'What should I reprice?'].map(q => '<button type="button" data-ask-pip="' + esc(q) + '">' + esc(q) + '</button>').join('') + '</div>' +
     (brain.signals.length ? '<ul class="pip-signals">' + brain.signals.map(signal =>
       '<li><button type="button" class="pip-signal" data-tone="' + signal.tone + '" data-tab="' + esc(signal.tab) + '"><span class="pip-signal-tag">' + tone[signal.tone] + '</span>' +
@@ -132,7 +131,6 @@ function kpiStrip() {
   const iso = t => new Date(t).toISOString().slice(0, 10);
   const span = (from, to) => reportTotals(saleRows(rows).filter(row => row.date >= iso(from) && row.date <= iso(to)));
   const now = span(end - 29 * day, end), before = span(end - 59 * day, end - 30 * day);
-  const all = reportTotals(saleRows(rows));
   const f = finances(db);
   const delta = (a, b) => b ? Math.round((a - b) / Math.abs(b) * 100) : null;
   const spark = key => {
@@ -145,10 +143,11 @@ function kpiStrip() {
     '<span class="kpi-note">' + (change === null || change === undefined ? '' : '<span class="kpi-delta ' + (change >= 0 ? 'up' : 'down') + '">' + (change >= 0 ? '↑' : '↓') + ' ' + Math.abs(change) + '%</span> ') + note + '</span>' +
     (sparkKey ? spark(sparkKey) : '') + '</div>';
   return '<section class="kpi-strip" aria-label="Key numbers">' +
-    tile('Profit on sales', gbp(all.profit), 'all time', null, 'profit') +
+    // One period for the sales numbers (last 30 days); stock is what you hold right now.
     tile('Revenue', gbp(now.revenue), 'last 30 days', delta(now.revenue, before.revenue), 'revenue') +
-    tile('Margin', now.revenue > 0 ? Math.round(now.profit / now.revenue * 100) + '%' : '—', 'last 30 days', null) +
-    tile('Stock at cost', gbp(f.inventory), f.active.length + ' items in stock', null) + '</section>';
+    tile('Profit on sales', gbp(now.profit), 'last 30 days', null, 'profit') +
+    tile('Margin', now.revenue > 0 ? Math.round(now.profit / now.revenue * 100) + '%' : 'No sales', now.revenue > 0 ? 'last 30 days' : 'in the last 30 days', null) +
+    tile('Stock at cost', gbp(f.inventory), f.active.length + (f.active.length === 1 ? ' item' : ' items') + ' in stock now', null) + '</section>';
 }
 
 // In-page view tabs (Expenses: Overview/Clothing/Business costs, Transactions: All/Sales/...).

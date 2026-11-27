@@ -123,5 +123,5 @@ setTimeout(function shipNudge() {
   const now = due.filter(s => s.level === 'urgent').length;
   try { localStorage.setItem('islandShip', today); } catch {}
   island.show({title: now ? now + ' parcel' + (now === 1 ? '' : 's') + ' to post today' : due.length + ' parcel' + (due.length === 1 ? '' : 's') + ' due tomorrow', sub: 'Tap to see what to post', mood: 'alert', duration: 6000,
-    trail: '<span class="island-parcel">📦</span>', action: () => { if (typeof navigate === 'function') navigate('Dashboard'); }});
+    trail: '<span class="island-parcel">' + uiIcon('package', 17) + '</span>', action: () => { if (typeof navigate === 'function') navigate('Dashboard'); }});
 }, 2500);

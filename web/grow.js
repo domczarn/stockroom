@@ -267,7 +267,7 @@ function mountMeasure() {
   if (!input || document.getElementById('measureBtn')) return;
   const wrap = document.createElement('div');
   wrap.className = 'measure-tool';
-  wrap.innerHTML = '<label class="secondary measure-btn" id="measureBtn">📏 Measure from a photo<input type="file" accept="image/*" capture="environment" hidden></label><small id="measureNote">Lay the item flat with an A4 sheet next to it and shoot from straight above.</small>';
+  wrap.innerHTML = '<label class="secondary measure-btn" id="measureBtn">' + uiIcon('ruler', 16) + ' Measure from a photo<input type="file" accept="image/*" capture="environment" hidden></label><small id="measureNote">Lay the item flat with an A4 sheet next to it and shoot from straight above.</small>';
   input.closest('label').after(wrap);
   wrap.querySelector('input').onchange = async e => {
     const file = e.target.files[0]; e.target.value = '';

@@ -3441,3 +3441,85 @@ dialog.rv h2 { margin: 4px 0 6px; font-size: 22px; letter-spacing: -.02em; }
   body.printing-doc #printDoc .pd-key tr.pd-strong td{font-weight:700!important;background:#f4f2ff!important}
   body.printing-doc #printDoc .pd-foot{margin-top:20px!important;padding-top:8px!important;border-top:1px solid #d9d9df!important;font-size:7.5pt!important;color:#6b6b74!important}
 }
+
+/* ===== Design review fixes (27 Nov) ===== */
+/* 1. The chart sizes itself from its box; never let the box grow from the chart (it ran away to 12,000px on desktop). */
+#financeChart{min-width:0;max-width:100%;contain:inline-size}
+#financeChart .rc-plot,#financeChart .rc-nav{min-width:0;max-width:100%}
+#financeChart .rc-svg,#financeChart .rc-nav svg{max-width:100%}
+/* 2. Profile sits at the bottom of the sidebar, not floating over the content. */
+@media (min-width:801px){
+  .profile-dock{left:19px!important;right:auto!important;bottom:52px!important;width:187px;justify-content:flex-start;box-shadow:none!important}
+  .profile-dock span:not(.profile-badge){overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+}
+@media (min-width:801px) and (max-width:1100px){.profile-dock{left:14px!important;width:162px}}
+/* 3. Touch screens (and phone-width windows): every control is at least 44px to tap (Apple / WCAG minimum). Inline text links are exempt. */
+@media (pointer:coarse),(max-width:800px){
+  button:not(.link):not([hidden]),select,summary,
+  input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]):not([type=hidden]),
+  .secondary,.action,[role=tab]{min-height:44px!important}
+  .mh-avatar,.aura-btn,.notification-bell,.screen-back,.tell-mic,.tell-go,.ask-pip-bar button,.stock-more>summary,.pu-x,.close-panel{min-width:44px!important;min-height:44px!important}
+  .mh-avatar,.aura-btn,.notification-bell,.screen-back{width:44px!important;height:44px!important}
+  .button.link,button.link{min-height:44px;display:inline-flex;align-items:center}
+  .subnav button,.view-tabs button,.mh-range button,.stock-view-switch button,.stock-filters button{display:inline-flex;align-items:center;justify-content:center}
+}
+/* 4. The constellation stays in the top-right corner and fades out before it reaches titles, tabs or cards. */
+html body{background:
+  linear-gradient(to right,var(--bg) 0%,var(--bg) 30%,transparent 70%) right top/min(460px,72vw) 260px no-repeat,
+  linear-gradient(to bottom,transparent 0%,transparent 45%,var(--bg) 100%) right top/min(460px,72vw) 260px no-repeat,
+  url(/constellation.svg) right top/min(460px,72vw) 260px no-repeat,
+  var(--bg)!important}
+/* 8. Reports: the full transaction list folds away */
+.report-ledger{margin:24px 0;border:1px solid var(--line);border-radius:14px;background:var(--bg-1);padding:0 16px}
+.report-ledger>summary{display:flex;align-items:center;gap:10px;min-height:56px;cursor:pointer;list-style:none;font-weight:600}
+.report-ledger>summary::-webkit-details-marker{display:none}
+.report-ledger>summary::after{content:"";margin-left:auto;width:8px;height:8px;border-right:2px solid var(--ink-3);border-bottom:2px solid var(--ink-3);transform:rotate(45deg);transition:transform .2s}
+.report-ledger[open]>summary::after{transform:rotate(225deg)}
+.report-ledger .report-table-title{margin:0;font-size:16px}
+.report-ledger[open]{padding-bottom:16px}
+/* 10. Empty charts say so */
+.mh-chart-wrap,.rc-plot{position:relative}
+.chart-empty{position:absolute;left:50%;top:42%;transform:translate(-50%,-50%);margin:0;max-width:80%;text-align:center;font-size:13px;line-height:1.45;color:var(--ink-2);background:color-mix(in srgb,var(--bg) 82%,transparent);padding:8px 14px;border-radius:12px;pointer-events:none}
+/* 11. Line icons instead of emoji */
+.ui-icon{flex:none;vertical-align:-3px;display:inline-block}
+.measure-btn .ui-icon,.fwd-mail .ui-icon,#flawBtn .ui-icon{margin-right:4px}
+.tell-mic{display:inline-grid;place-items:center}
+/* 12. Tab rows scroll sideways on narrow screens instead of cutting off */
+.view-tabs{max-width:100%;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.view-tabs::-webkit-scrollbar{display:none}
+.view-tabs button{flex:none;white-space:nowrap}
+/* 13. Sign out is a quiet text action, not a twin of "Add passkey" */
+.sign-out-link{color:var(--ink-2)!important;background:none!important;border:0!important;padding:0 4px!important;font-weight:500;text-decoration:underline;text-underline-offset:3px;justify-self:start}
+.sign-out-link:hover{color:var(--ink)!important}
+/* 14. The Vinted link is a real input box, same as Brand / Category / Size */
+#quickAdd .qa-link input[name=vintedUrl]{display:block;width:100%;box-sizing:border-box;margin-top:8px;background:rgba(255,255,255,.06)!important;border:1px solid rgba(255,255,255,.12)!important;border-radius:11px!important;padding:10px 12px!important;color:var(--ink)!important}
+#quickAdd .qa-link input[name=vintedUrl]:focus{border-color:var(--pip,#9b8cff)!important;outline:none}
+/* 15. Small uppercase labels stay on one line on phones */
+@media (max-width:560px){.stock-overview span,.metric>span:first-child,.kpi-label{letter-spacing:.04em!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}
+/* 3b. Phone layout pins some controls to 30-36px; this wins over those. */
+@media (pointer:coarse),(max-width:800px){
+  html body.nav-phone :is(button:not(.link):not([hidden]),select,summary,.secondary,.action,[role=tab],input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]):not([type=hidden])){min-height:44px!important}
+  html body.nav-phone :is(.mh-avatar,.aura-btn,.notification-bell,.screen-back,.tell-mic,.tell-go){min-width:44px!important;width:44px!important;height:44px!important}
+  html body.nav-phone .mh-range button{height:44px!important}
+}
+@media (pointer:coarse),(max-width:800px){
+  html body.nav-phone .app-header .notification-bell,html body.nav-phone .app-header .aura-btn,html body.nav-phone .app-header .mh-avatar,html body.nav-phone .app-header .screen-back,
+  html body.nav-phone .tell-pip .tell-mic,html body.nav-phone .tell-pip .tell-go{width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important}
+  html body.nav-phone .pip-brain .secondary,html body.nav-phone .pip-dashboard-action,html body .pip-brain-copy .pip-dashboard-action,html body.nav-phone .qa-links button,html body.nav-phone .qa-links a{min-height:44px!important}
+}
+@media (pointer:coarse),(max-width:800px){
+  html body.nav-phone #view :is(button,select,summary,.secondary,.action):not(.link):not([hidden]){min-height:44px!important}
+  html body .close-panel{width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important}
+}
+@media (pointer:coarse),(max-width:800px){
+  html body.nav-phone :is(#view,.top,.app-header,main) :is(button,select,summary,.secondary,.action,input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=range]):not([type=hidden])):not([hidden]){min-height:44px!important}
+  html body.nav-phone :is(#view,main) button.link{display:inline-flex;align-items:center}
+}
+@media (max-width:800px){
+  html body{background:
+    linear-gradient(to right,var(--bg) 0%,transparent 60%) right top/200px 110px no-repeat,
+    linear-gradient(to bottom,transparent 30%,var(--bg) 100%) right top/200px 110px no-repeat,
+    url(/constellation.svg) right top/200px 110px no-repeat,
+    var(--bg)!important}
+}
+@media (min-width:801px){.profile-dock{display:flex!important;flex-direction:row!important;align-items:center!important}}
