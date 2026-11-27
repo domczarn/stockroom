@@ -59,14 +59,15 @@ async function limit(env, key, max) {
   if (row.count > max) throw new HttpError(429, 'Too many attempts. Wait 10 minutes and try again.');
 }
 
-function codeEmail(code) {
-  const text = 'Your Stockroom sign-in code is ' + code + '.\n\nIt works for ' + CODE_MINUTES + ' minutes. If you didn’t ask for it, ignore this email.';
+function codeEmail(code, origin = 'https://stockroom.bookednpaid.com') {
+  const text = 'Welcome to Booked & Paid Stockroom!\n\nYour code: ' + code + '\n\nIt works for ' + CODE_MINUTES + ' minutes. If you didn’t ask for it, ignore this email.';
   const html = '<!doctype html><html><body style="margin:0;background:#131316;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#f4f4f5">' +
     '<table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 16px"><tr><td align="center"><table width="100%" style="max-width:440px;background:#1b1b1f;border:1px solid #2c2c32;border-radius:16px;padding:32px">' +
-    '<tr><td style="font-size:15px;color:#b9b9c2">Stockroom</td></tr>' +
-    '<tr><td style="padding:18px 0 8px;font-size:22px;font-weight:600">Your sign-in code</td></tr>' +
-    '<tr><td style="padding:8px 0 18px"><div style="font-size:38px;letter-spacing:10px;font-weight:700;font-family:Menlo,Consolas,monospace">' + code + '</div></td></tr>' +
-    '<tr><td style="font-size:14px;color:#b9b9c2;line-height:1.5">Enter it in Stockroom to sign in. It works for ' + CODE_MINUTES + ' minutes.<br>If you didn’t ask for this, you can ignore this email.</td></tr>' +
+    '<tr><td align="center"><img src="' + origin + '/pip-wave.gif" width="124" height="104" alt="Pip waving hello" style="display:block;border:0;width:124px;height:104px"></td></tr>' +
+    '<tr><td align="center" style="padding:14px 0 4px;font-size:22px;font-weight:600;line-height:1.3">Welcome to Booked &amp; Paid Stockroom!</td></tr>' +
+    '<tr><td align="center" style="padding:14px 0 6px;font-size:14px;color:#b9b9c2">Your code:</td></tr>' +
+    '<tr><td align="center" style="padding:0 0 20px"><div style="font-size:38px;letter-spacing:10px;font-weight:700;font-family:Menlo,Consolas,monospace">' + code + '</div></td></tr>' +
+    '<tr><td align="center" style="font-size:13px;color:#8d8d96;line-height:1.5">It works for ' + CODE_MINUTES + ' minutes.<br>If you didn’t ask for this, you can ignore this email.</td></tr>' +
     '</table></td></tr></table></body></html>';
   return {text, html};
 }
@@ -97,7 +98,7 @@ export async function authRoute(request, url, env) {
     await env.DB.prepare('INSERT INTO login_codes (email, code_hash, expires_at, attempts) VALUES (?, ?, ?, 0) ON CONFLICT(email) DO UPDATE SET code_hash = excluded.code_hash, expires_at = excluded.expires_at, attempts = 0')
       .bind(email, await sha(email + ':' + code), Date.now() + CODE_MINUTES * 60000).run();
     if (env.RESEND_API_KEY) {
-      const {text, html} = codeEmail(code);
+      const {text, html} = codeEmail(code, env.APP_ORIGIN || 'https://stockroom.bookednpaid.com');
       const response = await (env.RESEND_FETCH || fetch)('https://api.resend.com/emails', {
         method: 'POST', signal: AbortSignal.timeout(10000),
         headers: {authorization: 'Bearer ' + env.RESEND_API_KEY, 'content-type': 'application/json'},

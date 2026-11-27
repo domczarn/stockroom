@@ -24,6 +24,7 @@ assets['/receipt-ocr.js']=await readFile('node_modules/tesseract.js/dist/tessera
 assets['/receipt-ocr-worker.js']=await readFile('node_modules/tesseract.js/dist/worker.min.js','utf8');
 assets['/barcode.js']=await readFile('node_modules/jsbarcode/dist/barcodes/JsBarcode.code128.min.js','utf8');
 for(const f of ['apple-touch-icon.png','icon-192.png','icon-maskable.png'])assets['/'+f]={base64:(await readFile('web/'+f)).toString('base64'),type:'image/png'};
+assets['/pip-wave.gif']={base64:(await readFile('web/pip-wave.gif')).toString('base64'),type:'image/gif'};   // login email
 assets['/pip-icon.png']={base64:(await readFile('web/pip-icon.png')).toString('base64'),type:'image/png'};
 assets['/geist.woff2']={base64:(await readFile('node_modules/geist/dist/fonts/geist-sans/Geist-Variable.woff2')).toString('base64'),type:'font/woff2'};
 assets['/geist-mono.woff2']={base64:(await readFile('node_modules/geist/dist/fonts/geist-mono/GeistMono-Variable.woff2')).toString('base64'),type:'font/woff2'};
