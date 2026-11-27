@@ -6,6 +6,23 @@ const taxAllowance = start => start >= 2027 ? 3000 : 1000;
 const taxPounds = n => '£' + n.toLocaleString('en-GB');
 let taxYear = null;
 
+// How much to put aside: rest-of-UK income tax bands and Class 4 NI (frozen from 2021-22 to 2030-31).
+// Income tax on the side profit is the extra tax on top of other income (a job's pay), so the band matters.
+const TAX_PA = 12570, TAX_BASIC_TOP = 50270, TAX_HIGHER_TOP = 125140;
+function incomeTaxOn(income) {
+  const pa = Math.max(0, TAX_PA - Math.max(0, income - 100000) / 2);
+  const taxable = Math.max(0, income - pa), basicBand = TAX_BASIC_TOP - TAX_PA;
+  return Math.min(taxable, basicBand) * .2 + Math.max(0, Math.min(taxable, TAX_HIGHER_TOP - pa) - basicBand) * .4 + Math.max(0, taxable - (TAX_HIGHER_TOP - pa)) * .45;
+}
+function taxToPutAside(profit, other = 0) {
+  profit = Math.max(0, Number(profit) || 0); other = Math.max(0, Number(other) || 0);
+  const incomeTax = incomeTaxOn(other + profit) - incomeTaxOn(other);
+  const ni = Math.max(0, Math.min(profit, TAX_BASIC_TOP) - TAX_PA) * .06 + Math.max(0, profit - TAX_BASIC_TOP) * .02;
+  const total = Math.round((incomeTax + ni) * 100) / 100;
+  return {incomeTax: Math.round(incomeTax * 100) / 100, ni: Math.round(ni * 100) / 100, total, rate: profit ? total / profit : 0};
+}
+const otherIncome = () => { try { const v = localStorage.getItem('stockroom-other-income'); return v === null ? null : Number(v); } catch { return null; } };
+
 function taxYearOf(date) {
   const [y, m, d] = String(date).slice(0, 10).split('-').map(Number);
   return m > 4 || (m === 4 && d >= 6) ? y : y - 1;
@@ -71,9 +88,41 @@ function taxCard() {
       line('Profit using ' + taxPounds(s.allowance) + ' trading allowance', gbp(s.withAllowance), 'you can’t claim both') +
     '</div><p class="tax-verdict">' + esc(verdict) + '</p>' +
     (s.missing || s.undated ? '<p class="tax-warn">' + [s.missing ? s.missing + ' sale' + (s.missing === 1 ? ' has' : 's have') + ' no purchase cost' : '', s.undated ? s.undated + ' line' + (s.undated === 1 ? ' is' : 's are') + ' missing an exact date' : ''].filter(Boolean).join(' · ') + '. Fix these for accurate figures.</p>' : '') +
+    taxAsideHtml(s) +
     '<div class="tax-actions"><button type="button" class="action" data-tax-csv>Download CSV for ' + taxLabel(taxYear) + '</button><button type="button" class="secondary" data-tax-print>Print summary</button></div>' +
     '<p class="footnote">Stockroom gives you the numbers, not tax advice. Check HMRC guidance or an accountant if you’re unsure which option to use.</p></section>';
 }
+
+function taxAsideHtml(s) {
+  const other = otherIncome(), taxable = s.best === 'allowance-free' ? 0 : Math.min(s.actual, s.withAllowance);
+  const est = taxToPutAside(taxable, other || 0), due = '31 January ' + (taxYear + 2);
+  // The next £ of profit is taxed at the top rate it lands in, not the average so far.
+  const next = Math.round((taxToPutAside(taxable + 100, other || 0).total - est.total));
+  const input = '<label class="tax-other">Your other income this tax year, before tax <small>Job pay, pension, etc. Leave at 0 if Vinted is your only income.</small>' +
+    '<span class="tax-other-row">£<input type="number" inputmode="decimal" min="0" step="100" data-tax-other value="' + (other ?? '') + '" placeholder="e.g. 24000"></span></label>';
+  if (other === null) return '<div class="tax-aside"><h3>How much to put aside</h3><p>Pip works out your tax bill from your profit and your other income.</p>' + input + '</div>';
+  const body = taxable <= 0
+    ? '<p class="tax-aside-big">£0 so far</p><p>No tax to pay on your selling yet' + (s.best === 'allowance-free' ? ': the trading allowance covers it.' : '.') + '</p>'
+    : '<p class="tax-aside-big">' + gbp(est.total) + ' <small>so far this tax year</small></p>' +
+      '<p>From now on, put aside <b>' + next + 'p of every £1 profit</b>.</p>' +
+      '<div class="tax-lines">' + [['Income tax', est.incomeTax, 'on ' + gbp(taxable) + ' taxable profit'], ['Class 4 National Insurance', est.ni, '6% of profit over £12,570']]
+        .map(([label, value, sub]) => '<div class="tax-line"><span>' + label + '<small>' + sub + '</small></span><strong>' + gbp(value) + '</strong></div>').join('') + '</div>' +
+      '<p class="footnote">Due by ' + due + '. If the bill is over £1,000 and most of your tax isn’t already taken from pay, HMRC also asks for half next year’s bill in advance. Scotland has different income tax bands.</p>';
+  return '<div class="tax-aside"><h3>How much to put aside</h3>' + body + input + '</div>';
+}
+
+let taxOtherTimer = 0;
+document.addEventListener('input', event => {
+  const field = event.target.closest?.('[data-tax-other]');
+  if (!field) return;
+  clearTimeout(taxOtherTimer);
+  taxOtherTimer = setTimeout(() => {
+    const v = Math.max(0, Number(field.value) || 0);
+    try { localStorage.setItem('stockroom-other-income', String(v)); } catch {}
+    const card = document.querySelector('.tax-card');
+    if (card) { card.outerHTML = taxCard(); const f = document.querySelector('[data-tax-other]'); if (f) { f.focus({preventScroll: true}); const n = f.value.length; try { f.setSelectionRange(n, n); } catch {} } }
+  }, 600);
+});
 
 function taxCsv(start) {
   const s = taxSummary(start);

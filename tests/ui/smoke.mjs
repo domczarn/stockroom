@@ -191,6 +191,18 @@ for (const viewport of [{width: 390, height: 844}, {width: 1440, height: 900}]) 
     assert.deepEqual(out.rows.map(r => r[1]).sort(), [1.25, 4.4]);
     assert.ok(out.panel, 'summary shows the expense total');
   });
+  await check('tax card says how much to put aside', viewport, async page => {
+    await page.evaluate(() => { try { localStorage.removeItem('stockroom-other-income'); } catch {} navigate('Reports'); render(); });
+    await page.waitForSelector('.tax-aside [data-tax-other]');
+    await page.fill('[data-tax-other]', '24000');
+    await page.waitForFunction(() => document.querySelector('.tax-aside-big'));
+    const out = await page.evaluate(() => ({text: document.querySelector('.tax-aside').textContent, overflow: document.documentElement.scrollWidth > innerWidth + 1,
+      maths: [taxToPutAside(5000, 24000).total, taxToPutAside(20000, 0).total, taxToPutAside(5000, 48000).total]}));
+    assert.match(out.text, /£/);
+    assert.deepEqual(out.maths, [1000, 1931.8, 1546]);
+    assert.equal(out.overflow, false, 'page scrolls sideways');
+    await page.locator('.tax-aside').screenshot({path: '/tmp/tax-' + viewport.width + '.png'}).catch(() => {});
+  });
   await check('delete has undo, offline is explained', viewport, async page => {
     await go(page, 'Stock');
     const id = await page.evaluate(() => db.items.find(i => i.status === 'In Stock' && !i.deletedAt).id);

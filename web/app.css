@@ -3400,3 +3400,13 @@ dialog.rv h2 { margin: 4px 0 6px; font-size: 22px; letter-spacing: -.02em; }
 .report-table-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .report-table-head .list-sort{margin-left:auto}
 @media (max-width:560px){.view-tools .list-sort{margin-left:0;flex:1 1 100%}.view-tools .list-sort select{flex:1}}
+/* Tax: how much to put aside */
+.tax-aside{margin:16px 0;padding:16px;border-radius:14px;border:1px solid color-mix(in srgb,var(--pip) 35%,var(--line));background:color-mix(in srgb,var(--pip) 8%,var(--bg-2))}
+.tax-aside h3{margin:0 0 6px;font-size:15px}
+.tax-aside p{margin:6px 0;color:var(--ink-2)}
+.tax-card .tax-aside .tax-aside-big{font-size:26px;line-height:1.2;font-weight:650;color:var(--ink)!important}
+.tax-card .tax-aside .tax-aside-big small{font-size:13px;font-weight:400;color:var(--ink-3)}
+.tax-other{display:grid;gap:4px;margin-top:12px;font-size:13px;color:var(--ink-2)}
+.tax-other small{color:var(--ink-3)}
+.tax-other-row{display:flex;align-items:center;gap:6px;max-width:240px}
+.tax-other-row input{flex:1;min-width:0}
