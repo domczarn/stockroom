@@ -502,7 +502,7 @@ function previewProfit() {
   const ready = cost !== '' && price !== '' && form.elements.status.value !== 'Refund pending';
   const result = Number(price) - Number(cost);
   $('profitPreview').textContent = ready
-    ? 'Profit ' + gbp(result) + '  ·  return on what you paid ' + (Number(cost) > 0 ? (result / Number(cost) * 100).toFixed(1) + '%' : '—')
+    ? 'Profit ' + gbp(result) + (Number(cost) > 0 ? '  ·  return on what you paid ' + (result / Number(cost) * 100).toFixed(1) + '%' : '')
     : 'Add what you paid and a selling price to see your profit.';
 }
 let liveDraftFields = new Set();
