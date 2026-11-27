@@ -4,7 +4,7 @@ let personalGmail=null;
 let gmailBusy=false;
 let gmailCheckMessage='';
 const gmailFilters={category:'All',review:'unreviewed'};
-const gmailCategories=['Purchase','Sale','Delivery','Refund / cancellation','Expense'];
+const gmailCategories=['Purchase','Sale','Delivery','Refund / cancellation'];
 const gmailOutcomes={connected:'Inbox connected. Pip is checking for your sale emails.',cancelled:'Connecting was cancelled.',expired:'The connection link expired. Try connecting again.',permission:'Stockroom wasn’t given permission to read your sale emails. Try connecting again.',failed:'Your inbox couldn’t be connected. Try again.'};
 
 function gmailSetup(step){
@@ -67,12 +67,12 @@ function gmailReceiptsView(connection,updates,optionsLocked,needsCheck=!connecti
   const renderPart=(target,markup)=>{if(target.dataset.markup!==markup){target.innerHTML=markup;target.dataset.markup=markup;}};
   const forward=connection.mode!=='gmail';   // only Gmail has a web link to the original email
   updates.hidden=false;
-  const filtered=connection.receipts.filter(item=>!item.quiet&&item.category!=='Order update'&&!/confirmation needed|order confirmed|payment successful|purchase confirmed/i.test(item.subject)&&(gmailFilters.category==='All'||item.category===gmailFilters.category)&&
-    (gmailFilters.review==='all'||item.reviewed===(gmailFilters.review==='reviewed')));
+  const filtered=(typeof sortList==='function'?(rows=>sortList('updates',rows.map((item,order)=>({...item,date:item.receivedAt,order:-order})),'newest',['newest','oldest'])):(rows=>rows))(connection.receipts.filter(item=>!item.quiet&&item.category!=='Order update'&&!/confirmation needed|order confirmed|payment successful|purchase confirmed/i.test(item.subject)&&(gmailFilters.category==='All'||item.category===gmailFilters.category)&&
+    (gmailFilters.review==='all'||item.reviewed===(gmailFilters.review==='reviewed'))));
   const options=['All',...gmailCategories].map(label=>'<option'+(gmailFilters.category===label?' selected':'')+'>'+esc(label)+'</option>').join('');
   renderPart(updates,'<h2>Vinted updates</h2><p class="footnote">Open the original email to confirm item details and amounts before recording a purchase or sale.</p><div class="gmail-actions">'+
     '<label>Update type <select data-gmail-filter="category">'+options+'</select></label>'+
-    '<label>Review status <select data-gmail-filter="review">'+[['unreviewed','To review'],['reviewed','Reviewed'],['all','All updates']].map(([key,label])=>'<option value="'+key+'"'+(gmailFilters.review===key?' selected':'')+'>'+label+'</option>').join('')+'</select></label></div>'+
+    '<label>Review status <select data-gmail-filter="review">'+[['unreviewed','To review'],['reviewed','Reviewed'],['all','All updates']].map(([key,label])=>'<option value="'+key+'"'+(gmailFilters.review===key?' selected':'')+'>'+label+'</option>').join('')+'</select></label>'+(typeof sortControl==='function'?sortControl('updates','newest',['newest','oldest']):'')+'</div>'+
     '<ul class="gmail-receipts">'+filtered.map(item=>'<li id="gmail-receipt-'+esc(item.id)+'" tabindex="-1"><div><small>'+esc(item.category)+' · '+esc(new Date(item.receivedAt).toLocaleDateString('en-GB'))+'</small><strong>'+esc(item.subject)+'</strong></div>'+
     '<div class="gmail-actions">'+(forward?'':'<a class="secondary" href="https://mail.google.com/mail/u/'+encodeURIComponent(connection.mailbox)+'/#all/'+encodeURIComponent(item.id)+'" target="_blank" rel="noopener noreferrer">Open email ↗</a>')+
     '<button class="secondary" type="button" data-gmail-review="'+esc(item.id)+'"'+optionsLocked+'>'+(item.reviewed?'Mark to review':'Mark reviewed')+'</button></div></li>').join('')+'</ul>'+

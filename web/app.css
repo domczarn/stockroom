@@ -3393,3 +3393,10 @@ dialog.rv h2 { margin: 4px 0 6px; font-size: 22px; letter-spacing: -.02em; }
 .iap-restore { margin-top: 10px; }
 .iap .rv-note a { color: inherit; }
 .fwd-mail { justify-self: start; }
+/* Sort control on lists (expenses, activity, reports, Vinted updates) */
+.list-sort{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-2);margin-left:auto}
+.list-sort select{min-height:36px;padding:0 30px 0 12px;font-size:13px;width:auto}
+.view-tools{flex-wrap:wrap}
+.report-table-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.report-table-head .list-sort{margin-left:auto}
+@media (max-width:560px){.view-tools .list-sort{margin-left:0;flex:1 1 100%}.view-tools .list-sort select{flex:1}}

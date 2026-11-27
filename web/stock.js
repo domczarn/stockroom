@@ -274,8 +274,8 @@ function connectStockControls() {
       $(id).focus({preventScroll:true});
     };
   }
-  if($('sortQuick'))$('sortQuick').onchange=event=>{sortBy=event.target.value;try{localStorage.setItem('stockroom-sort',sortBy);}catch{}render();$('sortQuick')?.focus({preventScroll:true});};
-  $('sortStock').onchange=event=>{sortBy=event.target.value;try{localStorage.setItem('stockroom-sort',sortBy);}catch{}render();$('sortStock').focus({preventScroll:true});};
+  if($('sortQuick'))$('sortQuick').onchange=event=>{sortBy=event.target.value;try{localStorage.setItem('stockroom-sort2',sortBy);}catch{}render();$('sortQuick')?.focus({preventScroll:true});};
+  $('sortStock').onchange=event=>{sortBy=event.target.value;try{localStorage.setItem('stockroom-sort2',sortBy);}catch{}render();$('sortStock').focus({preventScroll:true});};
   $('filter').onchange=event=>{
     filter=event.target.value;
     stockWorkflowFilter='all';

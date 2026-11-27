@@ -28,7 +28,7 @@ function writeSaved(data) {
     transaction.onabort = () => reject(transaction.error);
   });
 }
-let account=null, workspaceOwner='', cloudRevision=null, cloudSaving=false, cloudConflict=false, cloudAvailable=false, pendingLocal=null, cloudPolling=false, sortBy=(()=>{try{return localStorage.getItem('stockroom-sort')||'newest';}catch{return 'newest';}})(), members=[], adminEvents=[];
+let account=null, workspaceOwner='', cloudRevision=null, cloudSaving=false, cloudConflict=false, cloudAvailable=false, pendingLocal=null, cloudPolling=false, sortBy=(()=>{try{return localStorage.getItem('stockroom-sort2')||'label';}catch{return 'label';}})(), members=[], adminEvents=[];
 const emptyData=()=>({items:[],sales:[],expenses:[],research:[],sources:[]});
 function toast(message){$('toast').textContent=message;$('toast').hidden=false;clearTimeout(toast.timer);toast.timer=setTimeout(()=>$('toast').hidden=true,4500);}
 function cloudState(message,kind=''){const el=$('cloudStatus');el.textContent=message;el.dataset.state=kind;el.setAttribute('aria-label','Cloud sync: '+message);}
@@ -350,14 +350,39 @@ function moneyDetail() {
     '<button class="link" data-tab="Orders">View bulk orders ↗</button></section></div>';
 }
 function activity() {
-  const legacyRows = db.sales.map((row, index) => '<tr><td><span class="tag">Sale</span></td><td>' + esc(row[0]) + '</td><td>' + gbp(row[1]) + '</td><td>' + (Number.isFinite(row[3]) ? gbp(row[1]-row[3]) : '<span class="pending tag">Cost needed</span>') + '</td><td>' + esc(row[2]) + '</td><td><button class="link" data-ledger="sale" data-index="' + index + '">Edit</button><button class="link expense-remove" data-kind="sale" data-expense-remove="' + index + '">Remove</button></td></tr>');
-  const expenseRows = db.expenses.map((row, index) => '<tr><td><span class="tag neutral-tag">Expense</span></td><td>' + esc(row[0]) + '</td><td>' + gbp(-row[1]) + '</td><td>—</td><td>Recorded</td><td><button class="link" data-ledger="expense" data-index="' + index + '">Edit</button><button class="link expense-remove" data-expense-remove="' + index + '">Remove</button></td></tr>');
-  const stockSales = db.items.filter(item => item.status !== 'In Stock').map(item => '<tr><td><span class="tag">' + (item.status==='Sold'?'Sale':'Return') + '</span></td><td>' + esc(item.name) + '</td><td>' + gbp(proceeds(item)) + '</td><td>' + gbp(profit(item)) + '</td><td>' + esc(item.status) + '</td><td><button class="link" data-edit="' + esc(item.id) + '">Edit</button></td></tr>');
-  const groups={all:[...legacyRows, ...expenseRows, ...stockSales],sales:[...legacyRows,...stockSales.filter(r=>r.includes('>Sale<'))],expenses:expenseRows,returns:stockSales.filter(r=>r.includes('>Return<'))};
+  const soldOn = new Map((db.trades || []).map(t => [t.itemId, t.returnedAt || t.soldAt]));
+  const legacyRows = db.sales.map((row, index) => ({kind: 'sale', date: row[4], amount: row[1], name: row[0], order: index, html: '<tr><td><span class="tag">Sale</span></td><td>' + esc(row[0]) + '</td><td>' + gbp(row[1]) + '</td><td>' + (Number.isFinite(row[3]) ? gbp(row[1]-row[3]) : '<span class="pending tag">Cost needed</span>') + '</td><td>' + esc(row[2]) + '</td><td><button class="link" data-ledger="sale" data-index="' + index + '">Edit</button><button class="link expense-remove" data-kind="sale" data-expense-remove="' + index + '">Remove</button></td></tr>'}));
+  const expenseRows = db.expenses.map((row, index) => ({kind: 'expense', date: row[4], amount: row[1], name: row[0], order: 100000 + index, html: '<tr><td><span class="tag neutral-tag">Expense</span></td><td>' + esc(row[0]) + '</td><td>' + gbp(-row[1]) + '</td><td>—</td><td>Recorded</td><td><button class="link" data-ledger="expense" data-index="' + index + '">Edit</button><button class="link expense-remove" data-expense-remove="' + index + '">Remove</button></td></tr>'}));
+  const stockSales = db.items.filter(item => item.status !== 'In Stock').map((item, index) => ({kind: item.status === 'Sold' ? 'sale' : 'return', date: soldOn.get(item.id) || item.soldAt || item.purchasedAt, amount: proceeds(item), name: item.name, order: 200000 + index, html: '<tr><td><span class="tag">' + (item.status==='Sold'?'Sale':'Return') + '</span></td><td>' + esc(item.name) + '</td><td>' + gbp(proceeds(item)) + '</td><td>' + gbp(profit(item)) + '</td><td>' + esc(item.status) + '</td><td><button class="link" data-edit="' + esc(item.id) + '">Edit</button></td></tr>'}));
+  const sorted = sortList('activity', [...legacyRows, ...expenseRows, ...stockSales], 'newest', DATE_SORTS), html = rows => rows.map(r => r.html);
+  const groups={all:html(sorted),sales:html(sorted.filter(r=>r.kind==='sale')),expenses:html(sorted.filter(r=>r.kind==='expense')),returns:html(sorted.filter(r=>r.kind==='return'))};
   const counts={all:groups.all.length,sales:groups.sales.length,expenses:groups.expenses.length,returns:groups.returns.length};
-  return '<div class="tools view-tools">'+viewTabs('activity',[['all','All'],['sales','Sales'],['expenses','Expenses'],['returns','Returns']],activityView,counts)+'<button class="secondary" data-ledger="expense">＋ Add expense</button></div>' +
+  return '<div class="tools view-tools">'+viewTabs('activity',[['all','All'],['sales','Sales'],['expenses','Expenses'],['returns','Returns']],activityView,counts)+sortControl('activity','newest',DATE_SORTS)+'<button class="secondary" data-ledger="expense">＋ Add expense</button></div>' +
     table(['Type','Item / description','Amount','Item profit','Status',''], groups[activityView].join('') || '<tr><td colspan="6" class="money-empty"><b>'+({all:'Nothing sold or spent yet',sales:'No sales yet',expenses:'No expenses yet',returns:'No returns yet'}[String(activityView).toLowerCase()]||'Nothing here yet')+'</b><span>'+(String(activityView).toLowerCase()==='expenses'?'Log things like mailing bags or petrol to the car boot so your real profit is right.':(typeof personalGmail!=='undefined'&&personalGmail?.connection?'When something sells on Vinted it appears here by itself.':'Sales appear here when you mark an item sold. Connect Gmail and they appear by themselves.'))+'</span></td></tr>')+removedExpensesView('sale');
 }
+// Sort control for any list: remembered per list, newest first unless a list says otherwise.
+const LIST_SORTS={
+  newest:['Newest first',(a,b)=>String(b.date||'').localeCompare(String(a.date||''))||b.order-a.order],
+  oldest:['Oldest first',(a,b)=>String(a.date||'9999').localeCompare(String(b.date||'9999'))||a.order-b.order],
+  added:['Newest added',(a,b)=>b.order-a.order],
+  'added-old':['Oldest added',(a,b)=>a.order-b.order],
+  high:['Highest amount',(a,b)=>(Number(b.amount)||0)-(Number(a.amount)||0)||b.order-a.order],
+  low:['Lowest amount',(a,b)=>(Number(a.amount)||0)-(Number(b.amount)||0)||b.order-a.order],
+  name:['A–Z',(a,b)=>String(a.name||'').localeCompare(String(b.name||''),'en',{sensitivity:'base'})||b.order-a.order]
+};
+function listSortKey(list,fallback,choices){let key='';try{key=localStorage.getItem('stockroom-list-sort:'+list)||'';}catch{}return choices.includes(key)?key:fallback;}
+function sortList(list,rows,fallback,choices){return [...rows].sort(LIST_SORTS[listSortKey(list,fallback,choices)][1]);}
+function sortControl(list,fallback,choices){const current=listSortKey(list,fallback,choices);
+  return '<label class="list-sort">Sort <select data-list-sort="'+list+'" aria-label="Sort this list">'+choices.map(key=>'<option value="'+key+'"'+(key===current?' selected':'')+'>'+LIST_SORTS[key][0]+'</option>').join('')+'</select></label>';}
+document.addEventListener('change',event=>{
+  const select=event.target.closest?.('[data-list-sort]');
+  if(!select)return;
+  const list=select.dataset.listSort;
+  try{localStorage.setItem('stockroom-list-sort:'+list,select.value);}catch{}
+  if(list==='updates'&&typeof renderGmail==='function')renderGmail();else render();
+  document.querySelector('[data-list-sort="'+list+'"]')?.focus({preventScroll:true});
+});
+const DATE_SORTS=['newest','oldest','high','low','name'];
 let expenseView='all', expenseCategory='All', activityView='all';
 function viewTabs(kind,options,current,counts={}){
   return '<div class="view-tabs" role="tablist" aria-label="Filter">'+options.map(([key,label])=>'<button type="button" role="tab" data-view-'+kind+'="'+esc(key)+'" aria-selected="'+(key===current)+'">'+esc(label)+
@@ -383,14 +408,16 @@ function expensesView() {
       '</td><td>'+gbp(row[1])+'</td><td class="expense-notes">'+esc(row[5]||'—')+'</td><td><button class="link" data-ledger="expense" data-index="'+index+'">Edit</button><button class="link expense-remove" data-expense-remove="'+index+'">Remove</button></td></tr>'
      ).join('')||'<tr><td colspan="6">Add your first expense to track business costs.</td></tr>');
   if(expenseView==='clothing'){
-    return '<div class="tools view-tools">'+tabs+'</div><div class="metrics expense-metrics">'+metric('Clothing spend',gbp(spend.clothing),'Stock purchases and bulk orders','featured')+
+    const clothingRows=sortList('clothing',clothing.map((r,order)=>({...r,order:-order})),'newest',DATE_SORTS);
+    return '<div class="tools view-tools">'+tabs+sortControl('clothing','newest',DATE_SORTS)+'</div><div class="metrics expense-metrics">'+metric('Clothing spend',gbp(spend.clothing),'Stock purchases and bulk orders','featured')+
       metric('Items bought',String(clothing.filter(r=>r.kind==='Item').length),'Individually purchased')+metric('Bulk orders',String(clothing.filter(r=>r.kind==='Bulk order').length),'Excluding cancelled')+'</div>'+
-      table(['Item','Type','Date','Cost','Status'],clothing.map(r=>'<tr><td>'+esc(r.name)+(r.brand?'<small class="cell-sub">'+esc(r.brand)+'</small>':'')+'</td><td><span class="tag neutral-tag">'+esc(r.kind)+'</span></td><td>'+esc(r.date?dateLabel(String(r.date).slice(0,10)):'—')+'</td><td>'+gbp(r.amount)+'</td><td>'+esc(r.status||'—')+'</td></tr>').join('')||'<tr><td colspan="5">No clothing purchases recorded yet.</td></tr>');
+      table(['Item','Type','Date','Cost','Status'],clothingRows.map(r=>'<tr><td>'+esc(r.name)+(r.brand?'<small class="cell-sub">'+esc(r.brand)+'</small>':'')+'</td><td><span class="tag neutral-tag">'+esc(r.kind)+'</span></td><td>'+esc(r.date?dateLabel(String(r.date).slice(0,10)):'—')+'</td><td>'+gbp(r.amount)+'</td><td>'+esc(r.status||'—')+'</td></tr>').join('')||'<tr><td colspan="5">No clothing purchases recorded yet.</td></tr>');
   }
   if(expenseView==='business'){
     const chips=['All',...categories];
-    const rows=db.expenses.map((row,index)=>[row,index]).filter(([row])=>expenseCategory==='All'||(row[2]||'Other')===expenseCategory);
-    return '<div class="tools view-tools">'+tabs+'<button class="secondary" data-ledger="expense">＋ Add expense</button></div>'+
+    const EXPENSE_SORTS=['added','added-old','newest','oldest','high','low','name'];
+    const rows=sortList('expenses',db.expenses.map((row,index)=>({row,index,date:row[4],amount:row[1],name:row[0],order:index})).filter(({row})=>expenseCategory==='All'||(row[2]||'Other')===expenseCategory),'added',EXPENSE_SORTS).map(r=>[r.row,r.index]);
+    return '<div class="tools view-tools">'+tabs+sortControl('expenses','added',EXPENSE_SORTS)+'<button class="secondary" data-ledger="expense">＋ Add expense</button></div>'+
       '<div class="metrics expense-metrics">'+metric('Business costs',gbp(spend.overhead),db.expenses.length+' recorded','featured')+metric('This month',gbp(thisMonth),'By expense date')+'</div>'+
       '<div class="chip-row">'+chips.map(c=>'<button type="button" class="chip" data-expense-category="'+esc(c)+'" aria-pressed="'+(c===expenseCategory)+'">'+esc(c)+'</button>').join('')+'</div>'+
       expenseTable(rows)+removedExpensesView();
