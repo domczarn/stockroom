@@ -3,6 +3,7 @@ import {withIdentity} from './access.js';
 import {scheduledGmail} from './gmail.js';
 import {scheduledWeekly} from './weekly.js';
 import {scheduledAlerts} from './alerts.js';
+import {scheduledNudges} from './nudges.js';
 import {rebuildPriceIndex} from './grow.js';
 import {inboundEmail} from './inbound.js';
 export default {
@@ -18,6 +19,7 @@ export default {
     if(event.cron!=='*/10 * * * *'){context.waitUntil(scheduledGmail(env,context));return;}
     context.waitUntil(scheduledAlerts(env).catch(()=>{}));
     context.waitUntil(rebuildPriceIndex(env).catch(error=>console.error('Price index failed',String(error?.message||error).slice(0,160))));
+    context.waitUntil(scheduledNudges(env).catch(error=>console.error('Nudges failed',String(error?.message||error).slice(0,160))));
     context.waitUntil(scheduledWeekly(env).catch(error=>console.error('Weekly report failed',String(error?.message||error).slice(0,160))));
   }
 };

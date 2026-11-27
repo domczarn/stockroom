@@ -65,13 +65,17 @@ ${n.stale ? `<p style="color:#b4b4bd;margin:8px 8px 0">${n.stale} listing${n.sta
 <p style="font-size:12px;color:#85858f;margin:24px 8px 0">You get this every Monday. <a href="${unsub}" style="color:#85858f">Stop weekly emails</a></p></div></div>`;
 }
 
+export async function unsubscribeLink(env, ownerId, origin) {
+  return origin + '/email/unsubscribe?u=' + encodeURIComponent(ownerId) + '&t=' + await hmac(env, ownerId);
+}
+
 async function sendReport(env, {ownerId, email, name, origin}) {
   const stored = await loadWorkspace(env, ownerId);
   if (!stored) return 'no_workspace';
   const n = weeklyNumbers(stored.data);
   if (!n.inStock && !n.sold && !n.added) return 'empty';
   const take = await pipTake(env, n);
-  const unsub = origin + '/email/unsubscribe?u=' + encodeURIComponent(ownerId) + '&t=' + await hmac(env, ownerId);
+  const unsub = await unsubscribeLink(env, ownerId, origin);
   const text = `Your week on Stockroom: ${n.sold} sold, ${gbp(n.revenue)} sales, ${gbp(n.profit)} profit. ${n.added} added, ${n.inStock} in stock (${gbp(n.tiedUp)} tied up).\n\nPip's take: ${take}\n\nOpen Stockroom: ${origin}/\nStop weekly emails: ${unsub}`;
   if (!env.RESEND_API_KEY) return 'no_email';
   const response = await (env.RESEND_FETCH || fetch)('https://api.resend.com/emails', {
@@ -133,7 +137,7 @@ export async function unsubscribePage(url, env) {
   const id = url.searchParams.get('u') || '', token = url.searchParams.get('t') || '';
   const ok = id && token === await hmac(env, id);
   if (ok) await env.DB.prepare('INSERT INTO email_prefs (owner_id, weekly, updated_at) VALUES (?, 0, ?) ON CONFLICT(owner_id) DO UPDATE SET weekly = 0, updated_at = excluded.updated_at').bind(id, new Date().toISOString()).run();
-  const body = ok ? '<h1>You’re unsubscribed</h1><p>No more weekly reports. Turn them back on any time in Settings → Notifications.</p>' : '<h1>That link didn’t work</h1><p>Turn weekly reports off in Settings → Notifications instead.</p>';
+  const body = ok ? '<h1>You’re unsubscribed</h1><p>No more weekly reports or Pip reminders. Turn them back on any time in Settings → Notifications.</p>' : '<h1>That link didn’t work</h1><p>Turn Pip emails off in Settings → Notifications instead.</p>';
   return new Response('<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>Stockroom</title><body style="font-family:-apple-system,Segoe UI,sans-serif;background:#131316;color:#f5f5f7;display:grid;place-items:center;min-height:90vh;margin:0;text-align:center;padding:20px"><div>' + body + '<p><a style="color:#cdc5ff" href="/">Open Stockroom</a></p></div>',
     {status: ok ? 200 : 400, headers: {'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'"}});
 }

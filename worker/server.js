@@ -115,6 +115,8 @@ export default {
   async fetch(request, env, context) {
     const url = new URL(request.url);
     try {
+      // One-click unsubscribe (mail providers POST from their servers); the link is HMAC-signed.
+      if(url.pathname==='/email/unsubscribe'&&(request.method==='GET'||request.method==='POST'))return await unsubscribePage(url,env);
       // Mutations must be same-origin; identity comes from the Stockroom session cookie.
       if (!['GET','HEAD'].includes(request.method)) {
         if (request.headers.get('origin') && request.headers.get('origin') !== url.origin) throw new HttpError(403,'Invalid origin');
@@ -123,7 +125,6 @@ export default {
       if(url.pathname.startsWith('/auth/'))return await authRoute(request,url,env);
       if(url.pathname==='/hooks/gmail'&&request.method==='POST')return await gmailPushRoute(request,env,context);
       if(url.pathname==='/hooks/revenuecat'&&request.method==='POST')return await iapWebhookRoute(request,env);
-      if(url.pathname==='/email/unsubscribe'&&request.method==='GET')return await unsubscribePage(url,env);
       if(url.pathname==='/login'&&['GET','HEAD'].includes(request.method))return identity(request)?Response.redirect(url.origin+'/',302):loginPage(request,env);
       const rawUser=identity(request);
       const importRoute = ['/api/purchases','/api/sync-status','/api/sale-imports','/api/market-research'].includes(url.pathname) || /^\/api\/photos\//.test(url.pathname);

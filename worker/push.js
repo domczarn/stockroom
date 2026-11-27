@@ -9,7 +9,8 @@ const options = {
   gmail:{body:'New Vinted email updates are ready to review.',tab:'Vinted updates'},
   access:{body:'Someone requested access to Stockroom. Open Admin to review.',tab:'Admin'},
   testmessage:{body:'Stockroom test. Tap to open your selected conversation.',tab:'Profile'},
-  test:{body:'Stockroom notifications are working on this device.',tab:'Dashboard'}
+  test:{body:'Stockroom notifications are working on this device.',tab:'Dashboard'},
+  nudge:{body:'Pip has an update on your stock.',tab:'Dashboard'}
 };
 const subject='https://stockroom.bookednpaid.com';
 const b64url = bytes => btoa(String.fromCharCode(...bytes)).replaceAll('+','-').replaceAll('/','_').replace(/=+$/,'');
@@ -48,7 +49,7 @@ async function deliver(env,row,keys,kind,chat,body){
     const subscription=JSON.parse(row.subscription);
     if(!endpointAllowed(subscription.endpoint)||!validKeys(subscription.keys))return false;
     const conversation=(kind==='message'||kind==='testmessage')&&/^[a-f0-9]{64}$/.test(chat||'')?chat:null;
-    const titles={purchase:'New stock added',gmail:'Vinted update',receipt:'Sale receipt ready',message:'New message'};
+    const titles={purchase:'New stock added',gmail:'Vinted update',receipt:'Sale receipt ready',message:'New message',nudge:'Pip'};
     const data=JSON.stringify({title:titles[kind]||'Stockroom',body:typeof body==='string'&&body?body.slice(0,180):options[kind].body,tab:options[kind].tab,kind,tag:'stockroom-'+kind+(conversation?'-'+conversation:''),...(conversation?{chat:conversation}:{})});
     const payload=await buildPushPayload({data,options:{ttl:3600}},subscription,keys);
     const response=await fetch(subscription.endpoint,{...payload,redirect:'manual',signal:AbortSignal.timeout(8000)});
@@ -71,6 +72,7 @@ async function deliverToAccount(env,ownerId,kind,chat,body){
   console.info('stockroom-push',kind,{accepted:results.filter(Boolean).length,attempted:results.length});
 }
 
+export const pushAccount = (env, ownerId, kind, body) => deliverToAccount(env, ownerId, kind, null, body);
 export function notifyAccount(context,env,ownerId,kind,chat,body){
   if(context?.waitUntil)context.waitUntil(deliverToAccount(env,ownerId,kind,chat,body).catch(()=>{}));
 }

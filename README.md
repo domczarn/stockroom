@@ -21,3 +21,11 @@ Sales, labels and QR codes reach Stockroom three ways. Each switches on when its
 
 ### Gmail (one tap, beta)
 Limited to 90 accounts until Google verification, which needs a paid yearly security check. Not planned.
+
+## Sending email from a subdomain
+
+Stockroom mail (login codes, weekly report, Pip nudges) should come from `stockroom.bookednpaid.com`, not the main domain, so its reputation stays separate from your own inbox.
+1. resend.com → Domains → Add domain → `stockroom.bookednpaid.com` → Region: Ireland (eu-west-1) → Add.
+2. Click **Auto configure** (signs in to Cloudflare and adds the DNS records), or add the MX/TXT records it lists by hand in Cloudflare → bookednpaid.com → DNS.
+3. Wait for Resend to show **Verified** (usually a few minutes).
+4. Cloudflare → Workers → stockroom → Settings → Variables → `AUTH_EMAIL_FROM` = `pip@stockroom.bookednpaid.com` → Deploy.
