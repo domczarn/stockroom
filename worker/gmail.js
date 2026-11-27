@@ -138,6 +138,7 @@ export function receiptUpdate(message,days,now=Date.now()){
   if(/offer|favou?rite|password|sign.in|new message|verification code|reminder|review|rate your|feedback|promo|newsletter|tips?\b|survey/i.test(subject))return null;
   if(/\b(?:order confirmed|payment (?:successful|confirmed|received)|purchase (?:confirmed|successful|confirmation)|sale confirmed|booking confirmed)\b/i.test(subject))return null;
   if(/^your receipt for\b/i.test(subject)||/\byou (?:just )?bought\b/i.test(subject))category='Purchase';
+  else if(/\byour invoice\b/i.test(subject)){category='Expense';quiet=true;} // bumps, Wardrobe Spotlight: added to expenses by the app
   else if(/\b(?:refund(?:ed)?|cancel(?:led|ed|lation)|return completed)\b/i.test(subject))category='Refund / cancellation';
   else if(/\b(?:you.ve sold|you sold|item sold|sold an item|sale (?:complete|completed)|this order is completed)\b/i.test(subject))category='Sale';
   else if(/\bconfirmation needed\b/i.test(subject)){category='Delivery';quiet=true;} // your purchase arrived: used to mark stock received, not shown
@@ -297,6 +298,14 @@ export function platformSaleEvent(sale,text,receivedAt){
 export function vintedEvent(subject,snippet,receivedAt){
   const text=decodeSnippet(snippet), date=ukDate(receivedAt);
   let m;
+  // Paid Vinted extras: "Item bumps - your invoice" … "3-day Bump (1 item) £1.25 Total £1.25".
+  if(/\byour invoice\b/i.test(subject)&&(m=text.match(/\btotal\s*£\s?([\d,]+(?:\.\d{1,2})?)/i))){
+    const amount=Number(m[1].replace(/,/g,''));
+    if(!(amount>0))return null;
+    const bump=text.match(/(\d+)-day bump\s*\((\d+) items?\)/i);
+    const what=bump?'Vinted bump: '+bump[2]+' item'+(bump[2]==='1'?'':'s')+', '+bump[1]+' days':'Vinted '+title(subject.replace(/\s*-\s*your invoice.*$/i,'')).toLowerCase();
+    return {type:'fee',title:what.slice(0,120),amount,date};
+  }
   if(/^you.ve sold an item/i.test(subject)&&(m=text.match(/,\s*(\S+) has bought (.+?) £\s?([\d,]+(?:\.\d{1,2})?)/i)))
     return {type:'sold',title:title(m[2]),amount:Number(m[3].replace(/,/g,'')),buyer:m[1].slice(0,60),date};
   if(/^this order is completed/i.test(subject)&&(m=text.match(/your sale of (.+?) was completed successfully\.?(?:.*?transaction id:\s*#?(\d+))?(?:.*?date:\s*(\d{2})\/(\d{2})\/(\d{4}))?/i)))

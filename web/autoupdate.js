@@ -195,6 +195,19 @@ async function auRun() {
   let skipped = 0;
   try {
     for (const event of events) {
+      // Paid Vinted extras (bumps, spotlight): straight into expenses as Promotion, once per email.
+      if (event.type === 'fee') {
+        const mark = 'email:' + event.id;
+        const seen = (next.expenses || []).some(r => r[7] === mark || (r[0] === event.title && Math.abs(Number(r[1]) - event.amount) < 0.005 && r[4] === event.date && r[2] === 'Promotion'));
+        if (!seen && event.amount > 0) {
+          next = cloneWorkspace(next);
+          next.expenses.push([event.title, event.amount, 'Promotion', null, event.date, '', null, mark]);
+          lines.push({tone: 'info', icon: '📣', title: 'Expense added: ' + gbp(event.amount), body: event.title});
+          applied.push(event);
+        }
+        auDone.add(event.id);
+        continue;
+      }
       if (auAlreadyDone(event, next)) { auDone.add(event.id); continue; }
       // A label for an item that already has its tracking number: just add the code from the PDF.
       if (event.type === 'label' && event.tracking && next.items.some(row => !row.deletedAt && row.shipTracking === event.tracking)) {
@@ -248,6 +261,7 @@ function auPanel(lines, undoFrom, events = [], skipped = 0) {
     count('refund').length && ['Refunds', String(count('refund').length), 'purchases cancelled'],
     count('posted').length && ['Posted', String(count('posted').length), 'parcels on their way'],
     count('parcel-delivered').length && ['Delivered', String(count('parcel-delivered').length), 'to your buyers'],
+    count('fee').length && ['Expenses', gbp(count('fee').reduce((sum, e) => sum + (Number(e.amount) || 0), 0)), count('fee').length + (count('fee').length === 1 ? ' bump or extra' : ' bumps or extras')],
   ].filter(Boolean);
   const panel = document.createElement('section');
   panel.id = 'pipUpdates';

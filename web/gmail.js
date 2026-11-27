@@ -4,7 +4,7 @@ let personalGmail=null;
 let gmailBusy=false;
 let gmailCheckMessage='';
 const gmailFilters={category:'All',review:'unreviewed'};
-const gmailCategories=['Purchase','Sale','Delivery','Refund / cancellation'];
+const gmailCategories=['Purchase','Sale','Delivery','Refund / cancellation','Expense'];
 const gmailOutcomes={connected:'Inbox connected. Pip is checking for your sale emails.',cancelled:'Connecting was cancelled.',expired:'The connection link expired. Try connecting again.',permission:'Stockroom wasn’t given permission to read your sale emails. Try connecting again.',failed:'Your inbox couldn’t be connected. Try again.'};
 
 function gmailSetup(step){

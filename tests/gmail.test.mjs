@@ -83,3 +83,13 @@ try{
   assert.equal((await (await call('/api/gmail','alice','DELETE')).json()).connection,null);
   assert.equal(env.sql.prepare('SELECT COUNT(*) AS count FROM gmail_connections').get().count,0);
 }finally{globalThis.fetch=originalFetch;}
+import {vintedEvent as feeEvent} from '../worker/gmail.js';
+{
+  const at='2026-11-27T15:13:00Z';
+  assert.deepEqual(feeEvent('Item bumps - your invoice','Hello domczarn, You have successfully bumped 1 item. Your bumped item(s) will get a push higher in results for 3 days. 3-day Bump (1 item) £1.25 Total £1.25 Vinted Balance Team Vinted',at),
+    {type:'fee',title:'Vinted bump: 1 item, 3 days',amount:1.25,date:'2026-11-27'});
+  assert.equal(feeEvent('Item bumps - your invoice','7-day Bump (3 items) £4.40 Total £4.40',at).title,'Vinted bump: 3 items, 7 days');
+  assert.deepEqual(feeEvent('Wardrobe Spotlight - your invoice','Spotlight for 7 days Total £6.95',at),{type:'fee',title:'Vinted wardrobe spotlight',amount:6.95,date:'2026-11-27'});
+  assert.equal(feeEvent('Item bumps - your invoice','no total here',at),null);
+  console.log('vinted invoice expenses ok');
+}

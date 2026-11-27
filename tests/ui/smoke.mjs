@@ -12,6 +12,7 @@ for (let i = 0; i < 50; i++) { try { if ((await fetch(BASE)).ok) break; } catch 
 const browser = await chromium.launch({executablePath: process.env.CHROME_PATH || '/usr/bin/google-chrome', args: ['--no-sandbox']});
 const failures = [];
 async function check(name, viewport, fn) {
+  if (process.env.ONLY && !name.includes(process.env.ONLY)) return;   // ONLY="bump" npm run test:ui
   const context = await browser.newContext({viewport, isMobile: viewport.width < 500, hasTouch: viewport.width < 500, reducedMotion: 'reduce'});
   const page = await context.newPage();
   const errors = [];
@@ -168,6 +169,27 @@ for (const viewport of [{width: 390, height: 844}, {width: 1440, height: 900}]) 
       return [now.status, now.shipTracking, !!now.shipQr, !!now.shipLabel].join('|') + ' dbg ' + window.__dbg.join(',');
     }, viewport.width);
     assert.match(out.split(' dbg ')[0], /^Sold\|JJD0002212128\d{6}\|true\|true$/, out);
+  });
+  await check('Vinted bump invoices land in expenses once', viewport, async page => {
+    const out = await page.evaluate(async w => {
+      const day = todayUK(), before = db.expenses.length;
+      personalGmail = {connection: {receipts: [
+        {id: 'bumpa' + w, receivedAt: day + 'T15:15:00.000Z', category: 'Expense', event: {type: 'fee', title: 'Vinted bump: 1 item, 7 days ' + w, amount: 4.4, date: day}},
+        {id: 'bumpb' + w, receivedAt: day + 'T15:13:00.000Z', category: 'Expense', event: {type: 'fee', title: 'Vinted bump: 1 item, 3 days ' + w, amount: 1.25, date: day}}]}};
+      auDone.clear(); auSignature = '';
+      await auRun();
+      const panel = document.getElementById('pipUpdates')?.textContent || '';
+      document.getElementById('pipUpdates')?.remove();
+      auDone.clear(); auSignature = '';
+      await auRun();   // second run (another device): nothing doubles up
+      document.getElementById('pipUpdates')?.remove();
+      const added = db.expenses.slice(before);
+      return {count: added.length, rows: added.map(r => [r[0], r[1], r[2]]), panel: /Expenses/.test(panel) && /£5\.65/.test(panel)};
+    }, viewport.width);
+    assert.equal(out.count, 2);
+    assert.deepEqual(out.rows.map(r => r[2]), ['Promotion', 'Promotion']);
+    assert.deepEqual(out.rows.map(r => r[1]).sort(), [1.25, 4.4]);
+    assert.ok(out.panel, 'summary shows the expense total');
   });
   await check('delete has undo, offline is explained', viewport, async page => {
     await go(page, 'Stock');
