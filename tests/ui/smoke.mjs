@@ -361,7 +361,7 @@ for (const viewport of [{width: 390, height: 844}, {width: 1440, height: 900}]) 
       personalGmail = saved; navigate('Dashboard'); render();
       return res;
     });
-    assert.deepEqual(out.choice.slice(0, 1), ['Forward my sale emails']);
+    assert.deepEqual(out.choice, ['Gmail', 'Any other email']);
     assert.equal(out.address, 'k3j4h5g6f7d8s9a0@in.stockroom.test');
     assert.equal(out.code, '738201934');
     assert.equal(out.overflow, false, 'page scrolls sideways');
@@ -412,6 +412,37 @@ for (const viewport of [{width: 390, height: 844}, {width: 1440, height: 900}]) 
     assert.equal(out.tile, true);
     assert.equal(out.opened, true);
     assert.equal(out.id, out.want);
+  });
+  await check('email is asked for after the first sale, once', viewport, async page => {
+    const out = await page.evaluate(async () => {
+      const savedDb = db, savedGmail = personalGmail;
+      const it = db.items.find(i => i.status === 'In Stock' && !i.deletedAt);
+      db = recordSale({...cloneWorkspace(db), trades: []}, it.id, 15, todayUK());
+      personalGmail = {available: true, outlook: true, forwarding: false, url: location.origin, connection: null};
+      try { localStorage.removeItem(firstSaleKey()); } catch {}
+      render(); await new Promise(r => setTimeout(r, 900));
+      const shown = !!document.getElementById('srFirstSale');
+      document.querySelector('[data-first-sale-close]')?.click();
+      render(); await new Promise(r => setTimeout(r, 900));
+      const again = !!document.getElementById('srFirstSale');
+      db = savedDb; personalGmail = savedGmail; render();
+      return {shown, again};
+    });
+    assert.deepEqual(out, {shown: true, again: false});
+  });
+  await check('screenshots shared into Stockroom open the screenshot reader', viewport, async page => {
+    const out = await page.evaluate(async () => {
+      const cache = await caches.open('stockroom-shared');
+      const png = await (await fetch('/icon-192.png')).blob();
+      await cache.put('/shared/0', new Response(png, {headers: {'content-type': 'image/png', 'x-name': 'sale.png'}}));
+      sharedPending = true; render();
+      for (let i = 0; i < 30 && !document.getElementById('shotImport')?.open; i++) await new Promise(r => setTimeout(r, 100));
+      const opened = !!document.getElementById('shotImport')?.open;
+      const left = (await cache.keys()).length;
+      document.getElementById('shotImport')?.close();
+      return {opened, left};
+    });
+    assert.deepEqual(out, {opened: true, left: 0});
   });
   await check('saves send changes only, queue offline, then sync', viewport, async page => {
     const bodies = [];

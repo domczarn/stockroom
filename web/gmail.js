@@ -5,7 +5,7 @@ let gmailBusy=false;
 let gmailCheckMessage='';
 const gmailFilters={category:'All',review:'unreviewed'};
 const gmailCategories=['Purchase','Sale','Delivery','Refund / cancellation'];
-const gmailOutcomes={connected:'Gmail connected. Stockroom will check for Vinted updates.',cancelled:'Google access was cancelled.',expired:'The connection link expired. Choose Connect Gmail to try again.',permission:'Google did not grant ongoing Gmail read access. Reconnect to try again.',failed:'Gmail could not be connected. Try again.'};
+const gmailOutcomes={connected:'Inbox connected. Pip is checking for your sale emails.',cancelled:'Connecting was cancelled.',expired:'The connection link expired. Try connecting again.',permission:'Stockroom wasn’t given permission to read your sale emails. Try connecting again.',failed:'Your inbox couldn’t be connected. Try again.'};
 
 function gmailSetup(step){
   const steps=['Choose your Vinted inbox','Check for recent emails','Review your first updates'];
@@ -27,9 +27,14 @@ function renderGmail(){
   const renderPart=(target,markup)=>{if(target.dataset.markup!==markup){target.innerHTML=markup;target.dataset.markup=markup;}};
   if(!connection){
     updates.hidden=true;
-    if(personalGmail.forwarding){
-      renderPart(panel,'<div class="fwd-choice"><button type="button" class="fwd-option primary" data-gmail-action="forward"'+(gmailBusy?' disabled':'')+'><b>Forward my sale emails</b><span>Recommended. Works with Gmail, Outlook and more. Stockroom never sees the rest of your inbox.</span></button>'+
-        (available&&location.origin===url?'<button type="button" class="fwd-option" data-gmail-action="connect"'+(gmailBusy?' disabled':'')+'><b>Connect Gmail in one tap</b><span>Google asks to let Stockroom read your Vinted emails. Limited spaces while in beta.</span></button>':'')+'</div>');
+    // One tap for Gmail (beta spaces) and Outlook; forwarding for any other email.
+    if(personalGmail.forwarding||personalGmail.outlook){
+      const here=location.origin===url, off=gmailBusy?' disabled':'';
+      const opt=(action,title,text,primary)=>'<button type="button" class="fwd-option'+(primary?' primary':'')+'" data-gmail-action="'+action+'"'+off+'><b>'+title+'</b><span>'+text+'</span></button>';
+      renderPart(panel,'<div class="fwd-choice">'+
+        (available&&here?opt('connect','Gmail','One tap. Limited spaces while in beta.',true):'')+
+        (personalGmail.outlook&&here?opt('outlook','Outlook / Hotmail','One tap. Works with outlook.com, hotmail and live addresses.',!available):'')+
+        (personalGmail.forwarding?opt('forward','Any other email','Forward your sale emails to a private Stockroom address. Set up once on a computer.',false):'')+'</div>');
       return;
     }
     const action=!available?'<p class="footnote">Personal Gmail connection is unavailable until Stockroom’s Google setup is complete. You can still find your receipts in Gmail and record items in Stockroom.</p>':
@@ -40,15 +45,16 @@ function renderGmail(){
   }
   if(connection.mode==='forward'){renderPart(panel,forwardPanel(connection));gmailReceiptsView(connection,updates,gmailBusy?' disabled':'');return;}
   const locked=gmailBusy?' disabled':'';
-  const optionsLocked=!available||gmailBusy?' disabled':'';
-  const status=!available?'Google authorisation unavailable':!connection.enabled?'Paused':
+  const optionsLocked=!(connection.mode==='outlook'?personalGmail.outlook:available)||gmailBusy?' disabled':'';
+  const outlook=connection.mode==='outlook', canSync=outlook?personalGmail.outlook:available;
+  const status=!canSync?(outlook?'Outlook connect unavailable':'Google authorisation unavailable'):!connection.enabled?'Paused':
     connection.state==='reconnect'?'Reconnect needed':connection.state==='check_failed'?'Last check failed':'Connected';
   const checked=connection.checkedAt?new Date(connection.checkedAt).toLocaleString('en-GB'):'Not checked yet';
   const needsCheck=!connection.checkedAt||connection.state!=='connected';
   renderPart(panel,gmailSetup(needsCheck?1:2)+'<div class="mini-stat"><span>Connected inbox</span><b>'+esc(connection.mailbox)+'</b></div>'+
     '<div class="mini-stat"><span>Status</span><b>'+status+'</b></div><div class="mini-stat"><span>Last check</span><b>'+esc(checked)+'</b></div>'+
-    '<div class="gmail-actions">'+(available?'<button type="button" class="action" data-gmail-action="check"'+(locked||(!connection.enabled||connection.state==='reconnect'?' disabled':''))+'>Check now</button>'+
-    (location.origin===url?'<button type="button" class="secondary" data-gmail-action="connect"'+locked+'>'+(connection.state==='reconnect'?'Reconnect Gmail':'Change Gmail account')+'</button>':
+    '<div class="gmail-actions">'+(canSync?'<button type="button" class="action" data-gmail-action="check"'+(locked||(!connection.enabled||connection.state==='reconnect'?' disabled':''))+'>Check now</button>'+
+    (location.origin===url?'<button type="button" class="secondary" data-gmail-action="'+(outlook?'outlook':'connect')+'"'+locked+'>'+(connection.state==='reconnect'?'Reconnect '+(outlook?'Outlook':'Gmail'):'Change '+(outlook?'Outlook':'Gmail')+' account')+'</button>':
     '<a href="'+esc(url)+'/?open=Vinted%20updates" class="secondary">Change Gmail account</a>'):'')+
     '<button type="button" class="secondary" data-gmail-action="disconnect"'+locked+'>Disconnect</button></div>'+
     '<div class="gmail-options"><label><input type="checkbox" data-gmail-option="enabled"'+(connection.enabled?' checked':'')+optionsLocked+'> Check while Stockroom is open</label>'+
@@ -59,7 +65,7 @@ function renderGmail(){
 
 function gmailReceiptsView(connection,updates,optionsLocked,needsCheck=!connection.checkedAt){
   const renderPart=(target,markup)=>{if(target.dataset.markup!==markup){target.innerHTML=markup;target.dataset.markup=markup;}};
-  const forward=connection.mode==='forward';
+  const forward=connection.mode!=='gmail';   // only Gmail has a web link to the original email
   updates.hidden=false;
   const filtered=connection.receipts.filter(item=>!item.quiet&&item.category!=='Order update'&&!/confirmation needed|order confirmed|payment successful|purchase confirmed/i.test(item.subject)&&(gmailFilters.category==='All'||item.category===gmailFilters.category)&&
     (gmailFilters.review==='all'||item.reviewed===(gmailFilters.review==='reviewed')));
@@ -82,6 +88,7 @@ function forwardPanel(c){
   return '<div class="fwd">'+
     '<p class="fwd-status '+(working?'on':'')+'">'+(working?'✓ Working · last email '+esc(new Date(c.checkedAt).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})):'Takes about 2 minutes, once.')+'</p>'+
     copy('Your private Stockroom address',c.address,'address')+
+    (working?'':'<button type="button" class="secondary fwd-mail" data-fwd-mail>✉️ On your phone? Email me these steps</button>')+
     '<details class="fwd-steps"'+(working?'':' open')+'><summary>Gmail setup (on a computer, about 2 minutes)</summary><ol>'+
       '<li>Gmail → ⚙️ Settings → <b>See all settings</b> → <b>Forwarding and POP/IMAP</b> → <b>Add a forwarding address</b> → paste your address → Next → Proceed.</li>'+
       '<li>Gmail sends a code to Stockroom. '+code+'</li>'+
@@ -129,6 +136,7 @@ function initialiseGmail(){
     toast(gmailOutcomes[gmailResult]);
   }
   document.addEventListener('click',event=>{
+    if(event.target.closest('[data-fwd-mail]')){const b=event.target.closest('[data-fwd-mail]');b.disabled=true;api('/api/gmail/forward/email',{method:'POST',body:'{}'}).then(r=>{b.textContent='✓ Sent to '+r.to;toast('Sent. Open it on a computer when you’re next on one.');},e=>{b.disabled=false;toast(e.message);});return;}
     const copyKey=event.target.closest('[data-fwd-copy]')?.dataset.fwdCopy;
     if(copyKey){const c=personalGmail?.connection;const v=copyKey==='address'?c?.address:c?.filter?.replace(/^from:\(|\)$/g,'');if(v)navigator.clipboard?.writeText(v).then(()=>toast('Copied'),()=>toast(v));return;}
     const jump=event.target.closest('[data-gmail-jump]');
@@ -144,6 +152,7 @@ function initialiseGmail(){
     const action=event.target.closest('[data-gmail-action]')?.dataset.gmailAction;
     if(action==='connect')void changeGmail('/api/gmail/connect',{method:'POST'});
     else if(action==='forward')void changeGmail('/api/gmail/forward',{method:'POST'});
+    else if(action==='outlook')void changeGmail('/api/outlook/connect',{method:'POST'});
     else if(action==='check')void changeGmail('/api/gmail/check',{method:'POST'});
     else if(action==='disconnect'){
       if(confirm('Disconnect Gmail and remove its Vinted email summaries from Stockroom?'))void changeGmail('/api/gmail',{method:'DELETE'});

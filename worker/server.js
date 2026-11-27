@@ -173,7 +173,7 @@ export default {
           .bind(new Date().toISOString().slice(0,10),feature).run().catch(()=>{});
         return new Response(null,{status:204});
       }
-      if(url.pathname==='/api/gmail'||url.pathname.startsWith('/api/gmail/')){
+      if(url.pathname==='/api/gmail'||url.pathname.startsWith('/api/gmail/')||url.pathname.startsWith('/api/outlook/')){
         const result=await gmailRoute(request,url,env,user,context);
         return result instanceof Response?result:json(result);
       }

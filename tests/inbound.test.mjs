@@ -39,6 +39,8 @@ test('forwarding: private address, Gmail confirmation code, a forwarded Vinted s
   const r = view.data.connection.receipts[0];
   assert.equal(view.data.connection.state, 'connected');
   assert.deepEqual([r.category, r.event?.type, r.event?.amount, r.event?.title], ['Sale', 'sold', 24, 'Black Ralph Lauren Quarter Zip']);
+  const counts = Object.fromEntries(((await env.DB.prepare("SELECT feature, count FROM usage_daily WHERE feature LIKE 'mail:%'").all()).results || []).map(r => [r.feature, r.count]));
+  assert.deepEqual(counts, {'mail:vinted-seen': 1, 'mail:vinted-understood': 1});
   // Forwarding the same email twice doesn't count it twice.
   await inboundEmail(mail(address, vintedSold), env, {waitUntil() {}});
   assert.equal((await call(env, '/api/gmail')).data.connection.receipts.length, 1);
@@ -60,4 +62,18 @@ test('past sales added from emails do not use the free item allowance', async ()
   const items = n => Array.from({length: n}, (_, i) => ({id: String(i + 1).padStart(4, '0'), name: 'x', status: 'Sold', source: 'email'}));
   assert.deepEqual(await checkNewItems(env, {id: 'free-hist', email: 'f@example.test'}, [], items(40)), []);
   await assert.rejects(checkNewItems(env, {id: 'free-hist', email: 'f@example.test'}, [], items(40).map(i => ({...i, source: undefined, status: 'In Stock'}))), e => e.status === 402);
+});
+
+test('forwarding: email me the setup steps (to my own address, a few times a day at most)', async () => {
+  const sent = [];
+  const env = {...environment(), FORWARD_DOMAIN: 'in.stockroom.test', RESEND_API_KEY: 're_test', RESEND_FETCH: async (url, opts) => { sent.push(JSON.parse(opts.body)); return new Response('{}', {status: 200}); }};
+  assert.equal((await call(env, '/api/gmail/forward/email', 'POST', {})).status, 409);
+  const {address} = (await call(env, '/api/gmail/forward', 'POST', {})).data.connection;
+  const r = await call(env, '/api/gmail/forward/email', 'POST', {});
+  assert.equal(r.status, 200);
+  assert.deepEqual(sent[0].to, ['fwd@example.test']);
+  assert.ok(sent[0].text.includes(address));
+  assert.ok(sent[0].text.includes('no-reply@vinted.co.uk'));
+  await call(env, '/api/gmail/forward/email', 'POST', {}); await call(env, '/api/gmail/forward/email', 'POST', {});
+  assert.equal((await call(env, '/api/gmail/forward/email', 'POST', {})).status, 429);
 });

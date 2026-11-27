@@ -3386,3 +3386,4 @@ dialog.rv h2 { margin: 4px 0 6px; font-size: 22px; letter-spacing: -.02em; }
 .iap-buy { width: 100%; margin-top: 8px; }
 .iap-restore { margin-top: 10px; }
 .iap .rv-note a { color: inherit; }
+.fwd-mail { justify-self: start; }

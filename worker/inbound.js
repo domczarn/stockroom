@@ -3,7 +3,7 @@
 // email (Gmail, Outlook…) for Vinted, courier, eBay and Depop emails; Cloudflare Email Routing hands each email to
 // this Worker, and it goes through exactly the same reader as Gmail sync. No Google permission, no 100-user cap.
 import PostalMime from 'postal-mime';
-import {receiptUpdate, enrichFromParts, capFreeSales, verifiedSender, COURIER_DOMAINS, PLATFORM_SENDERS} from './gmail.js';
+import {receiptUpdate, enrichFromParts, capFreeSales, verifiedSender, countVintedMail, COURIER_DOMAINS, PLATFORM_SENDERS} from './gmail.js';
 import {isPro} from './billing.js';
 import {notifyAccount} from './push.js';
 import {HttpError} from './security.js';
@@ -83,6 +83,7 @@ export async function inboundEmail(message, env, context) {
   const fake = {id, internalDate: String(Math.min(sent, now)), snippet: text.slice(0, 400),
     payload: {headers: [{name: 'From', value: fromHeader}, {name: 'Subject', value: email.subject || ''}, {name: 'Authentication-Results', value: 'mx.google.com; dmarc=pass header.from=' + sender}]}};
   let receipt = receiptUpdate(fake, 30, now);
+  if (sender === 'vinted.co.uk') await countVintedMail(env, [{subject: email.subject, receipt}]);
   if (!receipt) return;
   const files = (email.attachments || []).map(a => ({name: a.filename || 'attachment', type: a.mimeType, size: a.content?.byteLength || 0, bytes: new Uint8Array(a.content || new ArrayBuffer(0))}));
   if (receipt.needsBody || receipt.courier || receipt.platformSale || (receipt.event?.type === 'label' && !receipt.event.tracking))
@@ -106,4 +107,33 @@ async function saveReceipts(env, context, row, receipts) {
       return;
     }
   }
+}
+
+// "Email me these steps": most sellers are on their phone, and Gmail filters can only be made on a computer.
+export async function emailSetupSteps(env, user, row) {
+  if (!row?.connection_id?.startsWith(FORWARD_PREFIX)) throw new HttpError(409, 'Set up forwarding first.');
+  if (!env.RESEND_API_KEY) throw new HttpError(503, 'Email isn’t set up on this server.');
+  const to = String(user.email || '').toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) throw new HttpError(400, 'Your account has no email address to send to.');
+  const day = Math.floor(Date.now() / 86400000);
+  const n = (await env.DB.prepare('INSERT INTO rate_limits (key,window,count) VALUES (?,?,1) ON CONFLICT(key) DO UPDATE SET count = CASE WHEN window = excluded.window THEN count + 1 ELSE 1 END, window=excluded.window RETURNING count').bind('fwd-mail:' + user.id, day).first())?.count || 1;
+  if (n > 3) throw new HttpError(429, 'Already sent today. Check your inbox (and spam).');
+  const address = row.mailbox, filter = forwardFilter().replace(/^from:\(|\)$/g, '');
+  const text = [
+    'Set up Stockroom email forwarding (about 2 minutes, on a computer)', '',
+    'Your private Stockroom address: ' + address, '',
+    'GMAIL',
+    '1. Open Gmail on a computer → ⚙️ Settings → See all settings → Forwarding and POP/IMAP → Add a forwarding address → paste your Stockroom address → Next → Proceed.',
+    '2. Gmail sends a confirmation code to Stockroom. Open Stockroom → Profile → Connections to see it.',
+    '3. Type the code into Gmail → Verify. Leave "Disable forwarding" selected.',
+    '4. Settings → Filters and Blocked Addresses → Create a new filter → paste this into "From":', '', filter, '',
+    '   → Create filter → tick "Forward it to" → choose your Stockroom address → Create filter.', '',
+    'OUTLOOK / HOTMAIL',
+    'Settings → Mail → Rules → Add new rule → From: no-reply@vinted.co.uk (plus your couriers) → Redirect to: your Stockroom address → Save.', '',
+    'Only the emails your rule sends reach Stockroom.', '', 'Pip'].join('\n');
+  const res = await (env.RESEND_FETCH || fetch)('https://api.resend.com/emails', {method: 'POST', signal: AbortSignal.timeout(10000),
+    headers: {authorization: 'Bearer ' + env.RESEND_API_KEY, 'content-type': 'application/json'},
+    body: JSON.stringify({from: 'Pip at Stockroom <' + (env.AUTH_EMAIL_FROM || 'login@bookednpaid.com') + '>', to: [to], subject: 'Your Stockroom forwarding setup (do this on a computer)', text})}).catch(() => null);
+  if (!res?.ok) throw new HttpError(502, 'Couldn’t send it right now. Try again in a minute.');
+  return {sent: true, to};
 }

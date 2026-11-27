@@ -1,13 +1,14 @@
 import {isPro} from './billing.js';
 import {HttpError,readBody} from './security.js';
 import {notifyAccount} from './push.js';
-import {startForwarding,forwardFilter,FORWARD_PREFIX} from './inbound.js';
+import {startForwarding,forwardFilter,FORWARD_PREFIX,emailSetupSteps} from './inbound.js';
+import {outlookConfigured,outlookStart,outlookFinish,outlookFetch,MS_PREFIX} from './outlook.js';
 
 const origin='https://stockroom.bookednpaid.com';
 const callback=origin+'/api/gmail/callback';
 const scope='https://www.googleapis.com/auth/gmail.readonly';
 const encoder=new TextEncoder();
-const mailboxPattern=/^[^\s@]{1,190}@[^\s@]{1,60}$/;
+export const mailboxPattern=/^[^\s@]{1,190}@[^\s@]{1,60}$/;
 const messageId=/^[a-f0-9]{10,40}$/;
 const dayMs=86400000;
 const BACKFILL_DAYS=45;
@@ -16,20 +17,20 @@ const needsFullRead=r=>(!r.read&&(r.courier||r.platformSale||(r.event?.type==='l
 const b64=bytes=>btoa(String.fromCharCode(...bytes));
 const b64url=bytes=>b64(bytes).replaceAll('+','-').replaceAll('/','_').replace(/=+$/,'');
 const decode=value=>Uint8Array.from(atob(value),c=>c.charCodeAt(0));
-const random=()=>b64url(crypto.getRandomValues(new Uint8Array(32)));
+export const random=()=>b64url(crypto.getRandomValues(new Uint8Array(32)));
 const configured=env=>Boolean(env.GOOGLE_GMAIL_CLIENT_ID&&env.GOOGLE_GMAIL_CLIENT_SECRET&&env.STOCKROOM_SERVICE_KEY);
-const connection=(env,id)=>env.DB.prepare('SELECT * FROM gmail_connections WHERE owner_id=?').bind(id).first();
+export const connection=(env,id)=>env.DB.prepare('SELECT * FROM gmail_connections WHERE owner_id=?').bind(id).first();
 
 async function encryptionKey(env){
   const base=await crypto.subtle.importKey('raw',encoder.encode(env.STOCKROOM_SERVICE_KEY),'HKDF',false,['deriveKey']);
   return crypto.subtle.deriveKey({name:'HKDF',hash:'SHA-256',salt:encoder.encode('stockroom-gmail'),info:encoder.encode('refresh-token-v1')},base,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
 }
-async function protect(env,id,value){
+export async function protect(env,id,value){
   const iv=crypto.getRandomValues(new Uint8Array(12));
   const data=await crypto.subtle.encrypt({name:'AES-GCM',iv,additionalData:encoder.encode(id)},await encryptionKey(env),encoder.encode(value));
   return b64(iv)+'.'+b64(new Uint8Array(data));
 }
-async function unprotect(env,id,value){
+export async function unprotect(env,id,value){
   try{
     const [iv,data]=value.split('.').map(decode);
     return new TextDecoder().decode(await crypto.subtle.decrypt({name:'AES-GCM',iv,additionalData:encoder.encode(id)},await encryptionKey(env),data));
@@ -37,10 +38,10 @@ async function unprotect(env,id,value){
 }
 function publicConnection(row,env){
   const forward=!!row?.connection_id?.startsWith(FORWARD_PREFIX), all=row?JSON.parse(row.receipts):[];
-  return {available:configured(env),forwarding:!!env.FORWARD_DOMAIN,url:origin,connection:row?{
+  return {available:configured(env),forwarding:!!env.FORWARD_DOMAIN,outlook:outlookConfigured(env),url:origin,connection:row?{
     mailbox:row.mailbox,enabled:!!row.enabled,alerts:!!row.alerts,days:row.days,
     state:row.state,checkedAt:row.checked_at,receipts:all.filter(r=>r.category!=='Setup'),
-    ...(forward?{mode:'forward',address:row.mailbox,filter:forwardFilter(),confirm:all.find(r=>r.id==='fwdconfirm')?.forward||null}:{mode:'gmail'})
+    ...(forward?{mode:'forward',address:row.mailbox,filter:forwardFilter(),confirm:all.find(r=>r.id==='fwdconfirm')?.forward||null}:{mode:row.connection_id?.startsWith(MS_PREFIX)?'outlook':'gmail'})
   }:null};
 }
 async function googleJSON(url,options={}){
@@ -152,6 +153,17 @@ export function receiptUpdate(message,days,now=Date.now()){
 export const PLATFORM_SENDERS={'ebay@ebay.com':'ebay.com','sold@alerts.depop.com':'alerts.depop.com'};
 const PLATFORM_NAMES={'ebay.com':'eBay','alerts.depop.com':'Depop'};
 export const COURIER_DOMAINS=['relay.vinted.com','evri.com','royalmail.com','inpost.co.uk','yodel.co.uk','dpd.co.uk','dpdlocal.co.uk','parcelforce.com','ups.com'];
+// Watch for Vinted changing its emails: count genuine Vinted emails seen, and how many Stockroom understood
+// (turned into a sale, label, delivery…). alerts.js emails the owner if they stop being understood.
+// Only sale-type emails count (sold, label, completed…): marketing and chat emails never have anything to understand.
+const SALE_SUBJECT=/sold|label|complet|deliver|refund|parcel|order|posted|dispatch/i;
+export async function countVintedMail(env,items){
+  const sale=items.filter(i=>SALE_SUBJECT.test(i.subject||''));
+  if(!sale.length||!env.DB)return;
+  const day=new Date().toISOString().slice(0,10), understood=sale.filter(i=>i.receipt?.event).length, receipts=sale;
+  const add=(feature,n)=>n&&env.DB.prepare('INSERT INTO usage_daily (day, feature, count) VALUES (?, ?, ?) ON CONFLICT(day, feature) DO UPDATE SET count = count + excluded.count').bind(day,feature,n).run().catch(()=>{});
+  await add('mail:vinted-seen',receipts.length);await add('mail:vinted-understood',understood);
+}
 export function verifiedSender(from,auth){
   const address=(String(from).match(/<([^<>\s]+@[^<>\s]+)>\s*$/)||String(from).trim().match(/^([^<>\s]+@[^<>\s]+)$/)||[])[1]?.toLowerCase();
   if(!address)return null;
@@ -335,6 +347,11 @@ export async function check(env,user,context,row){
     return result.meta.changes?added:false;
   };
   try{
+    // Outlook: same lease, merge and save; only fetching differs (outlook.js).
+    if(row.connection_id?.startsWith(MS_PREFIX)){
+      const added=await update('connected',await outlookFetch(env,user,row));
+      return {added:added||0,...publicConnection(await connection(env,user.id),env)};
+    }
     const token=await unprotect(env,user.id,row.token);
     const {access_token}=await googleToken(env,{refresh_token:token,grant_type:'refresh_token'});
     let budget=38-await renewWatch(env,row,access_token);
@@ -354,7 +371,9 @@ export async function check(env,user,context,row){
       const batch=await Promise.all(slice.map(id=>getGmail('messages/'+id,access_token,{
         format:'metadata',metadataHeaders:['From','Subject','Authentication-Results'],fields:'id,internalDate,snippet,payload(headers)'
       }).catch(()=>null)));
-      results.push(...batch.filter(Boolean).map(message=>receiptUpdate(message,BACKFILL_DAYS,now)).filter(Boolean));
+      const parsed=batch.filter(Boolean).map(message=>[message,receiptUpdate(message,BACKFILL_DAYS,now)]);
+      await countVintedMail(env,parsed.map(([m,r])=>{const h=n=>m.payload?.headers?.find(x=>x.name?.toLowerCase()===n)?.value||'';return verifiedSender(h('from'),h('authentication-results'))==='vinted.co.uk'?{subject:h('subject'),receipt:r}:null;}).filter(Boolean));
+      results.push(...parsed.map(([,r])=>r).filter(Boolean));
     }
     // Full read for label and courier emails not read properly yet (tracking number, label PDF, QR code).
     results.sort((a,b)=>String(b.receivedAt).localeCompare(String(a.receivedAt)));
@@ -391,16 +410,19 @@ export async function gmailRoute(request,url,env,user,context){
     await env.DB.prepare('DELETE FROM gmail_connections WHERE owner_id=?').bind(user.id).run();
     return publicConnection(null,env);
   }
-  // Forwarding needs no Google setup at all.
+  // Outlook and forwarding need no Google setup at all.
+  if(path==='/api/outlook/connect'&&method==='POST')return outlookStart(env,user,url);
+  if(path==='/api/outlook/callback'&&method==='GET')return outlookFinish(env,user,url);
   if(path==='/api/gmail/forward'&&method==='POST')return publicConnection(await startForwarding(env,user),env);
-  if(!configured(env)&&!(await connection(env,user.id))?.connection_id?.startsWith(FORWARD_PREFIX))throw new HttpError(503,'Google authorization has not been configured for Stockroom.');
+  if(path==='/api/gmail/forward/email'&&method==='POST')return emailSetupSteps(env,user,await connection(env,user.id));
+  if(!configured(env)&&!/^(fwd|ms):/.test((await connection(env,user.id))?.connection_id||''))throw new HttpError(503,'Google authorization has not been configured for Stockroom.');
   if(path==='/api/gmail/connect'&&method==='POST'){
     // Gmail is in beta: until Google verifies the app, only a limited number of people can connect.
     if(!user.admin){
       const mine=await env.DB.prepare('SELECT 1 FROM gmail_connections WHERE owner_id=?').bind(user.id).first();
       if(!mine){
         const cap=Number((await env.DB.prepare("SELECT value FROM app_settings WHERE key='gmail_cap'").first().catch(()=>null))?.value??90);
-        const used=(await env.DB.prepare("SELECT COUNT(*) AS n FROM gmail_connections WHERE connection_id NOT LIKE 'fwd:%'").first())?.n||0;
+        const used=(await env.DB.prepare("SELECT COUNT(*) AS n FROM gmail_connections WHERE connection_id NOT LIKE 'fwd:%' AND connection_id NOT LIKE 'ms:%'").first())?.n||0;
         if(used>=cap)throw new HttpError(403,'Gmail auto-updates are in beta and all spaces are taken right now. You’ll be able to connect as soon as more open up.');
       }
     }

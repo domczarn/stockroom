@@ -16,7 +16,7 @@ function startSteps() {
     {id: 'item', done: live.length > 0, title: 'Add your first item', body: 'Anything you’re selling, even if it’s already on Vinted. About 10 seconds.', cta: 'Add item', act: 'data-start-add'},
     {id: 'photos', done: live.some(i => (i.photos || []).length), title: 'Add photos', body: 'Pip reads the photos to fill in details and write your listing.', cta: 'Add photos', act: firstNoPhoto ? 'data-start-open="' + esc(firstNoPhoto.id) + '"' : 'data-start-add'},
     {id: 'listing', done: live.some(i => i.listingTitle), title: 'Write your listing with Pip', body: 'A Vinted-ready title, description and hashtags in one tap. Copy it into Vinted.', cta: 'Write it', act: firstNoListing ? 'data-start-listing="' + esc(firstNoListing.id) + '"' : 'data-start-add'},
-    {id: 'gmail', done: !!gmail, title: 'Track sales automatically', body: 'Connect Gmail and every sale, shipping label and QR code appears here by itself.' + (pro ? '' : ' Free for your first 20 sales each month.'), cta: 'Connect Gmail', act: 'data-start-gmail'},
+    {id: 'gmail', done: !!gmail, title: 'Track sales automatically', body: 'Connect your email and every sale, shipping label and QR code appears here by itself.' + (pro ? '' : ' Free for your first 20 sales each month.'), cta: 'Connect email', act: 'data-start-gmail'},
     {id: 'sale', done: !startIsNew(), title: 'Make your first sale', body: gmail ? 'When it sells on Vinted, it’s recorded for you. Your profit shows on Home.' : 'When it sells, tap Mark sold on the item and your profit shows on Home.', cta: firstUnsold ? 'Mark one sold' : '', act: firstUnsold ? 'data-trade="sale" data-stock-id="' + esc(firstUnsold.id) + '"' : ''}
   ];
 }
@@ -44,7 +44,7 @@ function startCardHtml() {
 
 async function startGmail() {
   // With forwarding switched on, the choice (forward or connect Gmail) lives in Settings → Connections.
-  if (personalGmail?.forwarding && !personalGmail.connection) { const b = document.createElement('button'); b.dataset.settingsSection = 'connections'; b.hidden = true; document.body.append(b); b.click(); b.remove(); return; }
+  if ((personalGmail?.forwarding || personalGmail?.outlook) && !personalGmail.connection) { const b = document.createElement('button'); b.dataset.settingsSection = 'connections'; b.hidden = true; document.body.append(b); b.click(); b.remove(); return; }
   if (typeof changeGmail === 'function') await changeGmail('/api/gmail/connect', {method: 'POST'});
   else navigate('Vinted updates');
 }

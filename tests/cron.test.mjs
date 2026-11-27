@@ -71,3 +71,18 @@ import {platformSaleEvent,receiptUpdate,verifiedSender} from '../worker/gmail.js
   assert.deepEqual([depop.title, depop.amount, depop.platform], ['Black north face puffer jacket', 65, 'Depop']);
   console.log('eBay and Depop sale emails ok');
 }
+import {vintedFormatAlert} from '../worker/alerts.js';
+import {environment as envFor} from './support.mjs';
+{
+  const sent = [];
+  const env = {...envFor(), RESEND_API_KEY: 're', RESEND_FETCH: async (u, o) => { sent.push(JSON.parse(o.body)); return new Response('{}'); }};
+  const day = new Date().toISOString().slice(0, 10);
+  await env.DB.prepare("INSERT INTO usage_daily (day, feature, count) VALUES (?, 'mail:vinted-seen', 9)").bind(day).run();
+  assert.equal(await vintedFormatAlert(env), true);
+  assert.match(sent[0].subject, /Vinted emails/);
+  assert.equal(await vintedFormatAlert(env), false, 'not twice in two days');
+  const ok = {...envFor(), RESEND_API_KEY: 're', RESEND_FETCH: async () => { throw new Error('should not send'); }};
+  await ok.DB.prepare("INSERT INTO usage_daily (day, feature, count) VALUES (?, 'mail:vinted-seen', 9), (?, 'mail:vinted-understood', 3)").bind(day, day).run();
+  assert.equal(await vintedFormatAlert(ok), false);
+  console.log('vinted format alert ok');
+}

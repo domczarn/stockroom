@@ -154,3 +154,24 @@ document.addEventListener('change', event => {
   shotState.rows[Number(select.dataset.shotItem)].itemId = select.value;
   renderShots();
 });
+
+// Screenshots shared into Stockroom (Android share sheet, saved by the service worker): open the reader with them.
+let sharedPending = new URLSearchParams(location.search).get('open') === 'shared';
+onHook('afterRender', async () => {
+  if (!sharedPending || !account || isReadOnly() || typeof startLoaded !== 'function' || !startLoaded()) return;
+  sharedPending = false;
+  try { history.replaceState(null, '', '/'); } catch {}
+  let files = [];
+  try {
+    const cache = await caches.open('stockroom-shared');
+    for (const key of await cache.keys()) {
+      const res = await cache.match(key);
+      files.push(new File([await res.blob()], decodeURIComponent(res.headers.get('x-name') || 'shot.png'), {type: res.headers.get('content-type') || 'image/png'}));
+      await cache.delete(key);
+    }
+  } catch {}
+  if (!files.length) { toast('Nothing came through. Try sharing the screenshot again.'); return; }
+  const dialog = shotDialog(); shotState.rows = []; renderShots(); document.getElementById('shotError').textContent = '';
+  if (!dialog.open) dialog.showModal ? dialog.showModal() : dialog.setAttribute('open', '');
+  addShots(files);
+});

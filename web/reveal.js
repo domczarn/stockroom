@@ -81,3 +81,31 @@ document.addEventListener('click', async event => {
     catch (error) { add.disabled = false; add.textContent = 'Try again'; toast(error.message || 'Couldn’t add them.'); }
   }
 });
+
+// Ask for email at the right moment: just after your first sale, when tracking the next one is obviously useful.
+// Once per account, only if no inbox is connected yet.
+const firstSaleKey = () => 'sr-first-sale-ask:' + (account?.id || '');
+onHook('afterRender', () => {
+  if (!account || isReadOnly() || !db || document.querySelector('dialog[open]') || typeof personalGmail === 'undefined' || !personalGmail || personalGmail.connection) return;
+  if (!(db.trades || []).length || (db.trades || []).some(t => t.emailId)) return;
+  if (!personalGmail.available && !personalGmail.outlook && !personalGmail.forwarding) return;
+  let asked = false; try { asked = !!localStorage.getItem(firstSaleKey()); localStorage.setItem(firstSaleKey(), '1'); } catch { return; }
+  if (asked) return;
+  setTimeout(() => {
+    const el = document.createElement('dialog');
+    el.id = 'srFirstSale'; el.className = 'rv';
+    el.innerHTML = '<div class="rv-pip"><span class="sr-wait-ring"></span><i class="sr-wait-spark"></i><i class="sr-wait-spark"></i><i class="sr-wait-spark"></i><img src="/pip-orb.svg" alt=""></div>' +
+      '<h2>Nice, a sale! 🎉</h2><p class="rv-sub">Want the next one to track itself? Connect your email and Pip adds every sale, shipping label and QR code for you.</p>' +
+      '<button type="button" class="action rv-add" data-first-sale-connect>Connect my email</button><button type="button" class="secondary rv-done" data-first-sale-close>Maybe later</button>';
+    document.body.appendChild(el);
+    el.showModal?.() || el.setAttribute('open', '');
+  }, 700);
+});
+document.addEventListener('click', event => {
+  const dialog = document.getElementById('srFirstSale');
+  if (!dialog || !dialog.contains(event.target)) return;
+  const go = event.target.closest('[data-first-sale-connect]');
+  if (!go && !event.target.closest('[data-first-sale-close]')) return;
+  dialog.close?.(); dialog.remove();
+  if (go && typeof startGmail === 'function') startGmail();
+});

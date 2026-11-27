@@ -1,7 +1,7 @@
 'use strict';
 // Offline: network first, last good copy when there is no signal.
 // Only plain same-origin GETs are kept: the app itself, your last workspace and photos. Sign-in redirects are never cached.
-const CACHE='stockroom-offline-v3';
+const CACHE='stockroom-offline-v4';
 const KEEP=/^\/(?:$|index\.html$|[\w.-]+\.(?:js|css|woff2|png|svg|webmanifest|json)$|s\/[0-9a-f]+\/[\w.-]+$|api\/(?:me|workspace|gmail|purchases)$|api\/media\/)/;
 self.addEventListener('install',event=>event.waitUntil(self.skipWaiting()));
 self.addEventListener('activate',event=>event.waitUntil((async()=>{
@@ -10,6 +10,19 @@ self.addEventListener('activate',event=>event.waitUntil((async()=>{
 })()));
 self.addEventListener('fetch',event=>{
   const request=event.request, url=new URL(request.url);
+  // Shared from another app (Android share sheet → Stockroom): keep the screenshots, then open the reader.
+  if(request.method==='POST'&&url.origin===self.location.origin&&url.pathname==='/share'){
+    event.respondWith((async()=>{
+      try{
+        const form=await request.formData(), files=form.getAll('shots').filter(f=>f&&f.size&&/^image\//.test(f.type)).slice(0,20);
+        const cache=await caches.open('stockroom-shared');
+        await Promise.all((await cache.keys()).map(k=>cache.delete(k)));
+        await Promise.all(files.map((f,i)=>cache.put('/shared/'+i,new Response(f,{headers:{'content-type':f.type,'x-name':encodeURIComponent(f.name||'shot-'+i)}}))));
+      }catch{}
+      return Response.redirect('/?open=shared',303);
+    })());
+    return;
+  }
   if(request.method!=='GET'||url.origin!==self.location.origin||!KEEP.test(url.pathname)||url.pathname==='/version.json')return;
   event.respondWith((async()=>{
     const cache=await caches.open(CACHE);
