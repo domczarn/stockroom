@@ -71,17 +71,16 @@ function refreshStockSelection() {
 }
 
 function exportSelection(items) {
-  const rows=[['Stock ID','Brand','Item','Status','Purchase cost GBP','Asking price GBP','Actual proceeds GBP','Forecast profit GBP','Actual profit GBP']];
-  for(const item of items){
-    const totals=selectionTotals([item],db.expenses);
-    rows.push([item.id,item.brand,item.name,item.status,item.cost,item.status==='In Stock'?item.price:null,
-      totals.actualCount?pounds(totals.actualProceeds):null,totals.projectedCount?pounds(totals.projectedProfit):null,
-      totals.actualCount?pounds(totals.realisedProfit):null]);
-  }
-  const url=URL.createObjectURL(new Blob([rows.map(row=>row.map(csvCell).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'}));
-  const a=document.createElement('a');
-  a.href=url;a.download='stockroom-selected.csv';a.click();
-  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  const t = item => selectionTotals([item], db.expenses);
+  exportCsv('Stockroom stock - ' + todayUK(), [
+    {label: 'Stock ID', get: i => i.id}, {label: 'Brand', get: i => i.brand}, {label: 'Item', get: i => i.name}, {label: 'Size', get: i => i.size},
+    {label: 'Condition', get: i => i.condition}, {label: 'Status', get: i => i.status}, {label: 'Purchased', type: 'date', get: i => i.purchasedAt},
+    {label: 'Listed', type: 'date', get: i => i.listedAt}, {label: 'Purchase cost (GBP)', type: 'money', get: i => i.cost},
+    {label: 'Asking price (GBP)', type: 'money', get: i => i.status === 'In Stock' ? i.price : null},
+    {label: 'Sold for (GBP)', type: 'money', get: i => t(i).actualCount ? pounds(t(i).actualProceeds) : null},
+    {label: 'Forecast profit (GBP)', type: 'money', get: i => t(i).projectedCount ? pounds(t(i).projectedProfit) : null},
+    {label: 'Actual profit (GBP)', type: 'money', get: i => t(i).actualCount ? pounds(t(i).realisedProfit) : null},
+  ], items, {total: true});
 }
 
 function initialiseBulk() {

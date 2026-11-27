@@ -216,14 +216,13 @@ async function admAct(action, button) {
 }
 
 function admCsv() {
-  const rows = admFiltered();
-  const cell = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
-  const lines = [['Name', 'Email', 'Username', 'Status', 'Plan', 'Paying', 'Plan until', 'Joined', 'Last active', 'Items', 'Sold', 'Sales £', 'Added this month']]
-    .concat(rows.map(m => [m.name, m.email, m.username || '', m.status, m.plan, m.paid ? 'yes' : 'no', m.planUntil || '', m.joined || '', m.lastActive || '', m.items, m.sold, m.revenue, m.addedThisMonth]));
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([lines.map(r => r.map(cell).join(',')).join('\n')], {type: 'text/csv'}));
-  a.download = 'stockroom-members-' + new Date().toISOString().slice(0, 10) + '.csv'; a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  exportCsv('Stockroom members - ' + todayUK(), [
+    {label: 'Name', get: m => m.name}, {label: 'Email', get: m => m.email}, {label: 'Username', get: m => m.username}, {label: 'Status', get: m => m.status},
+    {label: 'Plan', get: m => m.plan}, {label: 'Paying', get: m => m.paid ? 'Yes' : 'No'}, {label: 'Plan until', type: 'date', get: m => m.planUntil},
+    {label: 'Joined', type: 'date', get: m => m.joined}, {label: 'Last active', type: 'date', get: m => m.lastActive},
+    {label: 'Items', type: 'number', get: m => m.items}, {label: 'Sold', type: 'number', get: m => m.sold}, {label: 'Sales (GBP)', type: 'money', get: m => m.revenue},
+    {label: 'Added this month', type: 'number', get: m => m.addedThisMonth},
+  ], admFiltered());
 }
 
 document.addEventListener('click', async event => {

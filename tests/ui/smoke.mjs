@@ -203,6 +203,27 @@ for (const viewport of [{width: 390, height: 844}, {width: 1440, height: 900}]) 
     assert.equal(out.overflow, false, 'page scrolls sideways');
     await page.locator('.tax-aside').screenshot({path: '/tmp/tax-' + viewport.width + '.png'}).catch(() => {});
   });
+  await check('tax print is a clean document and CSVs are spreadsheet-ready', viewport, async page => {
+    await page.evaluate(() => { window.print = () => {}; navigate('Reports'); render(); });
+    await page.click('[data-tax-print]');
+    await page.waitForSelector('#printDoc h1', {state: 'attached'});
+    await page.emulateMedia({media: 'print'});
+    const shown = await page.evaluate(() => ({doc: getComputedStyle(document.getElementById('printDoc')).display, app: [...document.body.children].filter(el => el.id !== 'printDoc' && getComputedStyle(el).display !== 'none').length, title: document.querySelector('#printDoc h1').textContent}));
+    await page.emulateMedia({media: 'screen'});
+    assert.equal(shown.doc, 'block'); assert.equal(shown.app, 0, 'only the document prints'); assert.equal(shown.title, 'Self Assessment summary');
+    const csv = await page.evaluate(async () => {
+      let blob = null; const orig = URL.createObjectURL; URL.createObjectURL = b => { blob = b; return 'blob:x'; };
+      HTMLAnchorElement.prototype.click = function () {};
+      document.querySelector('[data-tax-csv]').click();
+      URL.createObjectURL = orig;
+      if (!blob) return '';
+      const bytes = new Uint8Array(await blob.arrayBuffer());   // text() would drop the BOM
+      return (bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF ? 'BOM:' : '') + new TextDecoder().decode(bytes.slice(3));
+    });
+    assert.ok(csv.startsWith('BOM:Date,Type,Description,Sales (GBP)'), csv.slice(0, 80));
+    assert.match(csv, /\r\nTOTAL,/);
+    assert.doesNotMatch(csv, /£/);
+  });
   await check('delete has undo, offline is explained', viewport, async page => {
     await go(page, 'Stock');
     const id = await page.evaluate(() => db.items.find(i => i.status === 'In Stock' && !i.deletedAt).id);

@@ -124,17 +124,49 @@ document.addEventListener('input', event => {
   }, 600);
 });
 
+function taxPrint(start) {
+  const s = taxSummary(start), m = printMoney, today = todayUK();
+  const lower = s.best === 'allowance-free' ? 0 : Math.min(s.actual, s.withAllowance);
+  const basis = s.best === 'allowance-free' ? 'Covered by the trading allowance' : s.best === 'allowance' ? 'Trading allowance' : 'Actual costs';
+  const key = printTable(['', 'Amount'], [
+    ['Turnover <span class="pd-note">sales minus refunds to buyers</span>', m(s.turnover)],
+    ['Cost of goods sold <span class="pd-note">what you paid for pieces you sold</span>', m(s.goods)],
+    ['Other allowable expenses <span class="pd-note">packaging, postage, promotion, return costs</span>', m(s.expenses)],
+    ['Net profit using actual costs', m(s.actual)],
+    ['Trading allowance', m(s.allowance)],
+    ['Profit using the trading allowance <span class="pd-note">you can’t claim both</span>', m(s.withAllowance)],
+  ], {foot: ['Taxable profit (' + basis.toLowerCase() + ')', m(lower)], numeric: [1]}).replace('<table>', '<table class="pd-key">');
+  // Month by month, April to March.
+  // Months to date while the tax year is still running; all twelve once it has ended.
+  const months = Array.from({length: 12}, (_, i) => new Date(Date.UTC(start, 3 + i, 1)).toISOString().slice(0, 7)).filter(mo => mo <= today.slice(0, 7));
+  const monthRows = months.map(mo => {
+    const r = s.rows.filter(x => x.date.startsWith(mo)), sum = k => r.reduce((n, x) => n + (Number(x[k]) || 0), 0);
+    return [new Date(mo + '-01T12:00:00Z').toLocaleDateString('en-GB', {month: 'short', year: 'numeric'}), m(sum('revenue')), m(sum('cost')), m(sum('expense')), m(sum('revenue') - sum('cost') - sum('expense'))];
+  });
+  const monthTable = printTable(['Month', 'Turnover', 'Cost of goods', 'Expenses', 'Profit'], monthRows, {foot: ['Total', m(s.turnover), m(s.goods), m(s.expenses), m(s.actual)], numeric: [1, 2, 3, 4]});
+  // Expenses by category: business costs from the expenses list, plus costs tied to sales and returns.
+  const cats = new Map();
+  for (const row of db.expenses) if (row[4] && row[4] >= s.from && row[4] <= s.to) cats.set(row[2] || 'Other', (cats.get(row[2] || 'Other') || 0) + (Number(row[1]) || 0));
+  const listed = [...cats.values()].reduce((n, v) => n + v, 0), saleCosts = Math.round((s.expenses - listed) * 100) / 100;
+  if (Math.abs(saleCosts) >= .005) cats.set('Sale and return costs', saleCosts);
+  const catTable = cats.size ? printTable(['Category', 'Amount'], [...cats].sort((a, b) => b[1] - a[1]).map(([c, v]) => [esc(c), m(v)]), {foot: ['Total', m(s.expenses)], numeric: [1]}) : '<p class="pd-note">No expenses recorded in this tax year.</p>';
+  const other = otherIncome(), est = other === null ? null : taxToPutAside(lower, other);
+  const aside = est ? '<h2>Estimated tax on this profit</h2>' + printTable(['', 'Amount'], [['Income tax <span class="pd-note">on top of £' + Math.round(other).toLocaleString('en-GB') + ' other income</span>', m(est.incomeTax)], ['Class 4 National Insurance <span class="pd-note">6% of profit over £12,570</span>', m(est.ni)]], {foot: ['Estimated total', m(est.total)], numeric: [1]}).replace('<table>', '<table class="pd-key">') +
+    '<p class="pd-note">Due by 31 January ' + (start + 2) + '. Rest-of-UK income tax bands; Scotland differs. If the bill is over £1,000 and most of your tax isn’t taken from pay, HMRC may also ask for payments on account.</p>' : '';
+  const warn = s.missing || s.undated ? '<p class="pd-callout pd-warn">' + [s.missing ? s.missing + ' sale' + (s.missing === 1 ? ' has' : 's have') + ' no purchase cost' : '', s.undated ? s.undated + ' entr' + (s.undated === 1 ? 'y has' : 'ies have') + ' an estimated or missing date' : ''].filter(Boolean).join('; ') + '. Fix these before filing.</p>' : '';
+  const verdict = s.best === 'allowance-free' ? 'Turnover is under the ' + taxPounds(s.allowance) + ' trading allowance, so it is usually tax-free and doesn’t need declaring.'
+    : s.best === 'allowance' ? 'Claiming the ' + taxPounds(s.allowance) + ' trading allowance gives the lower taxable profit.' : 'Deducting actual costs gives the lower taxable profit.';
+  printDocument('Self Assessment summary', 'Tax year ' + taxLabel(start) + ' · 6 April ' + start + ' to 5 April ' + (start + 1), [
+    '<h2>Self-employment figures</h2>' + key + '<p class="pd-callout">' + esc(verdict) + '</p>' + warn,
+    aside,
+    '<h2>Month by month</h2>' + monthTable,
+    '<h2>Expenses by category</h2>' + catTable,
+  ], [['Account', account?.email || ''], ['Tax year', taxLabel(start)], ['Status', today > s.to ? 'Tax year ended' : 'In progress (to date)']]);
+}
+
 function taxCsv(start) {
   const s = taxSummary(start);
-  const cell = v => { const t = String(v ?? ''); return /[",\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; };
-  const money = v => (Math.round((v || 0) * 100) / 100).toFixed(2);
-  const out = [['Date', 'Type', 'Item', 'Money in (£)', 'Cost of goods (£)', 'Expenses (£)', 'Profit (£)'].join(',')];
-  for (const r of s.rows.slice().sort((a, b) => a.date.localeCompare(b.date)))
-    out.push([r.date, r.kind, r.name, money(r.revenue), money(r.cost), money(r.expense), money((r.revenue || 0) - (r.cost || 0) - (r.expense || 0))].map(cell).join(','));
-  out.push('', ['Tax year', taxLabel(start) + ' (' + s.from + ' to ' + s.to + ')'].map(cell).join(','),
-    ['Turnover', money(s.turnover)].join(','), ['Cost of goods sold', money(s.goods)].join(','), ['Other allowable expenses', money(s.expenses)].join(','),
-    ['Profit using actual costs', money(s.actual)].join(','), ['Profit using ' + taxPounds(s.allowance) + ' trading allowance', money(s.withAllowance)].map(cell).join(','));
-  return out.join('\n');
+  exportCsv('Stockroom Self Assessment ' + taxLabel(start), LEDGER_COLUMNS, byDate(s.rows), {total: true});
 }
 
 document.addEventListener('change', event => {
@@ -146,14 +178,9 @@ document.addEventListener('change', event => {
 });
 document.addEventListener('click', event => {
   if (event.target.closest('[data-tax-csv]')) {
-    const blob = new Blob([taxCsv(taxYear)], {type: 'text/csv;charset=utf-8'});
-    const a = Object.assign(document.createElement('a'), {href: URL.createObjectURL(blob), download: 'stockroom-tax-year-' + taxLabel(taxYear) + '.csv'});
-    document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-    toast('CSV downloaded');
+    taxCsv(taxYear);
   }
   if (event.target.closest('[data-tax-print]')) {
-    document.body.classList.add('printing-tax');
-    window.print();
-    setTimeout(() => document.body.classList.remove('printing-tax'), 500);
+    taxPrint(taxYear);
   }
 });

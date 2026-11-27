@@ -144,7 +144,7 @@ function reportsView() {
   const pending=pounds((db.trades||[]).reduce((n,trade)=>n+cents(payoutEstimate(trade)),0));
   const sorted=sortList('reports',rows.map((row,order)=>({...row,amount:row.revenue||row.expense||row.cost,order})),'newest',DATE_SORTS);
   return '<div class="tools"><label>Period <select id="reportMonth"><option value="">All time</option>'+options(months,reportMonth)+'</select></label>'+
-    tradeButton('csv','Export period CSV')+'</div><div class="metrics">'+metric('Sales revenue',gbp(summary.revenue),'After recorded sale refunds','featured')+
+    tradeButton('csv','Export CSV')+tradeButton('print','Print report')+'</div><div class="metrics">'+metric('Sales revenue',gbp(summary.revenue),'After recorded sale refunds','featured')+
     metric('Net profit',gbp(summary.profit),summary.missing?summary.missing+' sale costs missing · provisional':'After costs, expenses and returns')+
     metric('Net expenses',gbp(summary.expense),'Includes return adjustments')+metric('Awaiting payout',gbp(pending),'Across all recorded orders')+'</div>'+moneyDetail()+(typeof reportingCard==='function'?reportingCard():'')+(typeof taxCard==='function'?taxCard():'')+'<div class="report-table-head"><h2 class="report-table-title">Transactions</h2>'+sortControl('reports','newest',DATE_SORTS)+'</div>'+
     '<p class="footnote">'+all.filter(row=>!row.date).length+' undated entries are included in All time.</p>'+
@@ -158,16 +158,45 @@ function csvCell(value) {
   return '"'+text.replace(/"/g,'""')+'"';
 }
 
+const LEDGER_COLUMNS = [
+  {label: 'Date', type: 'date', get: r => r.date},
+  {label: 'Type', get: r => r.kind},
+  {label: 'Description', get: r => r.name},
+  {label: 'Sales (GBP)', type: 'money', get: r => r.revenue},
+  {label: 'Cost of goods (GBP)', type: 'money', get: r => r.cost},
+  {label: 'Expenses (GBP)', type: 'money', get: r => r.expense},
+  {label: 'Profit (GBP)', type: 'money', get: r => r.cost === null ? null : pounds(cents(r.revenue) - cents(r.cost) - cents(r.expense))},
+  {label: 'Note', get: r => [r.cost === null ? 'Purchase cost missing' : '', !r.date ? 'No date' : r.estimated ? 'Date estimated' : ''].filter(Boolean).join('; ')},
+];
+const byDate = rows => [...rows].sort((a, b) => String(a.date || '9999').localeCompare(String(b.date || '9999')) || String(a.name).localeCompare(String(b.name)));
+const periodName = month => month ? new Date(month + '-01T12:00:00Z').toLocaleDateString('en-GB', {month: 'long', year: 'numeric'}) : 'All time';
+
 function exportReport() {
-  const rows = accountingRows(db).filter(row=>!reportMonth||row.date.startsWith(reportMonth));
-  const csv = [['Type','Item','Date','Revenue GBP','Cost GBP','Expenses GBP','Profit GBP'],
-    ...rows.map(r=>[r.kind,r.name,r.date,r.revenue,r.cost,r.expense,r.cost===null?null:pounds(cents(r.revenue)-cents(r.cost)-cents(r.expense))])]
-    .map(row=>row.map(csvCell).join(',')).join('\r\n');
-  const link=document.createElement('a');
-  link.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
-  link.download='stockroom-'+(reportMonth||'all-time')+'.csv';
-  link.click();
-  setTimeout(()=>URL.revokeObjectURL(link.href),1000);
+  const rows = byDate(accountingRows(db).filter(row=>!reportMonth||row.date.startsWith(reportMonth)));
+  exportCsv('Stockroom transactions - ' + periodName(reportMonth), LEDGER_COLUMNS, rows, {total: true});
+}
+
+function printReport() {
+  const rows = byDate(accountingRows(db).filter(row=>!reportMonth||row.date.startsWith(reportMonth)));
+  const t = reportTotals(rows), m = printMoney;
+  const kinds = [...new Set(rows.map(r => r.kind))];
+  const summary = printTable(['', 'Amount'], [
+    ['Sales (after refunds to buyers)', m(t.revenue)], ['Cost of goods sold', m(-t.cost)], ['Expenses and sale costs', m(-t.expense)],
+  ], {foot: ['Net profit', m(t.profit)], numeric: [1]}).replace('<table>', '<table class="pd-key">');
+  const byKind = printTable(['Type', 'Entries', 'Sales', 'Cost of goods', 'Expenses'], kinds.map(k => {
+    const r = rows.filter(x => x.kind === k), s = reportTotals(r);
+    return [esc(k), String(r.length), m(s.revenue), m(s.cost), m(s.expense)];
+  }), {numeric: [1, 2, 3, 4]});
+  const ledger = printTable(['Date', 'Type', 'Description', 'Sales', 'Cost', 'Expenses', 'Profit'], rows.map(r => [
+    r.date ? esc(dateLabel(r.date)) + (r.estimated ? '*' : '') : 'Undated', esc(r.kind), esc(r.name), m(r.revenue), r.cost === null ? 'Missing' : m(r.cost), m(r.expense),
+    r.cost === null ? '–' : m(pounds(cents(r.revenue) - cents(r.cost) - cents(r.expense)))]),
+    {foot: ['', '', rows.length + ' entries', m(t.revenue), m(t.cost), m(t.expense), m(t.profit)], numeric: [3, 4, 5, 6]});
+  printDocument('Profit and loss', periodName(reportMonth), [
+    '<h2>Summary</h2>' + summary,
+    t.missing ? '<p class="pd-callout pd-warn">' + t.missing + ' sale' + (t.missing === 1 ? ' is' : 's are') + ' missing a purchase cost, so profit is provisional.</p>' : '',
+    '<h2>By type</h2>' + byKind,
+    '<h2>Transactions</h2>' + ledger + (rows.some(r => r.estimated) ? '<p class="pd-note">* Date estimated from the item’s last known date.</p>' : ''),
+  ], [['Account', account?.email || ''], ['Period', periodName(reportMonth)]]);
 }
 
 async function loadSaleReceipts() {
@@ -431,6 +460,7 @@ function initialiseTrading() {
     const {trade:action,stockId:id}=button.dataset;
     const item=db.items.find(row=>row.id===id);
     if(action==='csv'){exportReport();return;}
+    if(action==='print'){printReport();return;}
     if(isReadOnly())return;
     try {
       if(action==='label'&&item)stockLabel(item);
