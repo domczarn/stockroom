@@ -2,6 +2,8 @@ name = "stockroom"
 main = "dist/server/index.js"
 compatibility_date = "2025-11-01"
 workers_dev = false
+# Keep variables added in the Cloudflare dashboard (MS_CLIENT_ID, FORWARD_DOMAIN...) when a push deploys.
+keep_vars = true
 
 # Gmail OAuth is pinned to this origin.
 routes = [{ pattern = "stockroom.bookednpaid.com", custom_domain = true }]
@@ -32,6 +34,8 @@ ACCESS_TEAM_DOMAIN = "bookedandpaid.cloudflareaccess.com"
 ACCESS_AUD = "992b39270c0e1a31448496e68a7df498d68101686c72c1beba5fdce9496e3a56,12e1cf810afb317f89cdfabac7152113108fb7c4b473df5d9b993f9ac38d6925"
 # Cloudflare Turnstile site key (public). The matching TURNSTILE_SECRET is a Worker secret.
 TURNSTILE_SITE_KEY = "0x4AAAAAAGMGzv9zsukDxpO7"
+# Stockroom mail comes from its own subdomain (verified in Resend), not the main bookednpaid.com inbox.
+AUTH_EMAIL_FROM = "pip@stockroom.bookednpaid.com"
 
 [[d1_databases]]
 binding = "DB"
