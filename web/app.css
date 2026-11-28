@@ -3523,3 +3523,10 @@ html body{background:
     var(--bg)!important}
 }
 @media (min-width:801px){.profile-dock{display:flex!important;flex-direction:row!important;align-items:center!important}}
+/* Tab and chip rows only ever slide sideways, never up and down inside themselves (iOS let them wobble). */
+.subnav,.view-tabs,.stock-filters,.tell-examples,.qa-chips,.mh-range,.rc-ranges{overflow-y:hidden!important;overscroll-behavior:contain;touch-action:pan-x pan-y}
+.subnav{align-items:stretch;padding-bottom:1px}
+/* Two-button switches never scroll at all. */
+html body .stock-view-switch,html body.nav-phone .stock-view-switch{overflow:visible!important;height:auto!important;touch-action:manipulation}
+/* Phones already have Profile in the bottom bar; the floating pill was peeking out under it. */
+@media (max-width:800px){.profile-dock{display:none!important}}
