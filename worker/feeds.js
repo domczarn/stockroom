@@ -1,6 +1,6 @@
 // Live spreadsheet feeds: private CSV links a spreadsheet pulls in by itself
 // (Google Sheets: =IMPORTDATA(link), refreshes about hourly; Excel: Data → From Web).
-// Each link is signed per account; "Reset links" bumps a version so old links stop working.
+// Each link carries a random per-account token; "Reset links" replaces it so old links stop working.
 // Also: a one-off backup of every workspace to storage before a data-model change.
 import {loadWorkspace} from './workspace-store.js';
 import {HttpError} from './security.js';
@@ -8,22 +8,25 @@ import {HttpError} from './security.js';
 const FEEDS = ['sold', 'stock', 'expenses'];
 const PAID_BY = {company: 'Company account', 'director-card': 'Director personal card', 'director-cash': 'Director cash', business: 'Business account', personal: 'Personal'};
 
-async function sign(env, value) {
-  const secret = env.STOCKROOM_SERVICE_KEY || env.RESEND_API_KEY || 'stockroom';
-  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), {name: 'HMAC', hash: 'SHA-256'}, false, ['sign']);
-  return [...new Uint8Array(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode('feed:' + value)))].map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 32);
+// Each account has a random feed token (app_settings 'feedtoken:<owner>'); resetting makes a new one.
+const TOKEN = /^[a-f0-9]{32}$/;
+const newToken = () => [...crypto.getRandomValues(new Uint8Array(16))].map(b => b.toString(16).padStart(2, '0')).join('');
+async function feedToken(env, owner, create = true) {
+  const row = await env.DB.prepare('SELECT value FROM app_settings WHERE key = ?').bind('feedtoken:' + owner).first().catch(() => null);
+  if (row?.value && TOKEN.test(row.value)) return row.value;
+  return create ? saveToken(env, owner, newToken()) : null;
 }
-async function feedVersion(env, owner) {
-  return Number((await env.DB.prepare('SELECT value FROM app_settings WHERE key = ?').bind('feedv:' + owner).first().catch(() => null))?.value) || 1;
+async function saveToken(env, owner, token) {
+  await env.DB.prepare('INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at').bind('feedtoken:' + owner, token, new Date().toISOString()).run();
+  return token;
 }
 export async function feedLinks(env, owner, origin) {
-  const v = await feedVersion(env, owner), sig = await sign(env, owner + ':' + v);
-  return Object.fromEntries(FEEDS.map(name => [name, origin + '/feed/' + encodeURIComponent(owner) + '/' + sig + '/' + name + '.csv']));
+  const token = await feedToken(env, owner);
+  return Object.fromEntries(FEEDS.map(name => [name, origin + '/feed/' + encodeURIComponent(owner) + '/' + token + '/' + name + '.csv']));
 }
-async function resetFeeds(env, owner) {
-  const v = (await feedVersion(env, owner)) + 1;
-  await env.DB.prepare('INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at').bind('feedv:' + owner, String(v), new Date().toISOString()).run();
-}
+const resetFeeds = (env, owner) => saveToken(env, owner, newToken());
+// Constant-time compare, so the token can't be guessed a character at a time.
+function same(a, b) { if (a.length !== b.length) return false; let d = 0; for (let i = 0; i < a.length; i++) d |= a.charCodeAt(i) ^ b.charCodeAt(i); return d === 0; }
 
 // ---------- CSV ----------
 const r2 = n => n === null || n === undefined || n === '' || !Number.isFinite(Number(n)) ? '' : (Math.round(Number(n) * 100) / 100).toFixed(2);
@@ -69,8 +72,8 @@ export async function feedRoute(url, env) {
   if (!m) throw new HttpError(404, 'Not found');
   const owner = decodeURIComponent(m[1]), name = m[3];
   if (!FEEDS.includes(name)) throw new HttpError(404, 'Not found');
-  const expected = await sign(env, owner + ':' + await feedVersion(env, owner));
-  if (expected !== m[2]) throw new HttpError(404, 'This link has been reset. Copy the new one from Stockroom → Settings → Data & backups.');
+  const expected = await feedToken(env, owner, false);
+  if (!expected || !same(expected, m[2])) throw new HttpError(404, 'This link has been reset. Copy the new one from Stockroom → Settings → Data & backups.');
   const stored = await loadWorkspace(env, owner);
   if (!stored?.data) throw new HttpError(404, 'Not found');
   return new Response(feedCsv(name, stored.data), {headers: {'content-type': 'text/csv; charset=utf-8', 'cache-control': 'private, max-age=300', 'x-robots-tag': 'noindex'}});
