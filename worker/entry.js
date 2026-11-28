@@ -4,6 +4,7 @@ import {scheduledGmail} from './gmail.js';
 import {scheduledWeekly} from './weekly.js';
 import {scheduledAlerts} from './alerts.js';
 import {scheduledNudges} from './nudges.js';
+import {backupBeforeRelease} from './feeds.js';
 import {rebuildPriceIndex} from './grow.js';
 import {inboundEmail} from './inbound.js';
 export default {
@@ -17,6 +18,7 @@ export default {
   },
   async scheduled(event,env,context){
     if(event.cron!=='*/10 * * * *'){context.waitUntil(scheduledGmail(env,context));return;}
+    context.waitUntil(backupBeforeRelease(env).catch(error=>console.error('Backup failed',String(error?.message||error).slice(0,160))));
     context.waitUntil(scheduledAlerts(env).catch(()=>{}));
     context.waitUntil(rebuildPriceIndex(env).catch(error=>console.error('Price index failed',String(error?.message||error).slice(0,160))));
     context.waitUntil(scheduledNudges(env).catch(error=>console.error('Nudges failed',String(error?.message||error).slice(0,160))));

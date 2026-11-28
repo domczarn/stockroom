@@ -29,7 +29,7 @@ function pfPieces() {
     else if (trade && !returned) { state = 'sold'; revenue = pounds(cents(trade.amount) - cents(refunded)); soldAt = trade.soldAt; }
     else if (item.status === 'Sold' && Number.isFinite(item.sale)) { state = 'sold'; revenue = item.sale; soldAt = item.soldAt || null; }
     const cost = Number.isFinite(item.cost) ? item.cost : null;
-    const extra = state === 'sold' && trade && !returned ? (trade.extraCost || 0) : 0;
+    const extra = state === 'sold' && trade && !returned ? (typeof saleCosts === 'function' ? saleCosts(trade) : (trade.extraCost || 0)) : 0;
     const profit = state === 'sold' && cost !== null ? pounds(cents(revenue) - cents(cost) - cents(extra)) : state === 'cancelled' && Number.isFinite(item.refund) && cost !== null ? -pounds(cents(cost) - cents(item.refund)) : null;
     const boughtAt = item.purchasedAt ? String(item.purchasedAt).slice(0, 10) : null;
     const band = cost === null ? 'Unknown' : PF_BANDS.find(([lo, hi]) => cost >= lo && cost < hi)[2];

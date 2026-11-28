@@ -64,6 +64,7 @@ function validateTrades(data, itemIds) {
       (trade.batchId&&!uuid(trade.batchId))||(trade.soldTime!=null&&trade.soldTime!==''&&(typeof trade.soldTime!=='string'||!/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d{1,3})?Z$/.test(trade.soldTime)))||(trade.extraCost!=null&&(!paid(trade.extraCost)||trade.extraCost<0))||!Array.isArray(trade.refunds)||trade.refunds.length>60)
       throw new HttpError(400,'Invalid order details.');
     if(trade.platform!==undefined&&!['Vinted','eBay','Depop'].includes(trade.platform))throw new HttpError(400,'Invalid order details.');
+    if(![trade.packaging,trade.platformFee].every(v=>v==null||(paid(v)&&v>=0)))throw new HttpError(400,'Invalid sale costs.');
     ids.add(trade.id);
     if(trade.orderId)orders.add(trade.orderId);
     const stages=[trade.soldAt,trade.postedAt,trade.completedAt,trade.paidAt].filter(Boolean);
@@ -104,6 +105,9 @@ function validateTrades(data, itemIds) {
 }
 
 const photoPattern=/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/;
+const PAID_BY=['company','director-card','director-cash','business','personal'];
+// A receipt is a fresh photo (moved to storage on save) or one already in this account's storage.
+const receiptOk=(v,owner)=>typeof v==='string'&&((photoPattern.test(v)&&v.length<3000000)||new RegExp('^/api/media/'+encodeURIComponent(owner).replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'/[a-f0-9-]{36}$').test(v));
 export function validateWorkspace(data,owner) {
   if(!data||!['items','sales','expenses','sources','research'].every(k=>Array.isArray(data[k])&&data[k].length<=20000)) throw new HttpError(400,'Invalid workspace.');
   const ids=new Set(),transactions=new Set();
@@ -112,11 +116,14 @@ export function validateWorkspace(data,owner) {
     ids.add(item.id);
     if(item.sourceTransactionId){if(transactions.has(item.sourceTransactionId))throw new HttpError(400,'Duplicate purchase transaction.');transactions.add(item.sourceTransactionId);}
     if(!Object.entries(item).every(([k,v])=>['photos','referencePhotos'].includes(k)||typeof v!=='object'||v===null))throw new HttpError(400,'Invalid item fields.');
-    for(const [k,v] of Object.entries(item))if(typeof v==='string'&&!string(v))throw new HttpError(400,'Item text is too long.');
+    for(const [k,v] of Object.entries(item))if(typeof v==='string'&&!['shipQr','receiptPhoto'].includes(k)&&!string(v))throw new HttpError(400,'Item text is too long.');   // photos are checked on their own
     if(!Array.isArray(item.photos||[])||(item.photos||[]).length>4)throw new HttpError(400,'Use up to four photos per item.');
     for(const p of item.photos||[])if(typeof p!=='string'||!((photoPattern.test(p)&&p.length<2000000)||new RegExp('^/api/media/'+encodeURIComponent(owner).replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'/[a-f0-9-]{36}$').test(p)))throw new HttpError(400,'Invalid or foreign account photo.');
     if(item.shipQr!==undefined&&item.shipQr!==''&&(typeof item.shipQr!=='string'||!((photoPattern.test(item.shipQr)&&item.shipQr.length<3000000)||new RegExp('^/api/media/'+encodeURIComponent(owner).replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'/[a-f0-9-]{36}$').test(item.shipQr))))throw new HttpError(400,'Invalid shipping QR code.');
     if(item.shipQrAt!==undefined&&item.shipQrAt!==''&&!exactDate(item.shipQrAt))throw new HttpError(400,'Invalid shipping QR date.');
+    if(item.paidBy!==undefined&&item.paidBy!==''&&!PAID_BY.includes(item.paidBy))throw new HttpError(400,'Invalid paid-by.');
+    if(!string(item.purchaseSource,60))throw new HttpError(400,'Invalid purchase source.');
+    if(item.receiptPhoto!==undefined&&item.receiptPhoto!==''&&!receiptOk(item.receiptPhoto,owner))throw new HttpError(400,'Invalid receipt photo.');
     const ownMedia=new RegExp('^/api/media/'+encodeURIComponent(owner).replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'/[a-f0-9-]{36}$');
     if(item.shipLabel!==undefined&&item.shipLabel!==''&&(typeof item.shipLabel!=='string'||!ownMedia.test(item.shipLabel)))throw new HttpError(400,'Invalid shipping label.');
     if(item.shipTracking!==undefined&&item.shipTracking!==''&&(typeof item.shipTracking!=='string'||!/^[A-Z0-9]{8,30}$/.test(item.shipTracking)))throw new HttpError(400,'Invalid tracking number.');
@@ -128,11 +135,15 @@ export function validateWorkspace(data,owner) {
     if(!date(item.purchasedAt))throw new HttpError(400,'Invalid purchase date.');
     if(item.listingUrl && !/^https:\/\/www\.vinted\.co\.uk\/items\/\d+[^\s]*$/.test(item.listingUrl))throw new HttpError(400,'Use a Vinted UK item URL.');
   }
-  for(const row of [...data.sales,...data.expenses])if(!Array.isArray(row)||!string(row[0],500)||!money(row[1])||row[1]==null||!money(row[3])||row.some(v=>typeof v==='string'&&v.length>20000))throw new HttpError(400,'Invalid transaction.');
+  for(const row of [...data.sales,...data.expenses])if(!Array.isArray(row)||!string(row[0],500)||!money(row[1])||row[1]==null||!money(row[3])||row.some((v,i)=>typeof v==='string'&&v.length>20000&&!(i===9&&receiptOk(v,owner))))throw new HttpError(400,'Invalid transaction.');
   for(const row of [...data.sales,...data.expenses])if(!date(row[4]))throw new HttpError(400,'Invalid transaction date.');
   for(const row of data.research)if(!Array.isArray(row)||!string(row[0],500)||!Number.isInteger(row[1])||row[1]<0||![row[2],row[3],row[4],row[5]].every(Number.isFinite))throw new HttpError(400,'Invalid research values.');
   for(const row of data.sources)if(!Array.isArray(row)||!string(row[0],500)||!money(row[1])||!row.every(v=>v==null||typeof v==='string'||typeof v==='number'))throw new HttpError(400,'Invalid research source.');
   if(data.expenses.some(row=>row[6]&&!ids.has(row[6])))throw new HttpError(400,'Linked expense stock could not be found.');
+  for(const row of data.expenses){
+    if(row[8]!=null&&row[8]!==''&&!PAID_BY.includes(row[8]))throw new HttpError(400,'Invalid paid-by.');
+    if(row[9]!=null&&row[9]!==''&&!receiptOk(row[9],owner))throw new HttpError(400,'Invalid receipt photo.');
+  }
   for(const archive of ['removedExpenses','removedSales'])if(data[archive]!==undefined){
     const removed=data[archive],archiveIds=new Set();
     if(!Array.isArray(removed)||removed.length>2000)throw new HttpError(400,'Invalid removed expenses.');
@@ -141,6 +152,13 @@ export function validateWorkspace(data,owner) {
       if(!entry||typeof entry.id!=='string'||!entry.id||entry.id.length>100||archiveIds.has(entry.id)||typeof entry.removedAt!=='string'||!Number.isFinite(Date.parse(entry.removedAt))||!Array.isArray(row)||!string(row[0],500)||!money(row[1])||row[1]==null||!money(row[3])||!date(row[4])||row.some(v=>typeof v==='string'&&v.length>20000)||row.some(v=>v!==null&&typeof v==='object'))throw new HttpError(400,'Invalid removed expense.');
       archiveIds.add(entry.id);
     }
+  }
+  if(data.business!==undefined){
+    const b=data.business,num=v=>v===undefined||(typeof v==='number'&&Number.isFinite(v)&&Math.abs(v)<=100000000);
+    if(!b||typeof b!=='object'||Array.isArray(b)||Object.keys(b).length>30||!['sole','ltd'].includes(b.structure)||!string(b.name,160)||
+      (b.companyNumber!==undefined&&b.companyNumber!==''&&!/^[A-Z0-9]{8}$/.test(b.companyNumber))||(b.yearEnd!==undefined&&b.yearEnd!==''&&!/^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(b.yearEnd))||
+      ![b.otherIncome,b.otherCompanyProfit,b.retainedProfit,b.taxPot].every(num)||(b.otherIncome!==undefined&&b.otherIncome<0)||(b.taxPot!==undefined&&(b.taxPot<0||b.taxPot>60))||
+      ![b.vat,b.useOfHome].every(v=>v===undefined||typeof v==='boolean'))throw new HttpError(400,'Invalid business details.');
   }
   if(data.bulkOrders!==undefined){
     const seen=new Set(),safeLink=v=>{try{const u=new URL(v);return u.protocol==='https:'&&!u.username&&!u.password;}catch{return false;}};
@@ -208,7 +226,9 @@ export async function storePhotos(data,owner,env) {
   for(const item of data.items){
     for(let n=0;n<(item.photos||[]).length;n++)if(item.photos[n].startsWith('data:'))item.photos[n]=await storeImage(item.photos[n],owner,env);
     if(typeof item.shipQr==='string'&&item.shipQr.startsWith('data:'))item.shipQr=await storeImage(item.shipQr,owner,env);
+    if(typeof item.receiptPhoto==='string'&&item.receiptPhoto.startsWith('data:'))item.receiptPhoto=await storeImage(item.receiptPhoto,owner,env);
   }
+  for(const row of data.expenses||[])if(typeof row[9]==='string'&&row[9].startsWith('data:'))row[9]=await storeImage(row[9],owner,env);
   return data;
 }
 export async function audit(env,user,owner,action) {

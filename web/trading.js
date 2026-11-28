@@ -19,7 +19,7 @@ function accountingRows(data) {
   const rows = [];
   for (const trade of trades) {
     const name = items.get(trade.itemId)?.name || trade.name;
-    rows.push({kind:'Sale',name,date:trade.soldAt,time:trade.soldTime||'',revenue:trade.amount,cost:trade.cost,expense:trade.extraCost||0});
+    rows.push({kind:'Sale',name,date:trade.soldAt,time:trade.soldTime||'',revenue:trade.amount,cost:trade.cost,expense:saleCosts(trade),postage:trade.extraCost||0,packaging:trade.packaging||0,fees:trade.platformFee||0});
     for (const refund of trade.refunds) rows.push({kind:'Sale refund',name,date:refund.date,revenue:-refund.amount,cost:refund.restock?-trade.cost:0,expense:refund.postage});
   }
   for (const item of data.items) {
@@ -57,6 +57,14 @@ function splitCost(amount, weights) {
   return parts.map(part=>pounds(part.floor));
 }
 
+// Costs tied to one sale: postage you paid (stored as extraCost, as before), packaging and platform fees.
+const saleCosts = trade => pounds(cents(trade.extraCost || 0) + cents(trade.packaging || 0) + cents(trade.platformFee || 0));
+function setSaleCosts(trade, costs) {
+  for (const [key, value] of [['extraCost', costs.postage], ['packaging', costs.packaging], ['platformFee', costs.fees]]) {
+    if (value === undefined) continue;
+    if (Number.isFinite(value) && value > 0) trade[key] = Math.round(value * 100) / 100; else delete trade[key];
+  }
+}
 function recordSale(data, itemId, amount, soldAt, receipt, extraCost = 0) {
   const item = data.items.find(row=>row.id===itemId);
   const last = lastTrade(data,itemId);
@@ -69,7 +77,7 @@ function recordSale(data, itemId, amount, soldAt, receipt, extraCost = 0) {
   const next = cloneWorkspace(data);
   const current = next.items.find(row=>row.id===itemId);
   const trade = {id:newId(),itemId,name:item.name,cost:item.cost,amount,soldAt,listedAt:item.listedAt||'',refunds:[],orderId:receipt?.transactionId||''};
-  if (Number.isFinite(extraCost) && extraCost > 0) trade.extraCost = Math.round(extraCost * 100) / 100;
+  setSaleCosts(trade, typeof extraCost === 'object' ? extraCost : {postage: extraCost});
   // When it sold, to the minute: the Vinted email's time, or now if you're recording it today. Powers the 24H chart.
   const today = typeof todayUK === 'function' ? todayUK() : new Date().toISOString().slice(0, 10);
   const at = receipt?.at && /^\d{4}-\d\d-\d\dT/.test(receipt.at) ? receipt.at : soldAt === today ? new Date().toISOString() : '';
@@ -226,14 +234,14 @@ function tradeEditor(action,itemId='',receipt=null) {
   if (action==='sale') {
     title='Record sale';
     content=moneyInput('amount','Actual sale price (£)',receipt?.amount??item.sale??'')+dateInput(receipt?.date||todayUK())+
-      moneyInput('extraCost','Other costs for this sale (£): postage you paid, bumps. Optional','',false);
+      '<fieldset class="sale-costs"><legend>Costs for this sale <small>optional</small></legend>'+moneyInput('extraCost','Postage you paid (£)','',false)+moneyInput('packaging','Packaging (£)','',false)+moneyInput('platformFee','Platform fees (£)','',false)+'</fieldset>';
   } else if(action==='order') {
     title='Order and payout';
     content=tradeHistory(item)+(trade&&tradeStatus(trade)!=='Returned'&&tradeStatus(trade)!=='Paid'?tradeButton('advance','Update progress',itemId):'')+
       (trade&&saleRemaining(trade)>0?tradeButton('refund','Record refund',itemId):'');
   } else if(action==='post') {
     title='Record postage';
-    content=dateInput()+moneyInput('extraCost','Postage or packaging you paid (£). Leave blank if the buyer paid',trade?.extraCost||'',false);
+    content=dateInput()+moneyInput('extraCost','Postage you paid (£). Leave blank if the buyer paid',trade?.extraCost||'',false)+moneyInput('packaging','Packaging (£)',trade?.packaging||'',false);
   } else if(action==='advance') {
     title='Update order';
     const choices=orderStages.slice(orderStages.indexOf(tradeStatus(trade))+1);
@@ -504,13 +512,14 @@ function initialiseTrading() {
         return;
       }
       const extraCost=Number(fields.get('extraCost')||0);
-      if(!Number.isFinite(extraCost)||extraCost<0)throw Error('Other costs must be £0 or more.');
-      if(action==='sale')next=recordSale(db,id,amount,date,undefined,extraCost);
+      const costs={postage:extraCost,packaging:fields.has('packaging')?Number(fields.get('packaging')||0):undefined,fees:fields.has('platformFee')?Number(fields.get('platformFee')||0):undefined};
+      if(Object.values(costs).some(v=>v!==undefined&&(!Number.isFinite(v)||v<0)))throw Error('Costs must be £0 or more.');
+      if(action==='sale')next=recordSale(db,id,amount,date,undefined,costs);
       if(action==='post'){
         const order=lastTrade(db,id);
         if(!order||tradeStatus(order)!=='Sold')throw Error('This order has already progressed.');
         next=advanceOrder(db,id,'Posted',date);
-        const posted=lastTrade(next,id); if(extraCost>0)posted.extraCost=Math.round(extraCost*100)/100; else delete posted.extraCost;
+        const posted=lastTrade(next,id); setSaleCosts(posted,costs);
       }
       if(action==='advance')next=advanceOrder(db,id,fields.get('stage'),date,Number(fields.get('paid')));
       const refund=(value,day)=>({amount:value,date:day,reason:String(fields.get('reason')).trim(),postage:Number(fields.get('postage')),restock:fields.has('restock')});

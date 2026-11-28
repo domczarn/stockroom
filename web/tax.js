@@ -1,27 +1,26 @@
 'use strict';
 // Self Assessment helper: UK tax year totals (6 April to 5 April) and a CSV of every line.
 
-// £1,000 up to 2026-27; £3,000 from 6 April 2027 (Finance Bill 2026-27).
-const taxAllowance = start => start >= 2027 ? 3000 : 1000;
+// Rates come from taxrates.js (one file, keyed by tax year).
+const taxAllowance = start => ratesFor(start).tradingAllowance;
 const taxPounds = n => '£' + n.toLocaleString('en-GB');
 let taxYear = null;
 
 // How much to put aside: rest-of-UK income tax bands and Class 4 NI (frozen from 2021-22 to 2030-31).
 // Income tax on the side profit is the extra tax on top of other income (a job's pay), so the band matters.
-const TAX_PA = 12570, TAX_BASIC_TOP = 50270, TAX_HIGHER_TOP = 125140;
-function incomeTaxOn(income) {
-  const pa = Math.max(0, TAX_PA - Math.max(0, income - 100000) / 2);
-  const taxable = Math.max(0, income - pa), basicBand = TAX_BASIC_TOP - TAX_PA;
-  return Math.min(taxable, basicBand) * .2 + Math.max(0, Math.min(taxable, TAX_HIGHER_TOP - pa) - basicBand) * .4 + Math.max(0, taxable - (TAX_HIGHER_TOP - pa)) * .45;
+function incomeTaxOn(income, r = ratesFor(taxYear ?? taxYearOf(todayUK()))) {
+  const pa = Math.max(0, r.personalAllowance - Math.max(0, income - r.allowanceTaperFrom) / 2);
+  const taxable = Math.max(0, income - pa), basicBand = r.basicRateLimit - r.personalAllowance;
+  return Math.min(taxable, basicBand) * r.incomeTax.basic + Math.max(0, Math.min(taxable, r.higherRateLimit - pa) - basicBand) * r.incomeTax.higher + Math.max(0, taxable - (r.higherRateLimit - pa)) * r.incomeTax.additional;
 }
-function taxToPutAside(profit, other = 0) {
+function taxToPutAside(profit, other = 0, r = ratesFor(taxYear ?? taxYearOf(todayUK()))) {
   profit = Math.max(0, Number(profit) || 0); other = Math.max(0, Number(other) || 0);
-  const incomeTax = incomeTaxOn(other + profit) - incomeTaxOn(other);
-  const ni = Math.max(0, Math.min(profit, TAX_BASIC_TOP) - TAX_PA) * .06 + Math.max(0, profit - TAX_BASIC_TOP) * .02;
+  const incomeTax = incomeTaxOn(other + profit, r) - incomeTaxOn(other, r);
+  const c4 = r.class4, ni = Math.max(0, Math.min(profit, c4.upper) - c4.lower) * c4.main + Math.max(0, profit - c4.upper) * c4.above;
   const total = Math.round((incomeTax + ni) * 100) / 100;
   return {incomeTax: Math.round(incomeTax * 100) / 100, ni: Math.round(ni * 100) / 100, total, rate: profit ? total / profit : 0};
 }
-const otherIncome = () => { try { const v = localStorage.getItem('stockroom-other-income'); return v === null ? null : Number(v); } catch { return null; } };
+const otherIncome = () => { const b = typeof db !== 'undefined' ? db?.business : null; if (b && Number.isFinite(b.otherIncome)) return b.otherIncome; try { const v = localStorage.getItem('stockroom-other-income'); return v === null ? null : Number(v); } catch { return null; } };
 
 function taxYearOf(date) {
   const [y, m, d] = String(date).slice(0, 10).split('-').map(Number);
@@ -69,6 +68,13 @@ onHook('afterRender', () => {
 document.addEventListener('click', event => { if (event.target.closest('[data-hmrc-open]')) { navigate('Reports'); setTimeout(() => document.querySelector('.hmrc-card')?.scrollIntoView({block: 'start'}), 50); } });
 
 function taxCard() {
+  // Companies don't use Self Assessment for trading profit, the trading allowance or Class 4: show the company view instead.
+  if (typeof isLtd === 'function' && isLtd()) {
+    const b = business();
+    return '<section class="panel tax-card tax-company"><div class="tax-head"><div><h2>' + esc(b.name || 'Your company') + '</h2><p>Sales go in the company’s accounts and Corporation Tax return, not your Self Assessment. The trading allowance doesn’t apply to companies.</p></div></div>' +
+      '<p class="tax-verdict">The corporation tax estimate, tax pot, director’s loan and dividends arrive in the next Reports update. Until then, Export CSV gives your accountant every sale and expense.</p>' +
+      (b.setUp ? '' : '<p><button type="button" class="secondary" data-open-business>Add your company details</button></p>') + '</section>';
+  }
   const years = [...new Set([taxYearOf(todayUK()), ...accountingRows(db).filter(r => r.date).map(r => taxYearOf(r.date))])].sort((a, b) => b - a);
   if (taxYear === null || !years.includes(taxYear)) taxYear = years[0];
   const s = taxSummary(taxYear);

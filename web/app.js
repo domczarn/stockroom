@@ -566,6 +566,7 @@ function openFullItem(item, pane = 'details') {
     form.elements[name].value = item?.[name] ?? (name === 'status' ? 'In Stock' : '');
   }
   form.elements.platform.value=item?.platform||'Vinted';
+  if(typeof fillPaidBy==='function'){fillPaidBy(form.elements.paidBy,item?.paidBy||'');fillPurchaseSource(form.elements.purchaseSource,item?.purchaseSource||'');setReceipt(form.querySelector('[data-receipt-for=item]'),item?.receiptPhoto||'');}
   if(typeof fillSourcingSelect==='function')fillSourcingSelect(item);
   for(const name of ['purchasedAt','receivedAt','listedAt','refundedAt'])form.elements[name].max=todayUK();
   $('itemTradeHistory').innerHTML=(item?.bulkOrderId?'<div class="order-estimate"><b>Bulk order source</b><p>'+esc(orderSource(item))+'</p><button type="button" class="secondary" data-order-origin="'+esc(item.bulkOrderId)+'">View supplier & batch</button></div>':'')+tradeHistory(item);
@@ -688,6 +689,7 @@ form.onsubmit = async event => {
     listingDescription: fields.listingDescription.trim(),
     listingUrl: fields.listingUrl.trim(),
     purchasedAt: fields.purchasedAt,receivedAt:fields.receivedAt,listedAt:fields.listedAt,stage:fields.stage,
+    purchaseSource:fields.purchaseSource||'',paidBy:fields.paidBy||'',receiptPhoto:fields.receiptPhoto||'',
     refundedAt:fields.status==='Refunded'?fields.refundedAt:'',
     purchaseDateReviewed:true,
     listingNotes: fields.listingNotes.trim(),
@@ -781,7 +783,8 @@ document.addEventListener('click', event => {
   form.elements.date.max = todayUK();
   form.elements.linkedStock.innerHTML='<option value="">General expense</option>'+itemOptions(db.items.filter(item=>!item.deletedAt||item.id===row[6]));
   form.elements.linkedStock.value=row[6]||'';
-  form.elements.category.value = ['Packaging','Postage','Cleaning','Repairs','Promotion','Other'].includes(row[2]) ? row[2] : 'Other';
+  form.elements.category.value = (typeof EXPENSE_CATEGORIES !== 'undefined' ? EXPENSE_CATEGORIES : ['Packaging','Postage','Cleaning','Repairs','Promotion','Other']).includes(row[2]) ? row[2] : 'Other';
+  if (typeof fillPaidBy === 'function') { fillPaidBy(form.elements.expensePaidBy, row[8] || ''); setReceipt(form.querySelector('[data-receipt-for=expense]'), row[9] || ''); }
   form.elements.notes.value = row[5] || '';
   $('expenseFields').hidden = kind !== 'expense';
   $('ledgerCost').hidden = kind !== 'sale';
@@ -799,7 +802,7 @@ $('ledgerForm').onsubmit = async event => {
   row[0] = fields.description.trim();
   row[1] = Number(fields.amount);
   if (kind === 'sale') row[3] = fields.purchaseCost === '' ? null : Number(fields.purchaseCost);
-  else { row[2] = fields.category; row[5] = fields.notes.trim(); row[6]=fields.linkedStock||''; }
+  else { row[2] = fields.category; row[5] = fields.notes.trim(); row[6]=fields.linkedStock||''; while (row.length < 8) row.push(row.length === 7 ? '' : null); row[8] = fields.expensePaidBy || ''; row[9] = fields.expenseReceipt || ''; }
   row[4] = fields.date;
   if (index === null) rows.push(row); else rows[index] = row;
   $('ledgerSave').disabled = true;

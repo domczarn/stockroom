@@ -236,7 +236,7 @@ function fillSourcingSelect(item) {
 }
 
 // ---------- HMRC platform reporting tracker ----------
-const REPORT_SALES = 30, REPORT_GROSS = 1700;
+const REPORT_SALES = Object.values(TAX_RATES).at(-1).platformReporting.sales, REPORT_GROSS = Object.values(TAX_RATES).at(-1).platformReporting.gbp;   // from taxrates.js
 function reportingPlatforms(year = todayUK().slice(0, 4)) {
   const items = new Map(db.items.map(i => [i.id, i]));
   const platforms = new Map();

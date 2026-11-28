@@ -224,6 +224,30 @@ for (const viewport of [{width: 390, height: 844}, {width: 1440, height: 900}]) 
     assert.match(csv, /\r\nTOTAL,/);
     assert.doesNotMatch(csv, /£/);
   });
+  await check('business settings switch between sole trader and company', viewport, async page => {
+    await page.evaluate(() => { settingsSection = 'business'; navigate('Account'); render(); });
+    await page.waitForSelector('#businessForm');
+    const soleHidden = await page.evaluate(() => [...document.querySelectorAll('#businessForm [data-biz-only=ltd]')].every(el => el.hidden));
+    assert.ok(soleHidden, 'company-only fields hidden for a sole trader');
+    await page.click('[data-biz-structure=ltd]');
+    await page.fill('#businessForm [name=name]', 'Test Co Ltd');
+    await page.fill('#businessForm [name=companyNumber]', '12345678');
+    assert.equal(await page.inputValue('#businessForm [name=taxPot]'), '19', 'company default tax pot');
+    await page.click('#businessSave');
+    await page.waitForFunction(() => db.business?.structure === 'ltd');
+    const out = await page.evaluate(() => { navigate('Reports'); render(); return {company: !!document.querySelector('.tax-company'), sa: !!document.querySelector('.tax-aside'), overflow: document.documentElement.scrollWidth > innerWidth + 1}; });
+    assert.ok(out.company && !out.sa, 'companies see the company card, not Self Assessment');
+    assert.equal(out.overflow, false);
+    await page.evaluate(async () => { const next = cloneWorkspace(db); delete next.business; await persist(next); });   // back to sole trader for other checks
+  });
+  await check('item form has where bought, paid by and receipt', viewport, async page => {
+    const out = await page.evaluate(() => { navigate('Stock'); render(); openItem(db.items.find(i => !i.deletedAt)); const f = $('form');
+      return {sources: f.elements.purchaseSource.options.length, paid: [...f.elements.paidBy.options].map(o => o.textContent), receipt: !!f.querySelector('[data-receipt-for=item] [data-receipt-input]')}; });
+    assert.ok(out.sources > 5);
+    assert.deepEqual(out.paid, ['Not recorded', 'Business account', 'Personal']);
+    assert.ok(out.receipt);
+    await page.evaluate(() => $('modal').close());
+  });
   await check('delete has undo, offline is explained', viewport, async page => {
     await go(page, 'Stock');
     const id = await page.evaluate(() => db.items.find(i => i.status === 'In Stock' && !i.deletedAt).id);

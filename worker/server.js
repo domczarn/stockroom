@@ -18,6 +18,7 @@ import {adminRoute,appSettings} from './admin.js';
 import {logError} from './alerts.js';
 import {loadWorkspace,saveWorkspace} from './workspace-store.js';
 import {billingRoute,planFor,requirePro,checkNewItems,recordNewItems,deleteOwnAccount} from './billing.js';
+import {feedRoute,feedsApi} from './feeds.js';
 import {ADMIN_EMAIL,identity,authorize,adminOnly,readBody,validateWorkspace,storePhotos,audit,HttpError,emptyWorkspace,rateLimit,exactDate,paid,tx} from './security.js';
 const json = (value, status = 200) => new Response(JSON.stringify(value), {
   status, headers: {'content-type':'application/json','cache-control':'private, no-store'}
@@ -117,6 +118,8 @@ export default {
     try {
       // One-click unsubscribe (mail providers POST from their servers); the link is HMAC-signed.
       if(url.pathname==='/email/unsubscribe'&&(request.method==='GET'||request.method==='POST'))return await unsubscribePage(url,env);
+      // Spreadsheet feeds: public, the signed link is the key (Google Sheets fetches them from its own servers).
+      if(url.pathname.startsWith('/feed/')&&['GET','HEAD'].includes(request.method))return await feedRoute(url,env);
       // Mutations must be same-origin; identity comes from the Stockroom session cookie.
       if (!['GET','HEAD'].includes(request.method)) {
         if (request.headers.get('origin') && request.headers.get('origin') !== url.origin) throw new HttpError(403,'Invalid origin');
@@ -211,6 +214,7 @@ export default {
         if(result)return json(result);
       }
       if (url.pathname === '/api/me' && request.method === 'GET') return json({user:{id:user.id,email:user.email,role:user.admin?'admin':'member'},profile:await ownProfile(env,user),plan:(await planFor(env,user)).plan,announcement:await (async()=>{const a=await appSettings(env);return a.announcement_on==='1'&&a.announcement?{text:a.announcement,tone:a.announcement_tone}:null;})(),sessionManagedBy:'Stockroom'});
+      if (url.pathname === '/api/feeds') return await feedsApi(request,url,env,user.id);
       if (url.pathname === '/api/workspace') {
         const owner=url.searchParams.get('owner')||user.id;
         if(owner!==user.id){adminOnly(user);if(request.method!=='GET')throw new HttpError(403,'Other accounts are read-only.');}
